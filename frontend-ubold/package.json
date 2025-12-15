@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node fix-server.js",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write './src/**/*.{ts,tsx,js,jsx}'",
