@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 
 // Script para iniciar Next.js en modo standalone con configuración para Railway
-// Configura el hostname y puerto para que Railway pueda enrutar el tráfico
+// Configura el hostname para que escuche en todas las interfaces de red
 
-// Establecer hostname y puerto antes de cargar el servidor standalone
-process.env.HOSTNAME = process.env.HOSTNAME || '0.0.0.0'
+// Establecer variables de entorno antes de cargar el servidor
+process.env.HOSTNAME = '0.0.0.0'
 process.env.PORT = process.env.PORT || '8080'
 
-// Cargar y ejecutar el servidor standalone generado por Next.js
-require('./.next/standalone/server.js')
+// El servidor standalone de Next.js debería respetar estas variables
+// Si no funciona, necesitaremos modificar el servidor después del build
+try {
+  require('./.next/standalone/server.js')
+} catch (error) {
+  console.error('Error al cargar el servidor standalone:', error)
+  console.log('Asegúrate de que el build se haya completado correctamente')
+  process.exit(1)
+}
 
