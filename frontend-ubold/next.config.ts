@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // reactStrictMode: false,
+  output: 'standalone', // Optimiza para producción en Railway
   async redirects() {
     return [
       {
