@@ -107,18 +107,6 @@ export const userDropdownItems: UserDropdownItemType[] = [
 ]
 
 export const menuItems: MenuItemType[] = [
-  { key: 'navigation', label: 'Navigation', isTitle: true },
-  {
-    key: 'dashboards',
-    label: 'Dashboards',
-    icon: LuCircleGauge,
-    badge: { variant: 'success', text: '02' },
-    children: [
-      { key: 'dashboard-v1', label: 'Dashboard 1', url: '/dashboard' },
-      { key: 'dashboard-v2', label: 'Dashboard 2', url: '/dashboard2' },
-    ],
-  },
-  { key: 'landing', label: 'Landing Page', icon: LuEarth, url: '/landing' },
   { key: 'comercial', label: 'COMERCIAL', isTitle: true },
   {
     key: 'crm',
@@ -140,11 +128,17 @@ export const menuItems: MenuItemType[] = [
     ],
   },
   { key: 'atencion-clientes', label: 'ATENCIÓN CLIENTES', isTitle: true },
-  { key: 'apps', label: 'Apps', isTitle: true },
-  { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
-  { key: 'calendar', label: 'Calendar', icon: LuCalendar, url: '/calendar' },
-  { key: 'file-manager', label: 'File Manager', icon: LuFolderOpenDot, url: '/file-manager' },
-
+  {
+    key: 'support-center',
+    label: 'Centro de Soporte',
+    icon: TbSettings2,
+    children: [
+      { key: 'tickets-list', label: 'Tickets List', url: '/tickets-list' },
+      { key: 'ticket-details', label: 'Ticket Details', url: '/ticket-details' },
+      { key: 'ticket-create', label: 'Ticket Create', url: '/ticket-create' },
+    ],
+  },
+  { key: 'ecommerce-section', label: 'ECOMMERCE', isTitle: true },
   {
     key: 'ecommerce',
     label: 'Ecommerce',
@@ -181,6 +175,24 @@ export const menuItems: MenuItemType[] = [
       { key: 'reviews', label: 'Reviews', url: '/reviews' },
     ],
   },
+  { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
+  { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
+  { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
+  { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
+  { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
+  {
+    key: 'equipos',
+    label: 'Equipos',
+    icon: LuUsers,
+    children: [
+      { key: 'contacts', label: 'Contacts', url: '/users/contacts' },
+      { key: 'profile', label: 'Profile', url: '/users/profile' },
+      { key: 'roles', label: 'Roles', url: '/users/roles' },
+      { key: 'roles-details', label: 'Roles Details', url: '/users/roles-details' },
+      { key: 'permissions', label: 'Permissions', url: '/users/permissions' },
+    ],
+  },
+  { key: 'tienda-section', label: 'TIENDA', isTitle: true },
   {
     key: 'tienda',
     label: 'Tienda',
