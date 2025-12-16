@@ -8,26 +8,17 @@ export const dynamic = 'force-dynamic'
 
 export default async function ProductosDebugPage() {
   const endpointsToTest = [
-    // Variaciones basadas en "Product · Libro · Edición"
+    // Endpoint principal confirmado
     '/api/product-libro-edicion',
+    // Variaciones por si acaso
     '/api/product-libro-edicions',
     '/api/producto-libro-edicion',
-    '/api/producto-libro-edicions',
-    '/api/product-libro-ediciones',
     '/api/libro-edicion',
-    '/api/libro-edicions',
     '/api/edicion',
-    '/api/edicions',
-    // Variaciones simples
+    // Fallbacks
     '/api/producto',
     '/api/productos',
     '/api/products',
-    '/api/ecommerce-productos',
-    '/api/ecommerce-products',
-    '/api/tienda-productos',
-    '/api/tienda-products',
-    '/api/woocommerce-products',
-    '/api/wo-products',
   ]
 
   const results: Array<{ endpoint: string; success: boolean; error?: string; data?: any }> = []

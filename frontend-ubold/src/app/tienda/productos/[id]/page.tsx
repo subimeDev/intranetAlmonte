@@ -34,15 +34,15 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
         let response: any = null
         
         try {
-          response = await strapiClient.get<any>(`/api/producto/${productoId}?populate=*`)
+          response = await strapiClient.get<any>(`/api/product-libro-edicion/${productoId}?populate=*`)
         } catch {
           try {
-            response = await strapiClient.get<any>(`/api/productos/${productoId}?populate=*`)
+            response = await strapiClient.get<any>(`/api/product-libro-edicions/${productoId}?populate=*`)
           } catch {
             try {
-              response = await strapiClient.get<any>(`/api/products/${productoId}?populate=*`)
+              response = await strapiClient.get<any>(`/api/producto/${productoId}?populate=*`)
             } catch {
-              response = await strapiClient.get<any>(`/api/ecommerce-productos/${productoId}?populate=*`)
+              response = await strapiClient.get<any>(`/api/productos/${productoId}?populate=*`)
             }
           }
         }
@@ -80,21 +80,16 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
     setSuccess(false)
 
     try {
-      // Determinar qué endpoint usar (empezar con "producto" singular)
-      let endpoint = `/api/producto/${productoId}`
+      // Endpoint correcto: product-libro-edicion
+      let endpoint = `/api/product-libro-edicion/${productoId}`
       try {
-        await strapiClient.get<any>(`/api/producto/${productoId}`)
+        await strapiClient.get<any>(`/api/product-libro-edicion/${productoId}`)
       } catch {
         try {
-          await strapiClient.get<any>(`/api/productos/${productoId}`)
-          endpoint = `/api/productos/${productoId}`
+          await strapiClient.get<any>(`/api/product-libro-edicions/${productoId}`)
+          endpoint = `/api/product-libro-edicions/${productoId}`
         } catch {
-          try {
-            await strapiClient.get<any>(`/api/products/${productoId}`)
-            endpoint = `/api/products/${productoId}`
-          } catch {
-            endpoint = `/api/ecommerce-productos/${productoId}`
-          }
+          endpoint = `/api/producto/${productoId}`
         }
       }
 

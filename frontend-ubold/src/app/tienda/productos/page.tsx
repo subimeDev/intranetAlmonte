@@ -17,39 +17,18 @@ export default async function ProductosPage() {
     // Probamos con diferentes endpoints según las colecciones disponibles
     let response: any = null
     
-    // Intentar primero con variaciones de "Product · Libro · Edición"
+    // Endpoint correcto: product-libro-edicion (según la URL de Strapi)
     try {
       response = await strapiClient.get<any>('/api/product-libro-edicion?populate=*&pagination[pageSize]=100')
     } catch {
+      // Fallbacks por si acaso
       try {
         response = await strapiClient.get<any>('/api/product-libro-edicions?populate=*&pagination[pageSize]=100')
       } catch {
         try {
           response = await strapiClient.get<any>('/api/producto-libro-edicion?populate=*&pagination[pageSize]=100')
         } catch {
-          try {
-            response = await strapiClient.get<any>('/api/libro-edicion?populate=*&pagination[pageSize]=100')
-          } catch {
-            try {
-              response = await strapiClient.get<any>('/api/edicion?populate=*&pagination[pageSize]=100')
-            } catch {
-              try {
-                // Intentar con "producto" simple
-                response = await strapiClient.get<any>('/api/producto?populate=*&pagination[pageSize]=100')
-              } catch {
-                try {
-                  response = await strapiClient.get<any>('/api/productos?populate=*&pagination[pageSize]=100')
-                } catch {
-                  try {
-                    response = await strapiClient.get<any>('/api/products?populate=*&pagination[pageSize]=100')
-                  } catch {
-                    // Último intento con ecommerce
-                    response = await strapiClient.get<any>('/api/ecommerce-productos?populate=*&pagination[pageSize]=100')
-                  }
-                }
-              }
-            }
-          }
+          response = await strapiClient.get<any>('/api/producto?populate=*&pagination[pageSize]=100')
         }
       }
     }
@@ -91,13 +70,13 @@ export default async function ProductosPage() {
                   <div>
                     <strong>URL de Strapi:</strong> {STRAPI_API_URL}
                     <br />
-                <small className="text-muted">
-                  Endpoints probados: <code>/api/product-libro-edicion</code>, <code>/api/producto</code>, etc.
-                  <br />
-                  <a href="/tienda/productos/debug" className="text-decoration-underline">
-                    Ver todos los endpoints probados
-                  </a>
-                </small>
+                    <small className="text-muted">
+                      Endpoint: <code>/api/product-libro-edicion</code>
+                      <br />
+                      <a href="/tienda/productos/debug" className="text-decoration-underline">
+                        🔍 Ver diagnóstico completo
+                      </a>
+                    </small>
                   </div>
                   <a href="/tienda/productos/debug" className="text-decoration-underline">
                     🔍 Diagnóstico
@@ -107,17 +86,52 @@ export default async function ProductosPage() {
 
               {/* Mostrar error si existe */}
               {error && (
-                <Alert variant="warning" className="mb-3">
+                <Alert variant="danger" className="mb-3">
                   <strong>⚠️ Error:</strong> {error}
                   <br />
-                  <small>
-                    Asegúrate de que:
-                    <ul className="mb-0 mt-2">
-                      <li>La colección de productos existe en Strapi</li>
-                      <li>El API Token está configurado</li>
-                      <li>Los permisos están habilitados en Strapi (Settings → Roles → Public → Find)</li>
-                    </ul>
-                  </small>
+                  <br />
+                  <strong>🔧 Pasos para solucionar:</strong>
+                  <ol className="mb-0 mt-2">
+                    <li>
+                      <strong>Configurar permisos en Strapi:</strong>
+                      <ul className="mb-2">
+                        <li>Ve a Strapi Admin → <strong>Settings</strong> → <strong>Users & Permissions plugin</strong> → <strong>Roles</strong></li>
+                        <li>Haz clic en <strong>"Public"</strong></li>
+                        <li>Busca <strong>"Product · Libro · Edición"</strong> o <strong>"product-libro-edicion"</strong></li>
+                        <li>Marca la casilla <strong>"find"</strong></li>
+                        <li>Haz clic en <strong>"Save"</strong></li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Verificar API Token:</strong>
+                      <ul className="mb-2">
+                        <li>Ve a <strong>Settings</strong> → <strong>Users & Permissions plugin</strong> → <strong>API Tokens</strong></li>
+                        <li>Verifica que tu token tenga permisos de <strong>"Read"</strong> o <strong>"Full access"</strong></li>
+                        <li>Verifica que el token esté configurado en Railway (variable <code>STRAPI_API_TOKEN</code>)</li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Probar manualmente:</strong>
+                      <br />
+                      <code className="d-block mt-1 p-2 bg-light rounded">
+                        https://strapi.moraleja.cl/api/product-libro-edicion?populate=*
+                      </code>
+                      <small className="text-muted">(Agrega el header Authorization: Bearer TU_TOKEN)</small>
+                    </li>
+                  </ol>
+                  <div className="mt-3">
+                    <a href="/tienda/productos/debug" className="btn btn-sm btn-outline-primary me-2">
+                      🔍 Ver Diagnóstico Completo
+                    </a>
+                    <a 
+                      href="https://strapi.moraleja.cl/admin/settings/users-permissions/roles" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-outline-secondary"
+                    >
+                      ⚙️ Configurar Permisos en Strapi
+                    </a>
+                  </div>
                 </Alert>
               )}
 
