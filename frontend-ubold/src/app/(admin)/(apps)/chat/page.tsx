@@ -99,21 +99,29 @@ const Page = () => {
         }
         
         const contactosMapeados: ContactType[] = clientesArray
-          .filter((cliente: any) => cliente && cliente.id) // Solo filtrar por ID válido
+          .filter((cliente: any) => {
+            // Solo incluir clientes que tengan ID y el campo "nombre" con valor
+            if (!cliente || !cliente.id) return false
+            
+            const attrs = cliente.attributes || {}
+            const nombre = attrs.nombre // Campo "nombre" en minúsculas según el schema
+            
+            // Solo incluir si tiene el campo "nombre" con valor
+            return !!nombre && nombre.trim() !== ''
+          })
           .map((cliente: any) => {
             const attrs = cliente.attributes || {}
             
-            // Obtener el nombre - usar SOLO el campo "nombre" (minúsculas) como aparece en el formulario de Strapi
-            // El campo se llama "nombre" en minúsculas según el schema.json
+            // Obtener el nombre - usar SOLO el campo "nombre" (minúsculas) del schema de Strapi
             const nombre = attrs.nombre || ''
             
-            // Si no tiene nombre, mostrar advertencia pero igual incluirlo
+            // Ya filtramos arriba, así que aquí siempre debería haber nombre
             if (!nombre || nombre.trim() === '') {
-              console.warn('[Chat] Cliente sin campo "nombre":', {
+              console.error('[Chat] ERROR: Cliente sin nombre después del filtro:', {
                 id: cliente.id,
-                attrsKeys: Object.keys(attrs),
-                correo: attrs.correo_electronico,
+                attrs: attrs,
               })
+              return null
             }
             
             const ultimaActividad = attrs.ultima_actividad || attrs.ULTIMA_ACTIVIDAD
@@ -128,18 +136,18 @@ const Page = () => {
             // Debug: Log de cada cliente mapeado
             console.log('[Chat] Cliente mapeado:', {
               id: cliente.id,
-              nombre: nombre.trim() || '(sin nombre)',
-              nombreRaw: attrs.nombre,
+              nombre: nombre.trim(),
               correo: attrs.correo_electronico,
               isOnline,
             })
             
             return {
               id: String(cliente.id),
-              name: nombre.trim() || `Cliente #${cliente.id}`, // Solo usar fallback si realmente no hay nombre
+              name: nombre.trim(), // SOLO el nombre real, sin fallbacks
               isOnline,
             }
           })
+          .filter((contacto: ContactType | null) => contacto !== null) as ContactType[]
         
         console.log('[Chat] Total contactos mapeados:', contactosMapeados.length)
         
