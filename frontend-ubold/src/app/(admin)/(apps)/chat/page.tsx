@@ -99,35 +99,21 @@ const Page = () => {
         }
         
         const contactosMapeados: ContactType[] = clientesArray
-          .filter((cliente: any) => {
-            // Solo incluir clientes que tengan ID y nombre
-            if (!cliente || !cliente.id) return false
-            
-            const attrs = cliente.attributes || {}
-            // Priorizar NOMBRE en mayúsculas (como viene de Strapi)
-            const nombre = attrs.NOMBRE || attrs.nombre || attrs.name
-            
-            // Solo incluir si tiene nombre (no usar fallbacks)
-            return !!nombre && nombre.trim() !== ''
-          })
+          .filter((cliente: any) => cliente && cliente.id) // Solo filtrar por ID válido
           .map((cliente: any) => {
             const attrs = cliente.attributes || {}
             
-            // Obtener el nombre - priorizar NOMBRE (mayúsculas) como en otros content types
-            const nombre = 
-              attrs.NOMBRE ||        // Primero intentar en mayúsculas (como en pedidos)
-              attrs.nombre ||        // Luego en minúsculas
-              attrs.name ||          // O en inglés
-              ''
+            // Obtener el nombre - usar SOLO el campo "nombre" (minúsculas) como aparece en el formulario de Strapi
+            // El campo se llama "nombre" en minúsculas según el schema.json
+            const nombre = attrs.nombre || ''
             
-            // Si no hay nombre, no debería llegar aquí por el filter, pero por seguridad:
+            // Si no tiene nombre, mostrar advertencia pero igual incluirlo
             if (!nombre || nombre.trim() === '') {
-              console.warn('[Chat] Cliente sin nombre encontrado:', {
+              console.warn('[Chat] Cliente sin campo "nombre":', {
                 id: cliente.id,
-                attrs: Object.keys(attrs),
-                attrsValues: attrs,
+                attrsKeys: Object.keys(attrs),
+                correo: attrs.correo_electronico,
               })
-              return null
             }
             
             const ultimaActividad = attrs.ultima_actividad || attrs.ULTIMA_ACTIVIDAD
@@ -142,23 +128,20 @@ const Page = () => {
             // Debug: Log de cada cliente mapeado
             console.log('[Chat] Cliente mapeado:', {
               id: cliente.id,
-              nombreFinal: nombre.trim(),
-              nombreDesdeNOMBRE: attrs.NOMBRE,
-              nombreDesdeNombre: attrs.nombre,
-              nombreDesdeName: attrs.name,
+              nombre: nombre.trim() || '(sin nombre)',
+              nombreRaw: attrs.nombre,
               correo: attrs.correo_electronico,
               isOnline,
             })
             
             return {
               id: String(cliente.id),
-              name: nombre.trim(), // Usar solo el nombre real, sin fallbacks
+              name: nombre.trim() || `Cliente #${cliente.id}`, // Solo usar fallback si realmente no hay nombre
               isOnline,
             }
           })
-          .filter((contacto: ContactType | null) => contacto !== null) as ContactType[]
         
-        console.log('[Chat] Total contactos mapeados (con nombre):', contactosMapeados.length)
+        console.log('[Chat] Total contactos mapeados:', contactosMapeados.length)
         
         setContacts(contactosMapeados)
         if (contactosMapeados.length > 0 && !currentContact) {
