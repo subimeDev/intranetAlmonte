@@ -1,13 +1,9 @@
 'use client'
-import logoDark from '@/assets/images/logo-black.png'
-import logoSm from '@/assets/images/logo-sm.png'
-import logo from '@/assets/images/logo.png'
 import SimplebarClient from '@/components/client-wrapper/SimplebarClient'
+import Logo from '@/components/Logo'
 import { useLayoutContext } from '@/context/useLayoutContext'
 import AppMenu from '@/layouts/components/sidenav/components/AppMenu'
 import UserProfile from '@/layouts/components/sidenav/components/UserProfile'
-import Image from 'next/image'
-import Link from 'next/link'
 import { TbMenu4, TbX } from 'react-icons/tb'
 
 const Sidenav = () => {
@@ -25,25 +21,25 @@ const Sidenav = () => {
 
   return (
     <div className="sidenav-menu">
-      <Link href="/" className="logo">
+      <div className="logo">
         <span className="logo logo-light">
           <span className="logo-lg">
-            <Image src={logo} alt="logo" width={94} height={22} />
+            <Logo size="lg" />
           </span>
           <span className="logo-sm">
-            <Image src={logoSm} alt="small logo" width={20} height={22} />
+            <Logo size="sm" />
           </span>
         </span>
 
         <span className="logo logo-dark">
           <span className="logo-lg">
-            <Image src={logoDark} alt="dark logo" width={94} height={22} />
+            <Logo size="lg" />
           </span>
           <span className="logo-sm">
-            <Image src={logoSm} alt="small logo" width={20} height={22} />
+            <Logo size="sm" />
           </span>
         </span>
-      </Link>
+      </div>
 
       <button className="button-on-hover">
         <TbMenu4 onClick={toggleSidebar} className="fs-22 align-middle" />
