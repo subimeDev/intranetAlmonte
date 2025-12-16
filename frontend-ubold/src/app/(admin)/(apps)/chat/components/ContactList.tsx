@@ -13,7 +13,7 @@ type PropsType = {
 }
 
 const ContactList = ({ contacts, setContact }: PropsType) => {
-  const [currentContact, setCurrentContact] = useState<ContactType>(contacts[0])
+  const [currentContact, setCurrentContact] = useState<ContactType | null>(contacts[0] || null)
   const [searchTerm, setSearchTerm] = useState('')
 
   // filter contacts by name or lastMessage
@@ -22,6 +22,12 @@ const ContactList = ({ contacts, setContact }: PropsType) => {
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (contact.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false),
   )
+
+  // Actualizar currentContact cuando cambia el primer contacto
+  if (contacts.length > 0 && (!currentContact || !contacts.find((c) => c.id === currentContact.id))) {
+    setCurrentContact(contacts[0])
+  }
+
   return (
     <Card className="h-100 mb-0 border-end-0 rounded-end-0">
       <CardHeader className="p-3 border-light card-bg d-block">
@@ -30,7 +36,7 @@ const ContactList = ({ contacts, setContact }: PropsType) => {
             <FormControl
               type="text"
               className="bg-light-subtle border-light"
-              placeholder="Search here..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -42,12 +48,17 @@ const ContactList = ({ contacts, setContact }: PropsType) => {
         </div>
       </CardHeader>
       <SimplebarClient className="card-body p-2" style={{ height: 'calc(100% - 100px)' }} data-simplebar data-simplebar-md>
-        <ListGroup variant="flush" className="chat-list">
-          {filteredContacts.map((contact) => (
+        {filteredContacts.length === 0 ? (
+          <div className="text-center text-muted p-4">
+            {searchTerm ? 'No se encontraron contactos' : 'No hay contactos disponibles'}
+          </div>
+        ) : (
+          <ListGroup variant="flush" className="chat-list">
+            {filteredContacts.map((contact) => (
             <ListGroupItem
               key={contact.id}
               action
-              className={`d-flex gap-2 justify-content-between ${contact.id === currentContact.id ? 'active' : ''}`}
+              className={`d-flex gap-2 justify-content-between ${currentContact && contact.id === currentContact.id ? 'active' : ''}`}
               onClick={() => {
                 setContact(contact)
                 setCurrentContact(contact)
@@ -70,8 +81,9 @@ const ContactList = ({ contacts, setContact }: PropsType) => {
                 {contact.unreadMessages && <span className="badge text-bg-primary fs-xxs">{contact.unreadMessages}</span>}
               </span>
             </ListGroupItem>
-          ))}
-        </ListGroup>
+            ))}
+          </ListGroup>
+        )}
       </SimplebarClient>
     </Card>
   )
