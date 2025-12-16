@@ -165,17 +165,25 @@ export const menuItems: MenuItemType[] = [
     label: 'Tienda',
     icon: TbBasket,
     children: [
-      { key: 'tienda-test', label: 'Test Strapi', url: '/tienda/test-strapi' },
       { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
       { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
       {
-        key: 'tienda-gestion',
-        label: 'Gestionar productos',
+        key: 'tienda-productos',
+        label: 'Productos',
         children: [
-          { key: 'tienda-pedidos', label: 'Pedidos', url: '/tienda/pedidos' },
-          { key: 'tienda-productos', label: 'Productos', url: '/tienda/productos' },
+          { key: 'tienda-productos-listing', label: 'Listing', url: '/tienda/productos' },
+          { key: 'tienda-productos-editar', label: 'Editar Producto', url: '/tienda/productos/editar' },
         ],
       },
+      {
+        key: 'tienda-pedidos',
+        label: 'Pedidos',
+        children: [
+          { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
+          { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
+        ],
+      },
+      { key: 'tienda-test', label: 'Test Strapi', url: '/tienda/test-strapi' },
     ],
   },
   {
@@ -846,13 +854,22 @@ export const horizontalMenuItems: MenuItemType[] = [
           { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
           { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
           {
-            key: 'tienda-gestion',
-            label: 'Gestionar productos',
+            key: 'tienda-productos',
+            label: 'Productos',
             children: [
-              { key: 'tienda-pedidos', label: 'Pedidos', url: '/tienda/pedidos' },
-              { key: 'tienda-editar-pedidos', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
+              { key: 'tienda-productos-listing', label: 'Listing', url: '/tienda/productos' },
+              { key: 'tienda-productos-editar', label: 'Editar Producto', url: '/tienda/productos/editar' },
             ],
           },
+          {
+            key: 'tienda-pedidos',
+            label: 'Pedidos',
+            children: [
+              { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
+              { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
+            ],
+          },
+          { key: 'tienda-test', label: 'Test Strapi', url: '/tienda/test-strapi' },
         ],
       },
       {
