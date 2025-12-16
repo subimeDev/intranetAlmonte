@@ -87,7 +87,15 @@ const Page = () => {
         
         // Debug: Ver estructura completa del primer cliente
         if (clientesArray.length > 0) {
-          console.log('[Chat] Estructura completa del primer cliente:', JSON.stringify(clientesArray[0], null, 2))
+          const primerCliente = clientesArray[0]
+          console.log('[Chat] Estructura completa del primer cliente:', JSON.stringify(primerCliente, null, 2))
+          console.log('[Chat] Campos disponibles en attributes:', {
+            keys: Object.keys(primerCliente.attributes || {}),
+            nombre: primerCliente.attributes?.nombre,
+            NOMBRE: primerCliente.attributes?.NOMBRE,
+            name: primerCliente.attributes?.name,
+            todosLosCampos: primerCliente.attributes,
+          })
         }
         
         const contactosMapeados: ContactType[] = clientesArray
@@ -134,7 +142,10 @@ const Page = () => {
             // Debug: Log de cada cliente mapeado
             console.log('[Chat] Cliente mapeado:', {
               id: cliente.id,
-              nombre: nombre.trim(),
+              nombreFinal: nombre.trim(),
+              nombreDesdeNOMBRE: attrs.NOMBRE,
+              nombreDesdeNombre: attrs.nombre,
+              nombreDesdeName: attrs.name,
               correo: attrs.correo_electronico,
               isOnline,
             })
