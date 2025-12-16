@@ -165,6 +165,7 @@ export const menuItems: MenuItemType[] = [
     label: 'Tienda',
     icon: TbBasket,
     children: [
+      { key: 'tienda-test', label: 'Test Strapi', url: '/tienda/test-strapi' },
       { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
       { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
       {
