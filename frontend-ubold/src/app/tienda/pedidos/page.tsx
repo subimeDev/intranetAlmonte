@@ -95,7 +95,7 @@ export default async function PedidosPage() {
                         <th>Número de Pedido</th>
                         <th>Fecha de Pedido</th>
                         <th>Estado</th>
-                        <th>Status</th>
+                        <th>Publicación</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
@@ -104,11 +104,11 @@ export default async function PedidosPage() {
                         // Obtener los campos según la estructura de Strapi
                         const numeroPedido = pedido.attributes?.NUMERO_PEDIDO || pedido.attributes?.numero_pedido || pedido.attributes?.numeroPedido || pedido.id
                         const fechaPedido = pedido.attributes?.FECHA_PEDIDO || pedido.attributes?.fecha_pedido || pedido.attributes?.fechaPedido || pedido.attributes?.createdAt
-                        const estado = pedido.attributes?.ESTADO || pedido.attributes?.estado || 'N/A'
-                        const status = pedido.attributes?.STATUS || pedido.attributes?.status || 'N/A'
+                        const estado = pedido.attributes?.ESTADO || pedido.attributes?.estado || 'Sin estado'
+                        const status = pedido.attributes?.STATUS || pedido.attributes?.status || 'Sin estado'
                         
                         // Formatear fecha si existe
-                        let fechaFormateada = 'N/A'
+                        let fechaFormateada = 'Sin fecha'
                         if (fechaPedido) {
                           try {
                             const fecha = new Date(fechaPedido)

@@ -101,7 +101,7 @@ export default async function TurnoPage() {
                         <tr key={turno.id}>
                           <td>#{turno.id}</td>
                           <td>
-                            {turno.attributes?.numero || turno.attributes?.numeroTurno || 'N/A'}
+                            <strong>{turno.attributes?.numero || turno.attributes?.numeroTurno || 'Sin número'}</strong>
                           </td>
                           <td>
                             <span className="badge bg-primary">
@@ -110,8 +110,13 @@ export default async function TurnoPage() {
                           </td>
                           <td>
                             {turno.attributes?.createdAt 
-                              ? new Date(turno.attributes.createdAt).toLocaleDateString()
-                              : 'N/A'}
+                              ? new Date(turno.attributes.createdAt).toLocaleDateString('es-CL', {
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })
+                              : 'Sin fecha'}
                           </td>
                           <td>
                             <a href={`/tienda/turno/${turno.id}`} className="btn btn-sm btn-primary">
