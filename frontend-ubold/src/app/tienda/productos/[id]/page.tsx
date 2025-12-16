@@ -22,10 +22,10 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
   
   const [formData, setFormData] = useState({
     nombre: '',
-    precio: 0,
-    stock: 0,
-    estado: 'Borrador',
+    slug: '',
     descripcion: '',
+    tipoVisualizacion: 'default',
+    estado: 'Borrador',
   })
 
   useEffect(() => {
@@ -53,11 +53,11 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
           
           setProducto(prod)
           setFormData({
-            nombre: attrs.nombre || attrs.name || attrs.titulo || attrs.title || '',
-            precio: attrs.precio || attrs.price || attrs.precio_venta || 0,
-            stock: attrs.stock || attrs.cantidad || attrs.inventory || 0,
-            estado: attrs.estado || attrs.status || (attrs.publishedAt ? 'Publicado' : 'Borrador'),
-            descripcion: attrs.descripcion || attrs.description || attrs.descripcion_corta || '',
+            nombre: attrs.name || '',
+            slug: attrs.slug || '',
+            descripcion: attrs.descripcion || '',
+            tipoVisualizacion: attrs.tipo_visualizacion || 'default',
+            estado: attrs.publishedAt ? 'Publicado' : 'Borrador',
           })
         } else {
           setError('Producto no encontrado')
@@ -98,27 +98,21 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
         }
       }
 
-      // Preparar datos para actualizar
+      // Preparar datos para actualizar según la estructura de Strapi
       const updateData: any = {
         data: {
-          nombre: formData.nombre,
-          precio: formData.precio,
-          stock: formData.stock,
-          estado: formData.estado,
+          name: formData.nombre,
+          slug: formData.slug,
           descripcion: formData.descripcion,
+          tipo_visualizacion: formData.tipoVisualizacion,
         }
       }
 
-      // Intentar con diferentes nombres de campos según la estructura de Strapi
-      const attrs = producto?.attributes || {}
-      if (attrs.name) {
-        updateData.data.name = formData.nombre
-      }
-      if (attrs.price) {
-        updateData.data.price = formData.precio
-      }
-      if (attrs.inventory) {
-        updateData.data.inventory = formData.stock
+      // Si está publicado, agregar publishedAt
+      if (formData.estado === 'Publicado') {
+        updateData.data.publishedAt = new Date().toISOString()
+      } else {
+        updateData.data.publishedAt = null
       }
 
       await strapiClient.put<any>(endpoint, updateData)
@@ -193,7 +187,7 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
                   <div className="row">
                     <div className="col-md-6">
                       <Form.Group className="mb-3">
-                        <Form.Label>Nombre del Producto</Form.Label>
+                        <Form.Label>Nombre del Producto *</Form.Label>
                         <Form.Control
                           type="text"
                           value={formData.nombre}
@@ -205,26 +199,32 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
 
                     <div className="col-md-6">
                       <Form.Group className="mb-3">
-                        <Form.Label>Precio</Form.Label>
+                        <Form.Label>Slug *</Form.Label>
                         <Form.Control
-                          type="number"
-                          step="0.01"
-                          value={formData.precio}
-                          onChange={(e) => setFormData({ ...formData, precio: parseFloat(e.target.value) || 0 })}
+                          type="text"
+                          value={formData.slug}
+                          onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                           required
+                          placeholder="categoria-producto"
                         />
+                        <Form.Text className="text-muted">
+                          URL amigable del producto (ej: categoria-producto)
+                        </Form.Text>
                       </Form.Group>
                     </div>
 
                     <div className="col-md-6">
                       <Form.Group className="mb-3">
-                        <Form.Label>Stock</Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={formData.stock}
-                          onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                          required
-                        />
+                        <Form.Label>Tipo de Visualización</Form.Label>
+                        <Form.Select
+                          value={formData.tipoVisualizacion}
+                          onChange={(e) => setFormData({ ...formData, tipoVisualizacion: e.target.value })}
+                        >
+                          <option value="default">Default</option>
+                          <option value="grid">Grid</option>
+                          <option value="list">List</option>
+                          <option value="card">Card</option>
+                        </Form.Select>
                       </Form.Group>
                     </div>
 
@@ -237,7 +237,6 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
                         >
                           <option value="Publicado">Publicado</option>
                           <option value="Borrador">Borrador</option>
-                          <option value="Pendiente">Pendiente</option>
                         </Form.Select>
                       </Form.Group>
                     </div>
@@ -250,8 +249,16 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
                           rows={4}
                           value={formData.descripcion}
                           onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                          placeholder="Descripción del producto..."
                         />
                       </Form.Group>
+                    </div>
+
+                    <div className="col-12">
+                      <Alert variant="info" className="mb-0">
+                        <strong>ℹ️ Nota:</strong> Los campos de imagen, categoría padre, categorías hijas y externalIds 
+                        se gestionan directamente en Strapi. Para editarlos, ve a Strapi → Content Manager → Producto.
+                      </Alert>
                     </div>
                   </div>
 

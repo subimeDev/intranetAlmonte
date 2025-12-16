@@ -103,8 +103,8 @@ export default async function ProductosPage() {
                         <tr>
                           <th>ID</th>
                           <th>Nombre</th>
-                          <th>Precio</th>
-                          <th>Stock</th>
+                          <th>Imagen</th>
+                          <th>Tipo Visualización</th>
                           <th>Estado</th>
                           <th>Acciones</th>
                         </tr>
@@ -113,49 +113,36 @@ export default async function ProductosPage() {
                         {productos.map((producto: any) => {
                           const attrs = producto.attributes || {}
                           
-                          const nombre = 
-                            attrs.nombre || 
-                            attrs.name || 
-                            attrs.titulo ||
-                            attrs.title ||
-                            'Sin nombre'
-                          
-                          const precio = 
-                            attrs.precio || 
-                            attrs.price || 
-                            attrs.precio_venta ||
-                            0
-                          
-                          const stock = 
-                            attrs.stock || 
-                            attrs.cantidad ||
-                            attrs.inventory ||
-                            0
-                          
-                          const estado = 
-                            attrs.estado || 
-                            attrs.status ||
-                            (attrs.publishedAt ? 'Publicado' : 'Borrador')
+                          // Campos según la estructura de Strapi
+                          const nombre = attrs.name || 'Sin nombre'
+                          const slug = attrs.slug || ''
+                          const descripcion = attrs.descripcion || ''
+                          const tipoVisualizacion = attrs.tipo_visualizacion || 'default'
+                          const estado = attrs.publishedAt ? 'Publicado' : 'Borrador'
                           
                           return (
                             <tr key={producto.id}>
                               <td>#{producto.id}</td>
                               <td>
                                 <strong>{nombre}</strong>
-                              </td>
-                              <td>${precio.toLocaleString('es-CL')}</td>
-                              <td>
-                                <span className={`badge ${
-                                  stock > 0 ? 'bg-success' : 'bg-danger'
-                                }`}>
-                                  {stock}
-                                </span>
+                                {slug && (
+                                  <br />
+                                  <small className="text-muted">/{slug}</small>
+                                )}
                               </td>
                               <td>
+                                {attrs.imagen?.data ? (
+                                  <span className="badge bg-info">Con imagen</span>
+                                ) : (
+                                  <span className="badge bg-secondary">Sin imagen</span>
+                                )}
+                              </td>
+                              <td>
+                                <span className="badge bg-primary">{tipoVisualizacion}</span>
+                              </td>
+                              <td>
                                 <span className={`badge ${
-                                  estado === 'Publicado' || estado === 'published' ? 'bg-success' : 
-                                  estado === 'Borrador' || estado === 'draft' ? 'bg-secondary' : 
-                                  'bg-primary'
+                                  estado === 'Publicado' ? 'bg-success' : 'bg-secondary'
                                 }`}>
                                   {estado}
                                 </span>
