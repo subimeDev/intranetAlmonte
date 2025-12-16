@@ -84,18 +84,37 @@ const Page = () => {
         
         // Mapear clientes de Strapi a ContactType
         const clientesArray = Array.isArray(data.data) ? data.data : [data.data]
+        
+        // Debug: Ver estructura completa del primer cliente
+        if (clientesArray.length > 0) {
+          console.log('[Chat] Estructura completa del primer cliente:', JSON.stringify(clientesArray[0], null, 2))
+        }
+        
         const contactosMapeados: ContactType[] = clientesArray
-          .filter((cliente: any) => cliente && cliente.id) // Filtrar clientes válidos
+          .filter((cliente: any) => {
+            // Solo incluir clientes que tengan ID y nombre
+            if (!cliente || !cliente.id) return false
+            
+            const attrs = cliente.attributes || {}
+            const nombre = attrs.nombre || attrs.NOMBRE || attrs.name
+            
+            // Solo incluir si tiene nombre (no usar fallbacks)
+            return !!nombre && nombre.trim() !== ''
+          })
           .map((cliente: any) => {
             const attrs = cliente.attributes || {}
             
-            // Intentar obtener el nombre de diferentes formas posibles
-            const nombre = 
-              attrs.nombre ||           // Campo estándar
-              attrs.NOMBRE ||           // Si viene en mayúsculas
-              attrs.name ||             // Si viene en inglés
-              attrs.correo_electronico?.split('@')[0] || // Usar email como fallback
-              `Cliente #${cliente.id}`  // Último recurso
+            // Obtener el nombre - solo del campo nombre (sin fallbacks)
+            const nombre = attrs.nombre || attrs.NOMBRE || attrs.name || ''
+            
+            // Si no hay nombre, no debería llegar aquí por el filter, pero por seguridad:
+            if (!nombre || nombre.trim() === '') {
+              console.warn('[Chat] Cliente sin nombre encontrado:', {
+                id: cliente.id,
+                attrs: Object.keys(attrs),
+              })
+              return null
+            }
             
             const ultimaActividad = attrs.ultima_actividad || attrs.ULTIMA_ACTIVIDAD
             const ahora = new Date()
@@ -109,20 +128,20 @@ const Page = () => {
             // Debug: Log de cada cliente mapeado
             console.log('[Chat] Cliente mapeado:', {
               id: cliente.id,
-              nombre,
-              nombreOriginal: attrs.nombre,
-              attrsKeys: Object.keys(attrs),
+              nombre: nombre.trim(),
+              correo: attrs.correo_electronico,
               isOnline,
             })
             
             return {
               id: String(cliente.id),
-              name: nombre,
+              name: nombre.trim(), // Usar solo el nombre real, sin fallbacks
               isOnline,
             }
           })
+          .filter((contacto: ContactType | null) => contacto !== null) as ContactType[]
         
-        console.log('[Chat] Total contactos mapeados:', contactosMapeados.length)
+        console.log('[Chat] Total contactos mapeados (con nombre):', contactosMapeados.length)
         
         setContacts(contactosMapeados)
         if (contactosMapeados.length > 0 && !currentContact) {
