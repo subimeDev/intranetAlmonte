@@ -92,36 +92,70 @@ export default async function PedidosPage() {
                     <thead>
                       <tr>
                         <th>ID</th>
-                        <th>Fecha</th>
+                        <th>Número de Pedido</th>
+                        <th>Fecha de Pedido</th>
                         <th>Estado</th>
-                        <th>Total</th>
+                        <th>Status</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pedidos.map((pedido: any) => (
-                        <tr key={pedido.id}>
-                          <td>#{pedido.id}</td>
-                          <td>
-                            {pedido.attributes?.createdAt 
-                              ? new Date(pedido.attributes.createdAt).toLocaleDateString()
-                              : 'N/A'}
-                          </td>
-                          <td>
-                            <span className="badge bg-primary">
-                              {pedido.attributes?.estado || pedido.attributes?.status || 'Pendiente'}
-                            </span>
-                          </td>
-                          <td>
-                            ${pedido.attributes?.total || pedido.attributes?.monto || '0.00'}
-                          </td>
-                          <td>
-                            <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-primary">
-                              Ver
-                            </a>
-                          </td>
-                        </tr>
-                      ))}
+                      {pedidos.map((pedido: any) => {
+                        // Obtener los campos según la estructura de Strapi
+                        const numeroPedido = pedido.attributes?.NUMERO_PEDIDO || pedido.attributes?.numero_pedido || pedido.attributes?.numeroPedido || pedido.id
+                        const fechaPedido = pedido.attributes?.FECHA_PEDIDO || pedido.attributes?.fecha_pedido || pedido.attributes?.fechaPedido || pedido.attributes?.createdAt
+                        const estado = pedido.attributes?.ESTADO || pedido.attributes?.estado || 'N/A'
+                        const status = pedido.attributes?.STATUS || pedido.attributes?.status || 'N/A'
+                        
+                        // Formatear fecha si existe
+                        let fechaFormateada = 'N/A'
+                        if (fechaPedido) {
+                          try {
+                            const fecha = new Date(fechaPedido)
+                            fechaFormateada = fecha.toLocaleDateString('es-CL', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          } catch {
+                            fechaFormateada = String(fechaPedido)
+                          }
+                        }
+                        
+                        return (
+                          <tr key={pedido.id}>
+                            <td>#{pedido.id}</td>
+                            <td>
+                              <strong>{numeroPedido}</strong>
+                            </td>
+                            <td>{fechaFormateada}</td>
+                            <td>
+                              <span className={`badge ${
+                                estado === 'Completado' ? 'bg-success' : 
+                                estado === 'Pendiente' ? 'bg-warning' : 
+                                'bg-primary'
+                              }`}>
+                                {estado}
+                              </span>
+                            </td>
+                            <td>
+                              {status === 'Published' || status === 'published' ? (
+                                <span className="badge bg-success">Publicado</span>
+                              ) : (
+                                <span className="badge bg-secondary">No publicado</span>
+                              )}
+                            </td>
+                            <td>
+                              <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-primary">
+                                Ver
+                              </a>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
