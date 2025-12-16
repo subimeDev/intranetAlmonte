@@ -1,8 +1,9 @@
-import { Container, Alert, Card, CardBody } from 'react-bootstrap'
+import { Container, Alert, Card, CardBody, Badge } from 'react-bootstrap'
 
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 import strapiClient from '@/lib/strapi/client'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
+import ProductosGrid from './components/ProductosGrid'
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic'
@@ -55,23 +56,29 @@ export default async function ProductosPage() {
         <div className="col-12">
           <Card>
             <CardBody>
-              <h4 className="card-title mb-4">Lista de Productos</h4>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="card-title mb-0">Productos de Strapi</h4>
+                {!error && productos.length > 0 && (
+                  <Badge bg="success" className="fs-6 px-3 py-2">
+                    {productos.length} {productos.length === 1 ? 'producto' : 'productos'}
+                  </Badge>
+                )}
+              </div>
               
               {/* Mostrar información de conexión */}
-              <Alert variant="info" className="mb-3">
-                <strong>URL de Strapi:</strong> {STRAPI_API_URL}
-                <br />
-                <small className="text-muted">
-                  Endpoints probados: 
-                  <code>/api/producto</code> (principal), 
-                  <code>/api/productos</code>, 
-                  <code>/api/products</code>, 
-                  <code>/api/ecommerce-productos</code>
-                </small>
-                <br />
-                <a href="/tienda/productos/debug" className="text-decoration-underline mt-2 d-inline-block">
-                  🔍 Ver diagnóstico completo de endpoints
-                </a>
+              <Alert variant="info" className="mb-4">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <strong>URL de Strapi:</strong> {STRAPI_API_URL}
+                    <br />
+                    <small className="text-muted">
+                      Endpoint: <code>/api/producto</code>
+                    </small>
+                  </div>
+                  <a href="/tienda/productos/debug" className="text-decoration-underline">
+                    🔍 Diagnóstico
+                  </a>
+                </div>
               </Alert>
 
               {/* Mostrar error si existe */}
@@ -90,101 +97,8 @@ export default async function ProductosPage() {
                 </Alert>
               )}
 
-              {/* Mostrar productos si existen */}
-              {!error && productos.length > 0 && (
-                <>
-                  <Alert variant="success" className="mb-3">
-                    <strong>✅ {productos.length} producto(s) encontrado(s)</strong>
-                  </Alert>
-                  
-                  <div className="table-responsive">
-                    <table className="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>ID</th>
-                          <th>Nombre</th>
-                          <th>Imagen</th>
-                          <th>Tipo Visualización</th>
-                          <th>Estado</th>
-                          <th>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {productos.map((producto: any) => {
-                          const attrs = producto.attributes || {}
-                          
-                          // Campos según la estructura de Strapi
-                          const nombre = attrs.name || 'Sin nombre'
-                          const slug = attrs.slug || ''
-                          const descripcion = attrs.descripcion || ''
-                          const tipoVisualizacion = attrs.tipo_visualizacion || 'default'
-                          const estado = attrs.publishedAt ? 'Publicado' : 'Borrador'
-                          
-                          return (
-                            <tr key={producto.id}>
-                              <td>#{producto.id}</td>
-                              <td>
-                                <strong>{nombre}</strong>
-                                {slug ? (
-                                  <>
-                                    <br />
-                                    <small className="text-muted">/{slug}</small>
-                                  </>
-                                ) : null}
-                              </td>
-                              <td>
-                                {attrs.imagen?.data ? (
-                                  <span className="badge bg-info">Con imagen</span>
-                                ) : (
-                                  <span className="badge bg-secondary">Sin imagen</span>
-                                )}
-                              </td>
-                              <td>
-                                <span className="badge bg-primary">{tipoVisualizacion}</span>
-                              </td>
-                              <td>
-                                <span className={`badge ${
-                                  estado === 'Publicado' ? 'bg-success' : 'bg-secondary'
-                                }`}>
-                                  {estado}
-                                </span>
-                              </td>
-                              <td>
-                                <a 
-                                  href={`/tienda/productos/${producto.id}`} 
-                                  className="btn btn-sm btn-primary me-1"
-                                >
-                                  Editar
-                                </a>
-                                <a 
-                                  href={`/tienda/productos/${producto.id}`} 
-                                  className="btn btn-sm btn-outline-secondary"
-                                >
-                                  Ver
-                                </a>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-
-              {/* Mensaje si no hay productos */}
-              {!error && productos.length === 0 && (
-                <Alert variant="secondary">
-                  <p className="mb-0">
-                    No se encontraron productos. Esto puede significar:
-                  </p>
-                  <ul className="mb-0 mt-2">
-                    <li>La colección está vacía en Strapi</li>
-                    <li>El nombre de la colección es diferente (revisa la URL en el mensaje de arriba)</li>
-                    <li>Los permisos no están configurados correctamente</li>
-                  </ul>
-                </Alert>
-              )}
+              {/* Grid de Productos */}
+              <ProductosGrid productos={productos} error={error} />
             </CardBody>
           </Card>
         </div>
