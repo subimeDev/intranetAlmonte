@@ -89,40 +89,38 @@ const Page = () => {
         if (clientesArray.length > 0) {
           const primerCliente = clientesArray[0]
           console.log('[Chat] Estructura completa del primer cliente:', JSON.stringify(primerCliente, null, 2))
-          console.log('[Chat] Campos disponibles en attributes:', {
-            keys: Object.keys(primerCliente.attributes || {}),
-            nombre: primerCliente.attributes?.nombre,
-            NOMBRE: primerCliente.attributes?.NOMBRE,
-            name: primerCliente.attributes?.name,
-            todosLosCampos: primerCliente.attributes,
+          console.log('[Chat] Campos disponibles (nivel raíz):', {
+            keys: Object.keys(primerCliente),
+            nombre: primerCliente.nombre,
+            tieneAttributes: !!primerCliente.attributes,
           })
         }
         
         const contactosMapeados: ContactType[] = clientesArray
-          .filter((cliente: any) => cliente && cliente.id) // Solo filtrar por ID válido
+          .filter((cliente: any) => {
+            // Solo incluir clientes que tengan ID y nombre
+            if (!cliente || !cliente.id) return false
+            
+            // Los datos vienen directamente en el objeto, NO en attributes
+            const nombre = cliente.nombre || ''
+            
+            // Solo incluir si tiene el campo "nombre" con valor
+            return !!nombre && nombre.trim() !== ''
+          })
           .map((cliente: any) => {
-            const attrs = cliente.attributes || {}
+            // Los datos vienen directamente en el objeto, NO en attributes
+            // Según los logs: { id: 2630, nombre: "Cliente de Prueba", ... }
+            const nombre = cliente.nombre || ''
             
-            // Obtener el nombre - intentar diferentes variaciones
-            // Primero el campo "nombre" en minúsculas (como en el schema)
-            const nombre = attrs.nombre || attrs.NOMBRE || attrs.name || ''
-            
-            // Si no tiene nombre, loguear para debugging pero igual incluirlo temporalmente
             if (!nombre || nombre.trim() === '') {
-              console.warn('[Chat] Cliente sin campo nombre:', {
+              console.error('[Chat] ERROR: Cliente sin nombre después del filtro:', {
                 id: cliente.id,
-                todosLosCampos: Object.keys(attrs),
-                valores: attrs,
+                cliente: cliente,
               })
-              // Temporalmente usar ID para debugging, pero esto NO debería pasar
-              return {
-                id: String(cliente.id),
-                name: `[SIN NOMBRE] Cliente #${cliente.id}`,
-                isOnline: false,
-              }
+              return null
             }
             
-            const ultimaActividad = attrs.ultima_actividad || attrs.ULTIMA_ACTIVIDAD
+            const ultimaActividad = cliente.ultima_actividad
             const ahora = new Date()
             const ultimaActividadDate = ultimaActividad ? new Date(ultimaActividad) : null
             
@@ -135,13 +133,13 @@ const Page = () => {
             console.log('[Chat] Cliente mapeado:', {
               id: cliente.id,
               nombre: nombre.trim(),
-              correo: attrs.correo_electronico,
+              correo: cliente.correo_electronico,
               isOnline,
             })
             
             return {
               id: String(cliente.id),
-              name: nombre.trim(), // SOLO el nombre real, sin fallbacks
+              name: nombre.trim(), // SOLO el nombre real del campo "nombre"
               isOnline,
             }
           })
