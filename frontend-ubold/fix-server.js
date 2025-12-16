@@ -6,6 +6,17 @@
 const fs = require('fs')
 const path = require('path')
 
+// Manejo de errores mejorado
+process.on('uncaughtException', (error) => {
+  console.error('❌ Error no capturado:', error)
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Promesa rechazada no manejada:', reason)
+  process.exit(1)
+})
+
 const serverPath = path.join(__dirname, '.next/standalone/server.js')
 
 if (!fs.existsSync(serverPath)) {

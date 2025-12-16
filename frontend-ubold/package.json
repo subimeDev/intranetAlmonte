@@ -7,9 +7,10 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build && node fix-server.js",
-    "start": "next start",
+    "dev": "next build",
+    "build": "next build",
+    "postbuild": "node fix-server.js",
+    "start": "node server.js",
     "lint": "eslint",
     "format": "prettier --write './src/**/*.{ts,tsx,js,jsx}'",
     "type-check": "tsc --noEmit"
