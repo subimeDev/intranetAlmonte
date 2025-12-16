@@ -96,7 +96,8 @@ const Page = () => {
             if (!cliente || !cliente.id) return false
             
             const attrs = cliente.attributes || {}
-            const nombre = attrs.nombre || attrs.NOMBRE || attrs.name
+            // Priorizar NOMBRE en mayúsculas (como viene de Strapi)
+            const nombre = attrs.NOMBRE || attrs.nombre || attrs.name
             
             // Solo incluir si tiene nombre (no usar fallbacks)
             return !!nombre && nombre.trim() !== ''
@@ -104,14 +105,19 @@ const Page = () => {
           .map((cliente: any) => {
             const attrs = cliente.attributes || {}
             
-            // Obtener el nombre - solo del campo nombre (sin fallbacks)
-            const nombre = attrs.nombre || attrs.NOMBRE || attrs.name || ''
+            // Obtener el nombre - priorizar NOMBRE (mayúsculas) como en otros content types
+            const nombre = 
+              attrs.NOMBRE ||        // Primero intentar en mayúsculas (como en pedidos)
+              attrs.nombre ||        // Luego en minúsculas
+              attrs.name ||          // O en inglés
+              ''
             
             // Si no hay nombre, no debería llegar aquí por el filter, pero por seguridad:
             if (!nombre || nombre.trim() === '') {
               console.warn('[Chat] Cliente sin nombre encontrado:', {
                 id: cliente.id,
                 attrs: Object.keys(attrs),
+                attrsValues: attrs,
               })
               return null
             }

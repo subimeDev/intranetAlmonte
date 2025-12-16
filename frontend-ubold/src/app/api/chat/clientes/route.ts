@@ -10,7 +10,8 @@ import type { StrapiResponse, StrapiEntity } from '@/lib/strapi/types'
 export const dynamic = 'force-dynamic'
 
 interface WOClienteAttributes {
-  nombre: string
+  nombre?: string
+  NOMBRE?: string  // Puede venir en mayúsculas desde Strapi
   correo_electronico: string
   ultima_actividad?: string
   fecha_registro?: string
