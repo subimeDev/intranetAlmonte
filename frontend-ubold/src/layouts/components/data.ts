@@ -173,7 +173,7 @@ export const menuItems: MenuItemType[] = [
         label: 'Gestionar productos',
         children: [
           { key: 'tienda-pedidos', label: 'Pedidos', url: '/tienda/pedidos' },
-          { key: 'tienda-editar-pedidos', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
+          { key: 'tienda-productos', label: 'Productos', url: '/tienda/productos' },
         ],
       },
     ],

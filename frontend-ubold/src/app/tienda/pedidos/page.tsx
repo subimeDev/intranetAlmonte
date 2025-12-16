@@ -194,11 +194,14 @@ export default async function PedidosPage() {
                                 <span className="badge bg-secondary">No publicado</span>
                               )}
                             </td>
-                            <td>
-                              <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-primary">
-                                Ver
-                              </a>
-                            </td>
+                          <td>
+                            <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-primary me-1">
+                              Editar
+                            </a>
+                            <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-outline-secondary">
+                              Ver
+                            </a>
+                          </td>
                           </tr>
                         )
                       })}
