@@ -1,20 +1,30 @@
+'use client'
+
 import { userDropdownItems } from '@/layouts/components/data'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Fragment } from 'react'
 import { Dropdown, DropdownDivider, DropdownItem, DropdownMenu, DropdownToggle } from 'react-bootstrap'
 import { TbChevronDown } from 'react-icons/tb'
+import { useAuth, getPersonaNombreCorto } from '@/hooks/useAuth'
 
 import user3 from '@/assets/images/users/user-3.jpg'
 
 const UserProfile = () => {
+  const { persona, colaborador, loading } = useAuth()
+  
+  const nombreUsuario = persona ? getPersonaNombreCorto(persona) : (colaborador?.email_login || 'Usuario')
+  const avatarSrc = persona?.imagen?.url 
+    ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${persona.imagen.url}`
+    : user3.src
+
   return (
     <div className="topbar-item nav-user">
       <Dropdown align="end">
         <DropdownToggle as={'a'} className="topbar-link dropdown-toggle drop-arrow-none px-2">
-          <Image src={user3.src} width="32" height="32" className="rounded-circle me-lg-2 d-flex" alt="user-image" />
+          <Image src={avatarSrc} width="32" height="32" className="rounded-circle me-lg-2 d-flex" alt="user-image" />
           <div className="d-lg-flex align-items-center gap-1 d-none">
-            <h5 className="my-0">Geneva</h5>
+            <h5 className="my-0">{loading ? 'Cargando...' : nombreUsuario}</h5>
             <TbChevronDown className="align-middle" />
           </div>
         </DropdownToggle>
