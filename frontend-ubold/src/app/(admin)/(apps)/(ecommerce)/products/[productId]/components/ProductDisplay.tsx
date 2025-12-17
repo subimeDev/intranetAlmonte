@@ -81,7 +81,17 @@ const ProductDisplay = ({ producto }: ProductDisplayProps) => {
   }
 
   const handleSaveImage = async () => {
+    console.log('[ProductDisplay] ===== INICIANDO GUARDADO DE IMAGEN =====')
+    console.log('[ProductDisplay] Datos del producto:', {
+      id: producto.id,
+      documentId: producto.documentId,
+      productId,
+      uploadMode,
+      imageUrl,
+    })
+    
     if (!productId || productId === 'unknown') {
+      console.error('[ProductDisplay] ❌ ID inválido:', { productId })
       setError('No se pudo obtener el ID del producto')
       return
     }
@@ -93,6 +103,7 @@ const ProductDisplay = ({ producto }: ProductDisplayProps) => {
       let imageId: number | null = null
 
       if (uploadMode === 'file') {
+        console.log('[ProductDisplay] Modo: Subir archivo')
         const file = fileInputRef.current?.files?.[0]
         if (!file) {
           throw new Error('Por favor selecciona un archivo')
@@ -141,30 +152,88 @@ const ProductDisplay = ({ producto }: ProductDisplayProps) => {
       }
 
       // Actualizar producto con la nueva imagen
-      console.log('[ProductDisplay] Actualizando producto con imagen:', { productId, imageId })
+      const url = `/api/tienda/productos/${productId}`
+      const body = JSON.stringify({
+        portada_libro: imageId,
+      })
       
-      const updateResponse = await fetch(`/api/tienda/productos/${productId}`, {
+      console.log('[ProductDisplay] Actualizando producto con imagen:', {
+        url,
+        productId,
+        imageId,
+        body,
+      })
+      
+      const updateResponse = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          portada_libro: imageId,
-        }),
+        body: body,
+      })
+      
+      console.log('[ProductDisplay] Respuesta de actualización recibida:', {
+        ok: updateResponse.ok,
+        status: updateResponse.status,
+        statusText: updateResponse.statusText,
       })
 
       if (!updateResponse.ok) {
-        const errorData = await updateResponse.json().catch(() => ({}))
-        throw new Error(errorData.error || `Error HTTP: ${updateResponse.status}`)
+        console.error('[ProductDisplay] ❌ Respuesta no OK:', {
+          status: updateResponse.status,
+          statusText: updateResponse.statusText,
+        })
+        
+        let errorData: any = {}
+        try {
+          const text = await updateResponse.text()
+          console.log('[ProductDisplay] Cuerpo de respuesta (texto):', text)
+          errorData = JSON.parse(text)
+          console.log('[ProductDisplay] Cuerpo de respuesta (JSON):', errorData)
+        } catch (parseError) {
+          console.error('[ProductDisplay] Error al parsear respuesta:', parseError)
+        }
+        
+        const errorMessage = errorData.error || `Error HTTP: ${updateResponse.status}`
+        
+        if (errorData.debug) {
+          console.error('[ProductDisplay] Debug info disponible:', errorData.debug)
+          throw new Error(`${errorMessage}\n\nDebug: ${JSON.stringify(errorData.debug, null, 2)}`)
+        }
+        
+        throw new Error(errorMessage)
       }
 
-      const updateData = await updateResponse.json()
+      let updateData: any = {}
+      try {
+        const text = await updateResponse.text()
+        console.log('[ProductDisplay] Cuerpo de respuesta exitosa (texto):', text)
+        updateData = JSON.parse(text)
+        console.log('[ProductDisplay] Cuerpo de respuesta exitosa (JSON):', updateData)
+      } catch (parseError) {
+        console.error('[ProductDisplay] Error al parsear respuesta exitosa:', parseError)
+        throw new Error('Error al procesar la respuesta del servidor')
+      }
 
       if (!updateData.success) {
+        console.error('[ProductDisplay] ❌ Respuesta indica error:', {
+          success: updateData.success,
+          error: updateData.error,
+          debug: updateData.debug,
+        })
+        
+        if (updateData.debug) {
+          console.error('[ProductDisplay] Debug info disponible:', updateData.debug)
+          throw new Error(`${updateData.error || 'Error al actualizar producto'}\n\nDebug: ${JSON.stringify(updateData.debug, null, 2)}`)
+        }
+        
         throw new Error(updateData.error || 'Error al actualizar producto')
       }
 
-      console.log('[ProductDisplay] Imagen actualizada exitosamente')
+      console.log('[ProductDisplay] ✅ Imagen actualizada exitosamente:', {
+        updateData,
+        productoActualizado: updateData.data,
+      })
       
       // Recargar la página para mostrar los cambios
       router.refresh()

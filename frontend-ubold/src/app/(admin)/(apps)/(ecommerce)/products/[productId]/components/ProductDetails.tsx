@@ -77,7 +77,18 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
   }
 
   const handleSaveNombre = async (newValue: string) => {
+    console.log('[ProductDetails] ===== INICIANDO GUARDADO DE NOMBRE =====')
+    console.log('[ProductDetails] Datos del producto:', {
+      id: producto.id,
+      documentId: producto.documentId,
+      productId,
+      nombreActual: nombre,
+      nombreNuevo: newValue,
+      productoCompleto: producto,
+    })
+    
     if (!productId || productId === 'unknown') {
+      console.error('[ProductDetails] ❌ ID inválido:', { productId })
       throw new Error('No se pudo obtener el ID del producto')
     }
 
@@ -85,30 +96,99 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
     setError(null)
 
     try {
-      console.log('[ProductDetails] Guardando nombre:', { productId, newValue })
+      const url = `/api/tienda/productos/${productId}`
+      const body = JSON.stringify({
+        nombre_libro: newValue,
+      })
       
-      const response = await fetch(`/api/tienda/productos/${productId}`, {
+      console.log('[ProductDetails] Enviando petición PUT:', {
+        url,
+        productId,
+        body,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          nombre_libro: newValue,
-        }),
+        body: body,
+      })
+      
+      console.log('[ProductDetails] Respuesta recibida:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Error HTTP: ${response.status}`)
+        console.error('[ProductDetails] ❌ Respuesta no OK:', {
+          status: response.status,
+          statusText: response.statusText,
+        })
+        
+        let errorData: any = {}
+        try {
+          const text = await response.text()
+          console.log('[ProductDetails] Cuerpo de respuesta (texto):', text)
+          errorData = JSON.parse(text)
+          console.log('[ProductDetails] Cuerpo de respuesta (JSON):', errorData)
+        } catch (parseError) {
+          console.error('[ProductDetails] Error al parsear respuesta:', parseError)
+        }
+        
+        const errorMessage = errorData.error || `Error HTTP: ${response.status}`
+        
+        console.error('[ProductDetails] Error completo:', {
+          errorMessage,
+          errorData,
+          debug: errorData.debug,
+        })
+        
+        // Si hay información de debug, incluirla en el error
+        if (errorData.debug) {
+          console.error('[ProductDetails] Debug info disponible:', errorData.debug)
+          throw new Error(`${errorMessage}\n\nDebug: ${JSON.stringify(errorData.debug, null, 2)}`)
+        }
+        
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
+      let data: any = {}
+      try {
+        const text = await response.text()
+        console.log('[ProductDetails] Cuerpo de respuesta exitosa (texto):', text)
+        data = JSON.parse(text)
+        console.log('[ProductDetails] Cuerpo de respuesta exitosa (JSON):', data)
+      } catch (parseError) {
+        console.error('[ProductDetails] Error al parsear respuesta exitosa:', parseError)
+        throw new Error('Error al procesar la respuesta del servidor')
+      }
 
       if (!data.success) {
+        console.error('[ProductDetails] ❌ Respuesta indica error:', {
+          success: data.success,
+          error: data.error,
+          debug: data.debug,
+        })
+        
+        // Si hay información de debug, incluirla en el error
+        if (data.debug) {
+          console.error('[ProductDetails] Debug info disponible:', data.debug)
+          throw new Error(`${data.error || 'Error al guardar nombre'}\n\nDebug: ${JSON.stringify(data.debug, null, 2)}`)
+        }
+        
         throw new Error(data.error || 'Error al guardar nombre')
       }
 
-      console.log('[ProductDetails] Nombre guardado exitosamente')
+      console.log('[ProductDetails] ✅ Nombre guardado exitosamente:', {
+        data,
+        productoActualizado: data.data,
+      })
       
       // Recargar la página para mostrar los cambios
       router.refresh()
@@ -127,7 +207,17 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
   }
 
   const handleSaveDescripcion = async (newValue: string) => {
+    console.log('[ProductDetails] ===== INICIANDO GUARDADO DE DESCRIPCIÓN =====')
+    console.log('[ProductDetails] Datos del producto:', {
+      id: producto.id,
+      documentId: producto.documentId,
+      productId,
+      descripcionActual: descripcion,
+      descripcionNueva: newValue,
+    })
+    
     if (!productId || productId === 'unknown') {
+      console.error('[ProductDetails] ❌ ID inválido:', { productId })
       throw new Error('No se pudo obtener el ID del producto')
     }
 
@@ -135,30 +225,87 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
     setError(null)
 
     try {
-      console.log('[ProductDetails] Guardando descripción:', { productId, newValue })
+      const url = `/api/tienda/productos/${productId}`
+      const body = JSON.stringify({
+        descripcion: newValue,
+      })
       
-      const response = await fetch(`/api/tienda/productos/${productId}`, {
+      console.log('[ProductDetails] Enviando petición PUT:', {
+        url,
+        productId,
+        body,
+      })
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          descripcion: newValue,
-        }),
+        body: body,
+      })
+      
+      console.log('[ProductDetails] Respuesta recibida:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Error HTTP: ${response.status}`)
+        console.error('[ProductDetails] ❌ Respuesta no OK:', {
+          status: response.status,
+          statusText: response.statusText,
+        })
+        
+        let errorData: any = {}
+        try {
+          const text = await response.text()
+          console.log('[ProductDetails] Cuerpo de respuesta (texto):', text)
+          errorData = JSON.parse(text)
+          console.log('[ProductDetails] Cuerpo de respuesta (JSON):', errorData)
+        } catch (parseError) {
+          console.error('[ProductDetails] Error al parsear respuesta:', parseError)
+        }
+        
+        const errorMessage = errorData.error || `Error HTTP: ${response.status}`
+        
+        if (errorData.debug) {
+          console.error('[ProductDetails] Debug info disponible:', errorData.debug)
+          throw new Error(`${errorMessage}\n\nDebug: ${JSON.stringify(errorData.debug, null, 2)}`)
+        }
+        
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
+      let data: any = {}
+      try {
+        const text = await response.text()
+        console.log('[ProductDetails] Cuerpo de respuesta exitosa (texto):', text)
+        data = JSON.parse(text)
+        console.log('[ProductDetails] Cuerpo de respuesta exitosa (JSON):', data)
+      } catch (parseError) {
+        console.error('[ProductDetails] Error al parsear respuesta exitosa:', parseError)
+        throw new Error('Error al procesar la respuesta del servidor')
+      }
 
       if (!data.success) {
+        console.error('[ProductDetails] ❌ Respuesta indica error:', {
+          success: data.success,
+          error: data.error,
+          debug: data.debug,
+        })
+        
+        if (data.debug) {
+          console.error('[ProductDetails] Debug info disponible:', data.debug)
+          throw new Error(`${data.error || 'Error al guardar descripción'}\n\nDebug: ${JSON.stringify(data.debug, null, 2)}`)
+        }
+        
         throw new Error(data.error || 'Error al guardar descripción')
       }
 
-      console.log('[ProductDetails] Descripción guardada exitosamente')
+      console.log('[ProductDetails] ✅ Descripción guardada exitosamente:', {
+        data,
+        productoActualizado: data.data,
+      })
       
       // Recargar la página para mostrar los cambios
       router.refresh()

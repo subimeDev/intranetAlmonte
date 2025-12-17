@@ -69,9 +69,35 @@ export async function GET(
         `/api/libros?populate=*&pagination[pageSize]=1000`
       )
       
-      const productos = Array.isArray(allProducts.data) 
-        ? allProducts.data 
-        : (allProducts.data ? [allProducts.data] : [])
+      // Strapi puede devolver los datos en diferentes estructuras:
+      // 1. { data: [...] } - formato estándar
+      // 2. { data: { data: [...] } } - formato anidado
+      // 3. [...] - array directo (menos común)
+      let productos: any[] = []
+      
+      if (Array.isArray(allProducts)) {
+        productos = allProducts
+      } else if (Array.isArray(allProducts.data)) {
+        productos = allProducts.data
+      } else if (allProducts.data && Array.isArray(allProducts.data.data)) {
+        productos = allProducts.data.data
+      } else if (allProducts.data && !Array.isArray(allProducts.data)) {
+        // Si data es un objeto único, convertirlo a array
+        productos = [allProducts.data]
+      }
+      
+      console.log('[API /tienda/productos/[id] GET] Estructura de respuesta procesada:', {
+        esArray: Array.isArray(allProducts),
+        tieneData: !!allProducts.data,
+        dataEsArray: Array.isArray(allProducts.data),
+        totalProductos: productos.length,
+        estructura: {
+          tipo: typeof allProducts,
+          keys: Object.keys(allProducts || {}),
+          dataTipo: typeof allProducts.data,
+          dataKeys: allProducts.data ? Object.keys(allProducts.data) : [],
+        },
+      })
       
       console.log('[API /tienda/productos/[id] GET] Lista obtenida:', {
         total: productos.length,
@@ -83,18 +109,35 @@ export async function GET(
       })
       
       // Buscar por id numérico o documentId
+      // IMPORTANTE: Los datos pueden venir directamente o dentro de attributes
       const productoEncontrado = productos.find((p: any) => {
-        const pId = p.id?.toString()
-        const pDocId = p.documentId?.toString()
+        // Obtener el objeto real (puede estar en p o p.attributes)
+        const productoReal = p.attributes && Object.keys(p.attributes).length > 0 ? p.attributes : p
+        
+        const pId = productoReal.id?.toString() || p.id?.toString()
+        const pDocId = productoReal.documentId?.toString() || p.documentId?.toString()
         const idStr = id.toString()
+        const idNum = parseInt(idStr)
         
         // Comparar como string y como número
-        return (
+        const encontrado = (
           pId === idStr ||
           pDocId === idStr ||
-          (!isNaN(parseInt(idStr)) && p.id === parseInt(idStr)) ||
-          (!isNaN(parseInt(idStr)) && p.documentId === idStr)
+          (!isNaN(idNum) && (productoReal.id === idNum || p.id === idNum)) ||
+          pDocId === idStr
         )
+        
+        if (encontrado) {
+          console.log('[API /tienda/productos/[id] GET] ✅ Coincidencia encontrada:', {
+            idBuscado: id,
+            pId,
+            pDocId,
+            productoId: productoReal.id || p.id,
+            documentId: productoReal.documentId || p.documentId,
+          })
+        }
+        
+        return encontrado
       })
       
       if (productoEncontrado) {
@@ -178,9 +221,25 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.log('[API /tienda/productos/[id] PUT] ===== INICIANDO PUT =====')
+  
   try {
     const { id } = await params
-    const body = await request.json()
+    console.log('[API /tienda/productos/[id] PUT] Params recibidos:', { id, tipoId: typeof id })
+    
+    let body: any = {}
+    try {
+      const bodyText = await request.text()
+      console.log('[API /tienda/productos/[id] PUT] Body recibido (texto):', bodyText)
+      body = JSON.parse(bodyText)
+      console.log('[API /tienda/productos/[id] PUT] Body recibido (JSON):', body)
+    } catch (parseError: any) {
+      console.error('[API /tienda/productos/[id] PUT] Error al parsear body:', parseError)
+      return NextResponse.json(
+        { success: false, error: 'Error al parsear el cuerpo de la petición' },
+        { status: 400 }
+      )
+    }
     
     console.log('[API /tienda/productos/[id] PUT] Iniciando actualización:', {
       idRecibido: id,
@@ -188,6 +247,8 @@ export async function PUT(
       esNumerico: !isNaN(parseInt(id)),
       camposRecibidos: Object.keys(body),
       bodyRecibido: body,
+      urlCompleta: request.url,
+      method: request.method,
     })
     
     // PASO 1: Obtener el ID numérico real del producto (Strapi requiere ID numérico para PUT)
@@ -202,37 +263,85 @@ export async function PUT(
       const allProducts = await strapiClient.get<any>(
         `/api/libros?populate=*&pagination[pageSize]=1000`
       )
-      const productos = Array.isArray(allProducts.data) ? allProducts.data : []
       
-      console.log('[API /tienda/productos/[id] PUT] Productos obtenidos:', {
-        total: productos.length,
+      // Strapi puede devolver los datos en diferentes estructuras:
+      // 1. { data: [...] } - formato estándar
+      // 2. { data: { data: [...] } } - formato anidado
+      // 3. [...] - array directo (menos común)
+      let productos: any[] = []
+      
+      if (Array.isArray(allProducts)) {
+        productos = allProducts
+      } else if (Array.isArray(allProducts.data)) {
+        productos = allProducts.data
+      } else if (allProducts.data && Array.isArray(allProducts.data.data)) {
+        productos = allProducts.data.data
+      } else if (allProducts.data && !Array.isArray(allProducts.data)) {
+        // Si data es un objeto único, convertirlo a array
+        productos = [allProducts.data]
+      }
+      
+      console.log('[API /tienda/productos/[id] PUT] Estructura de respuesta procesada:', {
+        esArray: Array.isArray(allProducts),
+        tieneData: !!allProducts.data,
+        dataEsArray: Array.isArray(allProducts.data),
+        totalProductos: productos.length,
+        estructura: {
+          tipo: typeof allProducts,
+          keys: Object.keys(allProducts || {}),
+          dataTipo: typeof allProducts.data,
+          dataKeys: allProducts.data ? Object.keys(allProducts.data) : [],
+        },
         idBuscado: id,
         primerosIds: productos.slice(0, 5).map((p: any) => ({
           id: p.id,
           documentId: p.documentId,
+          nombre: p.nombre_libro || 'Sin nombre',
         })),
       })
       
       // Buscar por id numérico o documentId
+      // IMPORTANTE: Los datos pueden venir directamente o dentro de attributes
       const productoEncontrado = productos.find((p: any) => {
-        const pId = p.id?.toString()
-        const pDocId = p.documentId?.toString()
-        const idStr = id.toString()
+        // Obtener el objeto real (puede estar en p o p.attributes)
+        const productoReal = p.attributes && Object.keys(p.attributes).length > 0 ? p.attributes : p
         
-        return (
+        const pId = productoReal.id?.toString() || p.id?.toString()
+        const pDocId = productoReal.documentId?.toString() || p.documentId?.toString()
+        const idStr = id.toString()
+        const idNum = parseInt(idStr)
+        
+        // Comparar como string y como número
+        const encontrado = (
           pId === idStr ||
           pDocId === idStr ||
-          (!isNaN(parseInt(idStr)) && p.id === parseInt(idStr)) ||
-          p.documentId === idStr
+          (!isNaN(idNum) && (productoReal.id === idNum || p.id === idNum)) ||
+          pDocId === idStr
         )
+        
+        if (encontrado) {
+          console.log('[API /tienda/productos/[id] PUT] ✅ Coincidencia encontrada:', {
+            idBuscado: id,
+            pId,
+            pDocId,
+            productoId: productoReal.id || p.id,
+            documentId: productoReal.documentId || p.documentId,
+          })
+        }
+        
+        return encontrado
       })
       
+      // Si encontramos el producto, asegurarnos de usar el ID correcto
       if (!productoEncontrado) {
-        const idsDisponibles = productos.map((p: any) => ({
-          id: p.id,
-          documentId: p.documentId,
-          nombre: p.nombre_libro || p.NOMBRE_LIBRO || p.nombreLibro || 'Sin nombre',
-        }))
+        const idsDisponibles = productos.map((p: any) => {
+          const productoReal = p.attributes && Object.keys(p.attributes).length > 0 ? p.attributes : p
+          return {
+            id: productoReal.id || p.id,
+            documentId: productoReal.documentId || p.documentId,
+            nombre: productoReal.nombre_libro || p.nombre_libro || p.NOMBRE_LIBRO || p.nombreLibro || 'Sin nombre',
+          }
+        })
         
         console.error('[API /tienda/productos/[id] PUT] ❌ Producto no encontrado:', {
           idBuscado: id,
@@ -240,6 +349,12 @@ export async function PUT(
           esNumerico: !isNaN(parseInt(id)),
           totalProductos: productos.length,
           idsDisponibles: idsDisponibles.slice(0, 10),
+          muestraProductos: productos.slice(0, 3).map((p: any) => ({
+            id: p.id,
+            documentId: p.documentId,
+            tieneAttributes: !!p.attributes,
+            keys: Object.keys(p).slice(0, 10),
+          })),
         })
         return NextResponse.json(
           { 
@@ -257,8 +372,20 @@ export async function PUT(
         )
       }
       
+      // Si encontramos el producto, asegurarnos de usar el ID correcto
+      const productoReal = productoEncontrado.attributes && Object.keys(productoEncontrado.attributes).length > 0 
+        ? productoEncontrado.attributes 
+        : productoEncontrado
+      
       productoActual = productoEncontrado
-      productoId = productoEncontrado.id
+      productoId = productoReal.id || productoEncontrado.id
+      
+      console.log('[API /tienda/productos/[id] PUT] Producto encontrado, usando ID:', {
+        idOriginal: id,
+        idNumerico: productoId,
+        documentId: productoReal.documentId || productoEncontrado.documentId,
+        tieneId: !!productoId,
+      })
       
       if (!productoId || isNaN(productoId)) {
         console.error('[API /tienda/productos/[id] PUT] ❌ Producto encontrado pero sin ID numérico válido:', {

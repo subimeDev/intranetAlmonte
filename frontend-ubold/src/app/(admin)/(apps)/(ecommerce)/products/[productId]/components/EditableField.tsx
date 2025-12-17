@@ -35,12 +35,30 @@ export default function EditableField({
   }, [value, isEditing])
 
   const handleSave = async () => {
+    console.log('[EditableField] Iniciando guardado:', {
+      label,
+      valorAnterior: value,
+      valorNuevo: editValue,
+      tipo: type,
+    })
+    
     setIsSaving(true)
     try {
+      console.log('[EditableField] Llamando onSave...')
       await onSave(editValue)
+      console.log('[EditableField] ✅ Guardado exitoso')
       setIsEditing(false)
-    } catch (error) {
-      console.error('Error al guardar:', error)
+    } catch (error: any) {
+      console.error('[EditableField] ❌ Error al guardar:', {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        label,
+        valorAnterior: value,
+        valorNuevo: editValue,
+      })
+      // Re-lanzar el error para que el componente padre lo maneje
+      throw error
     } finally {
       setIsSaving(false)
     }

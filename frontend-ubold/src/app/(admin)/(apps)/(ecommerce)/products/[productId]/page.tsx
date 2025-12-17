@@ -62,7 +62,24 @@ export default async function Page({ params }: PageProps) {
       <Container fluid>
         <PageBreadcrumb title="Product Details" subtitle="Ecommerce" />
         <Alert variant="danger">
-          <strong>Error:</strong> {error || 'Producto no encontrado'}
+          <div>
+            <strong>Error:</strong> {error || 'Producto no encontrado'}
+            <div className="mt-3">
+              <h5>¿Qué puedes hacer?</h5>
+              <ul>
+                <li>
+                  <a href="/products/debug" className="text-decoration-none">
+                    Ver página de debug para ver qué IDs existen
+                  </a>
+                </li>
+                <li>
+                  <a href="/products" className="text-decoration-none">
+                    Volver a la lista de productos
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
         </Alert>
       </Container>
     )
