@@ -7,14 +7,6 @@ interface LogoProps {
 }
 
 const Logo = ({ className = '', size = 'lg' }: LogoProps) => {
-  // Dimensiones del logo según el tamaño
-  const logoDimensions = {
-    lg: { width: 150, height: 150 },
-    sm: { width: 100, height: 100 },
-  }
-
-  const dimensions = logoDimensions[size]
-
   return (
     <Link 
       href="/" 
@@ -33,9 +25,9 @@ const Logo = ({ className = '', size = 'lg' }: LogoProps) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-          margin: '0 auto',
+          width: '100%',
+          height: '100%',
+          padding: size === 'sm' ? '4px' : '8px',
         }}
       >
         <svg
@@ -43,12 +35,13 @@ const Logo = ({ className = '', size = 'lg' }: LogoProps) => {
           data-name="logosandtypes com"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 150 150"
-          width={dimensions.width}
-          height={dimensions.height}
           style={{
             display: 'block',
+            width: '100%',
+            height: '100%',
             maxWidth: '100%',
             maxHeight: '100%',
+            objectFit: 'contain',
           }}
         >
           <defs>
