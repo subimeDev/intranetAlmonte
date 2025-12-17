@@ -180,92 +180,104 @@ export async function PUT(
     
     console.log('[API /tienda/productos/[id] PUT] Iniciando actualización:', {
       idRecibido: id,
+      tipoId: typeof id,
+      esNumerico: !isNaN(parseInt(id)),
       camposRecibidos: Object.keys(body),
       bodyRecibido: body,
     })
     
     // PASO 1: Obtener el ID numérico real del producto (Strapi requiere ID numérico para PUT)
-    let productoId: string | number = id
+    // Estrategia: Siempre buscar en lista completa para encontrar el producto
+    // porque el ID puede ser numérico o documentId
+    let productoId: number | null = null
     let productoActual: any = null
     
-    // Intentar obtener el producto directamente por ID numérico
-    if (!isNaN(parseInt(id))) {
-      try {
-        const getResponse = await strapiClient.get<any>(`/api/libros/${id}?populate=*`)
-        productoActual = getResponse.data || getResponse
-        productoId = parseInt(id)
+    try {
+      console.log('[API /tienda/productos/[id] PUT] Buscando producto en lista completa...')
+      
+      const allProducts = await strapiClient.get<any>(
+        `/api/libros?populate=*&pagination[pageSize]=1000`
+      )
+      const productos = Array.isArray(allProducts.data) ? allProducts.data : []
+      
+      console.log('[API /tienda/productos/[id] PUT] Productos obtenidos:', {
+        total: productos.length,
+        idBuscado: id,
+        primerosIds: productos.slice(0, 5).map((p: any) => ({
+          id: p.id,
+          documentId: p.documentId,
+        })),
+      })
+      
+      // Buscar por id numérico o documentId
+      const productoEncontrado = productos.find((p: any) => {
+        const pId = p.id?.toString()
+        const pDocId = p.documentId?.toString()
+        const idStr = id.toString()
         
-        console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado por ID numérico:', {
-          idOriginal: id,
-          idNumerico: productoId,
-          documentId: productoActual?.documentId,
+        return (
+          pId === idStr ||
+          pDocId === idStr ||
+          (!isNaN(parseInt(idStr)) && p.id === parseInt(idStr)) ||
+          p.documentId === idStr
+        )
+      })
+      
+      if (!productoEncontrado) {
+        console.error('[API /tienda/productos/[id] PUT] ❌ Producto no encontrado:', {
+          idBuscado: id,
+          totalProductos: productos.length,
+          idsDisponibles: productos.slice(0, 10).map((p: any) => ({
+            id: p.id,
+            documentId: p.documentId,
+          })),
         })
-      } catch (getError: any) {
-        // Si falla, buscar en lista completa (puede ser documentId)
-        console.log('[API /tienda/productos/[id] PUT] ⚠️ No encontrado por ID directo, buscando en lista...')
-        
-        try {
-          const allProducts = await strapiClient.get<any>(
-            `/api/libros?populate=*&pagination[pageSize]=1000`
-          )
-          const productos = Array.isArray(allProducts.data) ? allProducts.data : []
-          const productoEncontrado = productos.find((p: any) => 
-            p.id?.toString() === id || 
-            p.documentId === id ||
-            p.documentId?.toString() === id ||
-            (!isNaN(parseInt(id)) && p.id === parseInt(id))
-          )
-          
-          if (!productoEncontrado) {
-            console.error('[API /tienda/productos/[id] PUT] ❌ Producto no encontrado:', id)
-            return NextResponse.json(
-              { success: false, error: `Producto con ID ${id} no encontrado` },
-              { status: 404 }
-            )
-          }
-          
-          productoActual = productoEncontrado
-          productoId = productoEncontrado.id
-          
-          console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado en lista:', {
-            idOriginal: id,
-            idNumerico: productoId,
-            documentId: productoActual?.documentId,
-          })
-        } catch (searchError: any) {
-          console.error('[API /tienda/productos/[id] PUT] ❌ Error al buscar producto:', searchError.message)
-          return NextResponse.json(
-            { success: false, error: `Error al buscar producto: ${searchError.message}` },
-            { status: 500 }
-          )
-        }
-      }
-    } else {
-      // Si el ID no es numérico, buscar en lista completa
-      try {
-        const allProducts = await strapiClient.get<any>(
-          `/api/libros?populate=*&pagination[pageSize]=1000`
-        )
-        const productos = Array.isArray(allProducts.data) ? allProducts.data : []
-        const productoEncontrado = productos.find((p: any) => 
-          p.documentId === id || p.documentId?.toString() === id
-        )
-        
-        if (!productoEncontrado) {
-          return NextResponse.json(
-            { success: false, error: `Producto con ID ${id} no encontrado` },
-            { status: 404 }
-          )
-        }
-        
-        productoActual = productoEncontrado
-        productoId = productoEncontrado.id
-      } catch (searchError: any) {
         return NextResponse.json(
-          { success: false, error: `Error al buscar producto: ${searchError.message}` },
+          { 
+            success: false, 
+            error: `Producto con ID "${id}" no encontrado`,
+            debug: {
+              idBuscado: id,
+              totalProductos: productos.length,
+              idsDisponibles: productos.slice(0, 5).map((p: any) => ({
+                id: p.id,
+                documentId: p.documentId,
+              })),
+            },
+          },
+          { status: 404 }
+        )
+      }
+      
+      productoActual = productoEncontrado
+      productoId = productoEncontrado.id
+      
+      if (!productoId || isNaN(productoId)) {
+        console.error('[API /tienda/productos/[id] PUT] ❌ Producto encontrado pero sin ID numérico válido:', {
+          productoEncontrado,
+        })
+        return NextResponse.json(
+          { success: false, error: 'El producto encontrado no tiene un ID numérico válido' },
           { status: 500 }
         )
       }
+      
+      console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado:', {
+        idOriginal: id,
+        idNumerico: productoId,
+        documentId: productoActual?.documentId,
+        tieneId: !!productoActual?.id,
+      })
+    } catch (searchError: any) {
+      console.error('[API /tienda/productos/[id] PUT] ❌ Error al buscar producto:', {
+        message: searchError.message,
+        status: searchError.status,
+        details: searchError.details,
+      })
+      return NextResponse.json(
+        { success: false, error: `Error al buscar producto: ${searchError.message}` },
+        { status: searchError.status || 500 }
+      )
     }
     
     // PASO 2: Preparar datos para Strapi v4/v5
