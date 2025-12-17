@@ -138,7 +138,22 @@ export async function registro(
   }
 
   const data = await response.json()
-  setAuth(data)
+  
+  // Si no hay JWT, hacer login automáticamente para obtenerlo
+  if (!data.jwt && data.usuario) {
+    try {
+      const loginData = await login(email, password)
+      return loginData
+    } catch (loginError) {
+      // Si el login falla, continuar sin JWT (el usuario puede hacer login después)
+      console.warn('Usuario creado pero no se pudo obtener JWT automáticamente')
+    }
+  }
+  
+  if (data.jwt) {
+    setAuth(data)
+  }
+  
   return data
 }
 

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
     if (existingUsersResponse.ok) {
       const existingUsers = await existingUsersResponse.json()
-      if (existingUsers.length > 0) {
+      if (existingUsers && existingUsers.length > 0) {
         return NextResponse.json(
           { error: 'Ya existe un usuario con este email' },
           { status: 400 }
@@ -70,9 +70,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Crear usuario en Strapi (users-permissions)
+    // 3. Crear usuario en Strapi usando la API directamente (más confiable que /auth/local/register)
+    // Primero intentamos con el endpoint de registro público
     const strapiAuthUrl = getStrapiUrl('/api/auth/local/register')
-    const registerResponse = await fetch(strapiAuthUrl, {
+    console.log('[API /auth/registro] Intentando crear usuario en:', strapiAuthUrl)
+    
+    let registerResponse = await fetch(strapiAuthUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,19 +87,94 @@ export async function POST(request: Request) {
       }),
     })
 
-    if (!registerResponse.ok) {
-      const errorData = await registerResponse.json()
-      console.error('[API /auth/registro] Error al crear usuario:', errorData)
+    let usuarioData: any = null
+    let usuarioId: number | null = null
+
+    // Si el endpoint público no funciona (404), creamos el usuario directamente con el API token
+    if (!registerResponse.ok && registerResponse.status === 404) {
+      console.log('[API /auth/registro] Endpoint /api/auth/local/register no disponible, creando usuario directamente con API token')
+      
+      // Crear usuario directamente usando la API de usuarios con el token
+      const createUserUrl = getStrapiUrl('/api/users')
+      const createUserResponse = await fetch(createUserUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.STRAPI_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          username: email,
+          confirmed: true, // Confirmar automáticamente
+          blocked: false,
+        }),
+      })
+
+      if (!createUserResponse.ok) {
+        const errorData = await createUserResponse.json().catch(() => ({}))
+        console.error('[API /auth/registro] Error al crear usuario directamente:', {
+          status: createUserResponse.status,
+          error: errorData,
+        })
+        return NextResponse.json(
+          { 
+            error: errorData.error?.message || 'Error al crear usuario en Strapi',
+            details: errorData,
+          },
+          { status: createUserResponse.status }
+        )
+      }
+
+      usuarioData = await createUserResponse.json()
+      usuarioId = usuarioData.id || usuarioData.data?.id
+
+      // Generar JWT manualmente usando el endpoint de login
+      if (usuarioId) {
+        try {
+          const loginUrl = getStrapiUrl('/api/auth/local')
+          const loginResponse = await fetch(loginUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              identifier: email,
+              password,
+            }),
+          })
+
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json()
+            usuarioData = { ...usuarioData, jwt: loginData.jwt, user: loginData.user || usuarioData }
+          }
+        } catch (loginError) {
+          console.warn('[API /auth/registro] No se pudo generar JWT automáticamente:', loginError)
+          // Continuamos sin JWT, el usuario puede hacer login después
+        }
+      }
+    } else if (registerResponse.ok) {
+      // El endpoint público funcionó
+      usuarioData = await registerResponse.json()
+      usuarioId = usuarioData.user?.id
+    } else {
+      // Otro error
+      const errorData = await registerResponse.json().catch(() => ({}))
+      console.error('[API /auth/registro] Error al crear usuario:', {
+        status: registerResponse.status,
+        error: errorData,
+      })
       return NextResponse.json(
-        { error: errorData.error?.message || 'Error al crear usuario' },
+        { 
+          error: errorData.error?.message || 'Error al crear usuario',
+          details: errorData,
+        },
         { status: registerResponse.status }
       )
     }
 
-    const usuarioData = await registerResponse.json()
-    const usuarioId = usuarioData.user?.id
-
     if (!usuarioId) {
+      console.error('[API /auth/registro] Usuario creado pero sin ID:', usuarioData)
       return NextResponse.json(
         { error: 'Error: usuario creado pero sin ID' },
         { status: 500 }
@@ -121,9 +199,10 @@ export async function POST(request: Request) {
         message: 'Usuario registrado correctamente',
         usuario: {
           id: usuarioId,
-          email: usuarioData.user?.email,
+          email: usuarioData.user?.email || usuarioData.email || email,
+          username: usuarioData.user?.username || usuarioData.username || email,
         },
-        jwt: usuarioData.jwt,
+        jwt: usuarioData.jwt || null, // JWT puede ser null si no se pudo generar
       },
       { status: 201 }
     )
