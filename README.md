@@ -70,3 +70,7 @@ Este proyecto está configurado para desplegarse en Railway.
 - Los archivos modificados en `node_modules/bootstrap/scss/` son temporales y se regeneran al ejecutar `npm install`
 - Las variables dark de Bootstrap están personalizadas en `src/assets/scss/_variables-dark.scss`
 
+
+
+
+

@@ -1,7 +1,5 @@
 'use client'
-import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
 
 interface LogoProps {
   className?: string
@@ -9,75 +7,11 @@ interface LogoProps {
 }
 
 const Logo = ({ className = '', size = 'lg' }: LogoProps) => {
-  const [imageError, setImageError] = useState(false)
-  const [imageExists, setImageExists] = useState<boolean | null>(null)
+  // Dimensiones según el tamaño - respetando las variables CSS del tema
+  // logo-lg-height y logo-sm-height son 22px según _root.scss
+  const logoHeight = size === 'sm' ? 22 : 22
+  const logoWidth = logoHeight // Mantener proporción cuadrada
   
-  // Verificar si la imagen existe al montar el componente
-  useEffect(() => {
-    const img = new window.Image()
-    img.onload = () => setImageExists(true)
-    img.onerror = () => {
-      setImageExists(false)
-      setImageError(true)
-    }
-    img.src = '/images/logo/logo-moraleja.png'
-  }, [])
-  
-  // Dimensiones del logo según el tamaño
-  const logoDimensions = {
-    lg: { width: 140, height: 40 },
-    sm: { width: 100, height: 28 },
-  }
-
-  const dimensions = logoDimensions[size]
-
-  // Componente de fallback (texto MORALEJA)
-  const FallbackLogo = () => (
-    <Link 
-      href="/" 
-      className={className} 
-      style={{ 
-        textDecoration: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-          fontSize: size === 'sm' ? '14px' : '18px',
-          fontWeight: 'bold',
-          color: '#14b8a6',
-          letterSpacing: '1px',
-          backgroundColor: '#000000',
-          borderRadius: '4px',
-          padding: size === 'sm' ? '4px 8px' : '6px 12px',
-        }}
-      >
-        MORALEJA
-      </div>
-    </Link>
-  )
-
-  // Si hay error o la imagen no existe, mostrar fallback directamente
-  // También mostrar fallback mientras se verifica si la imagen existe
-  if (imageError || imageExists === false) {
-    return <FallbackLogo />
-  }
-
-  // Si aún no se ha verificado, mostrar fallback temporalmente para evitar errores
-  if (imageExists === null) {
-    return <FallbackLogo />
-  }
-
-  // Solo mostrar la imagen si existe y no hay error
   return (
     <Link 
       href="/" 
@@ -96,30 +30,39 @@ const Logo = ({ className = '', size = 'lg' }: LogoProps) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-          position: 'relative',
-          margin: '0 auto',
+          width: `${logoWidth}px`,
+          height: `${logoHeight}px`,
+          maxWidth: '100%',
+          maxHeight: '100%',
         }}
       >
-        <Image
-          src="/images/logo/logo-moraleja.png"
-          alt="MORALEJA Logo"
-          width={dimensions.width}
-          height={dimensions.height}
+        <svg
+          id="logosandtypes_com"
+          data-name="logosandtypes com"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 150 150"
+          width={logoWidth}
+          height={logoHeight}
           style={{
-            objectFit: 'contain',
-            width: '100%',
-            height: '100%',
+            display: 'block',
+            width: `${logoWidth}px`,
+            height: `${logoHeight}px`,
             maxWidth: '100%',
             maxHeight: '100%',
           }}
-          priority={false}
-          onError={() => {
-            setImageError(true)
-            setImageExists(false)
-          }}
-        />
+        >
+          <defs>
+            <style>
+              {`.cls-1 {
+                fill: none;
+              }`}
+            </style>
+          </defs>
+          <path className="cls-1" d="M0,0H150V150H0V0Z"/>
+          <path d="M43.28,13.97c0,34.74,28.12,62.89,62.79,62.89,5.76,0,11.34-.79,16.65-2.26L106.08,13.97H43.28Z"/>
+          <path d="M74.91,68.53l-42.93-12.18L10.36,136.65H56.83l18.08-68.12Z"/>
+          <path d="M80.06,86.92l42.66-12.31,16.78,62.04h-46.46l-12.98-49.73Z"/>
+        </svg>
       </div>
     </Link>
   )

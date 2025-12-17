@@ -35,6 +35,16 @@ const getHeaders = (customHeaders?: HeadersInit): HeadersInit => {
   // Agregar token de autenticación si está disponible (solo en servidor)
   if (STRAPI_API_TOKEN) {
     headers['Authorization'] = `Bearer ${STRAPI_API_TOKEN}`
+    // Log solo en desarrollo o si hay problema
+    if (process.env.NODE_ENV !== 'production' || !STRAPI_API_TOKEN) {
+      console.log('[Strapi Client] Token configurado:', {
+        tieneToken: !!STRAPI_API_TOKEN,
+        tokenLength: STRAPI_API_TOKEN?.length,
+        tokenPreview: STRAPI_API_TOKEN ? `${STRAPI_API_TOKEN.substring(0, 10)}...` : 'NO CONFIGURADO'
+      })
+    }
+  } else {
+    console.warn('[Strapi Client] ⚠️ STRAPI_API_TOKEN no está disponible en getHeaders()')
   }
   
   return headers
@@ -73,6 +83,25 @@ const strapiClient = {
    */
   async get<T>(path: string, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
+    const headers = getHeaders(options?.headers)
+    
+    // Logs detallados para debugging (solo en desarrollo o si hay error)
+    if (process.env.NODE_ENV !== 'production' || !STRAPI_API_TOKEN) {
+      // Convertir headers a objeto para poder acceder a las propiedades
+      const headersObj = headers instanceof Headers 
+        ? Object.fromEntries(headers.entries())
+        : Array.isArray(headers)
+        ? Object.fromEntries(headers)
+        : headers as Record<string, string>
+      
+      console.log('[Strapi Client GET] Petición:', {
+        url,
+        path,
+        tieneToken: !!STRAPI_API_TOKEN,
+        tieneAuthHeader: !!headersObj['Authorization'],
+        headersKeys: Object.keys(headersObj),
+      })
+    }
     
     // Crear un AbortController para timeout
     const controller = new AbortController()
@@ -81,12 +110,24 @@ const strapiClient = {
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: getHeaders(options?.headers),
+        headers,
         signal: controller.signal,
         ...options,
       })
       
       clearTimeout(timeoutId)
+      
+      // Log respuesta antes de manejar errores
+      if (!response.ok) {
+        console.error('[Strapi Client GET] ❌ Error en respuesta:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          tieneToken: !!STRAPI_API_TOKEN,
+        })
+      }
+      
       return handleResponse<T>(response)
     } catch (error: any) {
       clearTimeout(timeoutId)

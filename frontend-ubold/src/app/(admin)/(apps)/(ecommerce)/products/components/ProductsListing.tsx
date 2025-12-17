@@ -13,10 +13,10 @@ import {
   Table as TableType,
   useReactTable,
 } from '@tanstack/react-table'
-import Image from 'next/image'
+import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
-import { Button, Card, CardFooter, CardHeader, Col, Row } from 'react-bootstrap'
+import { useState, useEffect, useMemo } from 'react'
+import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuBox, LuDollarSign, LuSearch, LuTag } from 'react-icons/lu'
 import { TbEdit, TbEye, TbLayoutGrid, TbList, TbPlus, TbTrash } from 'react-icons/tb'
 
@@ -27,6 +27,117 @@ import TablePagination from '@/components/table/TablePagination'
 import { currency } from '@/helpers'
 import { toPascalCase } from '@/helpers/casing'
 import { productData, type ProductType } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
+import { STRAPI_API_URL } from '@/lib/strapi/config'
+import { format } from 'date-fns'
+
+// Tipo extendido para productos que pueden tener imagen como URL o StaticImageData
+type ProductTypeExtended = Omit<ProductType, 'image'> & {
+  image: StaticImageData | { src: string }
+  strapiId?: number
+}
+
+// Helper para obtener campo con múltiples variaciones
+const getField = (obj: any, ...fieldNames: string[]): any => {
+  for (const fieldName of fieldNames) {
+    if (obj[fieldName] !== undefined && obj[fieldName] !== null && obj[fieldName] !== '') {
+      return obj[fieldName]
+    }
+  }
+  return undefined
+}
+
+// Función para mapear productos de Strapi al formato ProductType (igual que ProductosGrid)
+const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
+  // Los datos pueden venir en attributes o directamente (igual que ProductosGrid)
+  const attrs = producto.attributes || {}
+  const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
+
+  // Obtener URL de imagen (manejar datos directos o en attributes - igual que Products Grid)
+  const getImageUrl = (): string => {
+    // Acceder a portada_libro - puede venir como objeto directo o con .data
+    let portada = data.portada_libro || data.PORTADA_LIBRO || data.portadaLibro
+    
+    // Si portada tiene .data, acceder a eso
+    if (portada?.data) {
+      portada = portada.data
+    }
+    
+    // Si portada es null o undefined, usar imagen por defecto
+    if (!portada || portada === null) {
+      return '/images/products/1.png'
+    }
+
+    // Obtener la URL - puede estar en attributes o directamente
+    const url = portada.attributes?.url || portada.attributes?.URL || portada.url || portada.URL
+    if (!url) {
+      return '/images/products/1.png'
+    }
+    
+    // Si la URL ya es completa, retornarla tal cual
+    if (url.startsWith('http')) {
+      return url
+    }
+    
+    // Si no, construir la URL completa con la base de Strapi
+    const baseUrl = STRAPI_API_URL.replace(/\/$/, '')
+    return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
+  }
+
+  // Calcular stock total (igual que ProductosGrid)
+  const getStockTotal = (): number => {
+    const stocks = data.STOCKS?.data || data.stocks?.data || []
+    return stocks.reduce((total: number, stock: any) => {
+      const cantidad = stock.attributes?.CANTIDAD || stock.attributes?.cantidad || 0
+      return total + (typeof cantidad === 'number' ? cantidad : 0)
+    }, 0)
+  }
+
+  // Obtener precio mínimo (igual que ProductosGrid)
+  const getPrecioMinimo = (): number => {
+    const precios = data.PRECIOS?.data || data.precios?.data || []
+    if (precios.length === 0) return 0
+    
+    const preciosNumeros = precios
+      .map((p: any) => p.attributes?.PRECIO || p.attributes?.precio)
+      .filter((p: any): p is number => typeof p === 'number' && p > 0)
+    
+    return preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
+  }
+
+  // Buscar nombre con múltiples variaciones (igual que ProductosGrid)
+  const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
+  const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
+  const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
+  const editorial = data.editorial?.data?.attributes?.nombre || data.editorial?.data?.attributes?.NOMBRE || 'Sin editorial'
+  const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || 'Sin categoría'
+  const isPublished = !!(attrs.publishedAt || (producto as any).publishedAt)
+  const createdAt = attrs.createdAt || (producto as any).createdAt || new Date().toISOString()
+  const createdDate = new Date(createdAt)
+
+  return {
+    image: { src: getImageUrl() },
+    name: nombre,
+    brand: autor,
+    code: isbn || `STRAPI-${producto.id}`,
+    category: tipoLibro,
+    stock: getStockTotal(),
+    price: getPrecioMinimo(),
+    sold: 0,
+    rating: 4,
+    reviews: 0,
+    status: isPublished ? 'published' : 'pending',
+    date: format(createdDate, 'dd MMM, yyyy'),
+    time: format(createdDate, 'h:mm a'),
+    // Usar el ID numérico si existe, sino documentId, sino el id tal cual
+    url: `/products/${producto.id || producto.documentId || producto.id}`,
+    strapiId: producto.id,
+  }
+}
+
+interface ProductsListingProps {
+  productos?: any[]
+  error?: string | null
+}
 
 const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
   const price = row.getValue<number>(columnId)
@@ -36,15 +147,30 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
   return price >= min && price <= max
 }
 
-const columnHelper = createColumnHelper<ProductType>()
+const columnHelper = createColumnHelper<ProductTypeExtended>()
 
-const ProductsListing = () => {
-  const columns: ColumnDef<ProductType, any>[] = [
+const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
+  // Mapear productos de Strapi al formato ProductType si están disponibles
+  const mappedProducts = useMemo(() => {
+    if (productos && productos.length > 0) {
+      console.log('[ProductsListing] Productos recibidos:', productos.length)
+      console.log('[ProductsListing] Primer producto estructura completa:', JSON.stringify(productos[0], null, 2))
+      const mapped = productos.map(mapStrapiProductToProductType)
+      console.log('[ProductsListing] Productos mapeados:', mapped.length)
+      console.log('[ProductsListing] Primer producto mapeado:', mapped[0])
+      console.log('[ProductsListing] Imagen del primer producto:', mapped[0]?.image)
+      return mapped
+    }
+    console.log('[ProductsListing] No hay productos de Strapi, usando datos de ejemplo')
+    return productData
+  }, [productos])
+
+  const columns: ColumnDef<ProductTypeExtended, any>[] = [
     {
       id: 'select',
       maxSize: 45,
       size: 45,
-      header: ({ table }: { table: TableType<ProductType> }) => (
+      header: ({ table }: { table: TableType<ProductTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -52,7 +178,7 @@ const ProductsListing = () => {
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: { row: TableRow<ProductType> }) => (
+      cell: ({ row }: { row: TableRow<ProductTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -65,21 +191,47 @@ const ProductsListing = () => {
     },
     columnHelper.accessor('name', {
       header: 'Product',
-      cell: ({ row }) => (
-        <div className="d-flex">
-          <div className="avatar-md me-3">
-            <Image src={row.original.image.src} alt="Product" height={36} width={36} className="img-fluid rounded" />
+      cell: ({ row }) => {
+        const imageSrc = typeof row.original.image === 'object' && 'src' in row.original.image
+          ? row.original.image.src
+          : (row.original.image as any).src || '/images/products/1.png'
+        
+        // Debug: Log para el primer producto
+        if (row.index === 0 && typeof window !== 'undefined') {
+          console.log('[ProductsListing] Renderizando primer producto:', {
+            name: row.original.name,
+            imageSrc,
+            imageObject: row.original.image,
+            hasSrc: typeof row.original.image === 'object' && 'src' in row.original.image,
+          })
+        }
+        
+        return (
+          <div className="d-flex">
+            <div className="avatar-md me-3">
+              <Image 
+                src={imageSrc} 
+                alt={row.original.name || 'Product'} 
+                height={36} 
+                width={36} 
+                className="img-fluid rounded"
+                unoptimized={imageSrc.startsWith('http')}
+                onError={(e) => {
+                  console.error('[ProductsListing] Error al cargar imagen:', imageSrc, e)
+                }}
+              />
+            </div>
+            <div>
+              <h5 className="mb-0">
+                <Link href={row.original.url} className="link-reset">
+                  {row.original.name || 'Sin nombre'}
+                </Link>
+              </h5>
+              <p className="text-muted mb-0 fs-xxs">by: {row.original.brand || 'Sin autor'}</p>
+            </div>
           </div>
-          <div>
-            <h5 className="mb-0">
-              <Link href={row.original.url} className="link-reset">
-                {row.original.name}
-              </Link>
-            </h5>
-            <p className="text-muted mb-0 fs-xxs">by: {row.original.brand}</p>
-          </div>
-        </div>
-      ),
+        )
+      },
     }),
     columnHelper.accessor('code', { header: 'SKU' }),
     columnHelper.accessor('category', {
@@ -134,14 +286,18 @@ const ProductsListing = () => {
     }),
     {
       header: 'Actions',
-      cell: ({ row }: { row: TableRow<ProductType> }) => (
+      cell: ({ row }: { row: TableRow<ProductTypeExtended> }) => (
         <div className="d-flex  gap-1">
-          <Button variant="default" size="sm" className="btn-icon rounded-circle">
-            <TbEye className="fs-lg" />
-          </Button>
-          <Button variant="default" size="sm" className="btn-icon rounded-circle">
-            <TbEdit className="fs-lg" />
-          </Button>
+          <Link href={row.original.url}>
+            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+              <TbEye className="fs-lg" />
+            </Button>
+          </Link>
+          <Link href={`/tienda/productos/${row.original.strapiId || row.original.code}/editar`}>
+            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+              <TbEdit className="fs-lg" />
+            </Button>
+          </Link>
           <Button
             variant="default"
             size="sm"
@@ -157,7 +313,7 @@ const ProductsListing = () => {
     },
   ]
 
-  const [data, setData] = useState<ProductType[]>(() => [...productData])
+  const [data, setData] = useState<ProductTypeExtended[]>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -165,7 +321,14 @@ const ProductsListing = () => {
 
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
-  const table = useReactTable({
+  // Actualizar datos cuando cambien los productos de Strapi
+  useEffect(() => {
+    console.log('[ProductsListing] useEffect - productos:', productos?.length, 'mappedProducts:', mappedProducts.length)
+    setData(mappedProducts)
+    console.log('[ProductsListing] Datos actualizados. Total:', mappedProducts.length)
+  }, [mappedProducts])
+
+  const table = useReactTable<ProductTypeExtended>({
     data,
     columns,
     state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds },
@@ -206,6 +369,40 @@ const ProductsListing = () => {
     setPagination({ ...pagination, pageIndex: 0 })
     setShowDeleteModal(false)
   }
+
+  // Mostrar error si existe, pero continuar mostrando los datos de ejemplo si hay
+  // Esto permite que la aplicación siga funcionando aunque Strapi falle
+  const hasError = !!error
+  const hasData = mappedProducts.length > 0
+  
+  if (hasError && !hasData) {
+    return (
+      <Row>
+        <Col xs={12}>
+          <Alert variant="warning">
+            <strong>Error al cargar productos desde Strapi:</strong> {error}
+            <br />
+            <small className="text-muted">
+              Verifica que:
+              <ul className="mt-2 mb-0">
+                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
+                <li>El servidor de Strapi esté disponible</li>
+                <li>Las variables de entorno estén correctas</li>
+              </ul>
+            </small>
+          </Alert>
+        </Col>
+      </Row>
+    )
+  }
+  
+  // Si hay error pero también hay datos, mostrar advertencia pero continuar
+  if (hasError && hasData) {
+    console.warn('[ProductsListing] Error al cargar desde Strapi, usando datos disponibles:', error)
+  }
+
+  // Debug: mostrar información sobre los datos
+  console.log('[ProductsListing] Render - data.length:', data.length, 'mappedProducts.length:', mappedProducts.length, 'productos:', productos?.length)
 
   return (
     <Row>
@@ -307,7 +504,7 @@ const ProductsListing = () => {
             </div>
           </CardHeader>
 
-          <DataTable<ProductType> table={table} emptyMessage="No records found" />
+          <DataTable<ProductTypeExtended> table={table} emptyMessage="No records found" />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
