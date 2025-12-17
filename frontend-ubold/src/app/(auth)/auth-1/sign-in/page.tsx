@@ -1,7 +1,8 @@
 'use client'
 
-import AppLogo from '@/components/AppLogo'
-import { author, currentYear } from '@/helpers'
+import AlmonteLogo from '@/components/AlmonteLogo'
+import AlmonteAbstractLogo from '@/components/AlmonteAbstractLogo'
+import { currentYear } from '@/helpers'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -44,7 +45,10 @@ const Page = () => {
               </div>
 
               <div className="auth-brand text-center mb-4">
-                <AppLogo />
+                <div className="d-flex justify-content-center align-items-center gap-3 mb-3">
+                  <AlmonteLogo height={60} style={{ color: '#000' }} />
+                  <AlmonteAbstractLogo height={60} />
+                </div>
                 <p className="text-muted w-lg-75 mt-3 mx-auto">
                   Inicia sesión con tu email y contraseña de colaborador.
                 </p>
@@ -118,7 +122,7 @@ const Page = () => {
             </Card>
 
             <p className="text-center text-muted mt-4 mb-0">
-              © {currentYear} UBold — by <span className="fw-semibold">Coderthemes</span>
+              © {currentYear} Almonte
             </p>
 
           </Col>
