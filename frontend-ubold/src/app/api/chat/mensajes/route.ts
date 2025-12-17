@@ -46,15 +46,31 @@ export async function GET(request: NextRequest) {
     
     // Query 1: Mensajes que yo envié al otro colaborador
     let query1 = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteIdNum}&filters[cliente_id][$eq]=${colaboradorIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+    // Usar filtro de fecha solo si se proporciona, y restar 2 segundos para evitar perder mensajes por diferencias de tiempo
     if (ultimaFecha) {
-      query1 += `&filters[fecha][$gt]=${ultimaFecha}`
+      try {
+        const fechaLimite = new Date(ultimaFecha)
+        fechaLimite.setSeconds(fechaLimite.getSeconds() - 2) // Restar 2 segundos como margen
+        query1 += `&filters[fecha][$gt]=${fechaLimite.toISOString()}`
+      } catch (e) {
+        // Si hay error al parsear la fecha, no usar filtro
+        console.warn('[API /chat/mensajes] Error al parsear ultimaFecha, ignorando filtro:', e)
+      }
     }
     queries.push(strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1))
     
     // Query 2: Mensajes que el otro colaborador me envió a mí
     let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorIdNum}&filters[cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+    // Usar filtro de fecha solo si se proporciona, y restar 2 segundos para evitar perder mensajes por diferencias de tiempo
     if (ultimaFecha) {
-      query2 += `&filters[fecha][$gt]=${ultimaFecha}`
+      try {
+        const fechaLimite = new Date(ultimaFecha)
+        fechaLimite.setSeconds(fechaLimite.getSeconds() - 2) // Restar 2 segundos como margen
+        query2 += `&filters[fecha][$gt]=${fechaLimite.toISOString()}`
+      } catch (e) {
+        // Si hay error al parsear la fecha, no usar filtro
+        console.warn('[API /chat/mensajes] Error al parsear ultimaFecha, ignorando filtro:', e)
+      }
     }
     queries.push(strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2))
     
