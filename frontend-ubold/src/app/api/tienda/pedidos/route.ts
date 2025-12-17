@@ -11,23 +11,23 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Intentar múltiples endpoints según las colecciones disponibles
+    // Endpoint correcto confirmado: /api/pedidos (verificado en test-strapi)
+    // También funciona /api/wo-pedidos como alternativa
     let response: any = null
     let endpointUsed = ''
     
-    // Intentar primero con "ecommerce-pedidos" (Ecommerce · Pedido)
+    // Intentar primero con "pedidos" (endpoint principal que funciona)
     try {
-      endpointUsed = '/api/ecommerce-pedidos'
+      endpointUsed = '/api/pedidos'
       response = await strapiClient.get<any>(`${endpointUsed}?populate=*&pagination[pageSize]=100`)
     } catch {
-      // Si falla, intentar con "wo-pedidos" (WO-Pedidos)
+      // Si falla, intentar con "wo-pedidos" como alternativa
       try {
         endpointUsed = '/api/wo-pedidos'
         response = await strapiClient.get<any>(`${endpointUsed}?populate=*&pagination[pageSize]=100`)
       } catch {
-        // Último intento con "pedidos"
-        endpointUsed = '/api/pedidos'
-        response = await strapiClient.get<any>(`${endpointUsed}?populate=*&pagination[pageSize]=100`)
+        // Si ambos fallan, lanzar el error
+        throw new Error('No se pudo conectar con ningún endpoint de pedidos')
       }
     }
     
