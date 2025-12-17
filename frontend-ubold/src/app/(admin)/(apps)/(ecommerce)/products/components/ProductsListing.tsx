@@ -46,15 +46,16 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear productos de Strapi al formato ProductType
+// Función para mapear productos de Strapi al formato ProductType (igual que ProductosGrid)
 const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
+  // Los datos pueden venir en attributes o directamente (igual que ProductosGrid)
   const attrs = producto.attributes || {}
-  const data = attrs as any
+  const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
 
-  // Obtener URL de imagen
+  // Obtener URL de imagen (igual que ProductosGrid)
   const getImageUrl = (): string => {
-    const portada = data.PORTADA_LIBRO?.data || data.portada_libro?.data
-    if (!portada) return '/images/products/1.png' // Imagen por defecto
+    const portada = data.PORTADA_LIBRO?.data || data.portada_libro?.data || data.portadaLibro?.data
+    if (!portada) return '/images/products/1.png'
     
     const url = portada.attributes?.url || portada.attributes?.URL
     if (!url) return '/images/products/1.png'
@@ -67,7 +68,7 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
   }
 
-  // Calcular stock total
+  // Calcular stock total (igual que ProductosGrid)
   const getStockTotal = (): number => {
     const stocks = data.STOCKS?.data || data.stocks?.data || []
     return stocks.reduce((total: number, stock: any) => {
@@ -76,7 +77,7 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     }, 0)
   }
 
-  // Obtener precio mínimo
+  // Obtener precio mínimo (igual que ProductosGrid)
   const getPrecioMinimo = (): number => {
     const precios = data.PRECIOS?.data || data.precios?.data || []
     if (precios.length === 0) return 0
@@ -88,13 +89,14 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     return preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
   }
 
-  const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name') || 'Sin nombre'
+  // Buscar nombre con múltiples variaciones (igual que ProductosGrid)
+  const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
   const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
   const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
   const editorial = data.editorial?.data?.attributes?.nombre || data.editorial?.data?.attributes?.NOMBRE || 'Sin editorial'
   const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || 'Sin categoría'
-  const isPublished = !!attrs.publishedAt
-  const createdAt = attrs.createdAt || new Date().toISOString()
+  const isPublished = !!(attrs.publishedAt || (producto as any).publishedAt)
+  const createdAt = attrs.createdAt || (producto as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
 
   return {
@@ -105,9 +107,9 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     category: tipoLibro,
     stock: getStockTotal(),
     price: getPrecioMinimo(),
-    sold: 0, // No hay campo de vendidos en Strapi por ahora
-    rating: 4, // Valor por defecto
-    reviews: 0, // Valor por defecto
+    sold: 0,
+    rating: 4,
+    reviews: 0,
     status: isPublished ? 'published' : 'pending',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
