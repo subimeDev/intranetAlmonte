@@ -102,7 +102,7 @@ export async function GET(
       }, { status: 200 })
     }
     
-    // Si no se encontró, mostrar información de debug
+    // Si no se encontró, mostrar información de debug y retornar error
     console.error('[API /tienda/productos/[id] GET] Producto no encontrado:', {
       idBuscado: id,
       totalProductos: productos.length,
@@ -112,61 +112,6 @@ export async function GET(
       })),
     })
     
-    // Si falla o el ID no es numérico, buscar en todos los productos
-    try {
-      console.log('[API /tienda/productos/[id] GET] Buscando producto en lista completa...')
-      
-      const allProducts = await strapiClient.get<any>(
-        `/api/libros?populate=*&pagination[pageSize]=1000`
-      )
-      
-      const productos = Array.isArray(allProducts.data) ? allProducts.data : (allProducts.data ? [allProducts.data] : [])
-      
-      console.log('[API /tienda/productos/[id] GET] Productos obtenidos:', {
-        total: productos.length,
-        primerProducto: productos[0] ? {
-          id: productos[0].id,
-          documentId: productos[0].documentId,
-        } : null,
-      })
-      
-      const productoEncontrado = productos.find((p: any) => 
-        p.id?.toString() === id || 
-        p.documentId === id ||
-        p.documentId?.toString() === id ||
-        (!isNaN(parseInt(id)) && p.id === parseInt(id))
-      )
-      
-      if (productoEncontrado) {
-        console.log('[API /tienda/productos/[id] GET] Producto encontrado por búsqueda:', {
-          idBuscado: id,
-          productoId: productoEncontrado.id,
-          documentId: productoEncontrado.documentId,
-        })
-        
-        return NextResponse.json({
-          success: true,
-          data: productoEncontrado,
-        }, { status: 200 })
-      } else {
-        console.error('[API /tienda/productos/[id] GET] Producto no encontrado:', {
-          idBuscado: id,
-          totalProductos: productos.length,
-          idsDisponibles: productos.slice(0, 5).map((p: any) => ({
-            id: p.id,
-            documentId: p.documentId,
-          })),
-        })
-      }
-    } catch (searchError: any) {
-      console.error('[API /tienda/productos/[id] GET] Error en búsqueda:', {
-        message: searchError.message,
-        status: searchError.status,
-        details: searchError.details,
-      })
-    }
-    
-    // Si no se encontró, retornar error
     return NextResponse.json(
       { 
         success: false,
