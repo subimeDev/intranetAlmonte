@@ -18,3 +18,8 @@ coverage
 .cache
 tmp
 temp
+
+# Dockerfiles - Forzar uso de NIXPACKS
+Dockerfile
+Dockerfile.*
+.dockerignore
