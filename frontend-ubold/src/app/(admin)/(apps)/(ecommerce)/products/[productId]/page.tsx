@@ -9,13 +9,13 @@ import PageBreadcrumb from '@/components/PageBreadcrumb'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     productId: string
-  }
+  }>
 }
 
 export default async function Page({ params }: PageProps) {
-  const { productId } = params
+  const { productId } = await params
   let producto: any = null
   let error: string | null = null
 
