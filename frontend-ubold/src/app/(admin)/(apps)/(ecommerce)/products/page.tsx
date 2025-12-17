@@ -1,15 +1,47 @@
 import { Container } from 'react-bootstrap'
+import { headers } from 'next/headers'
 
 import ProductsListing from '@/app/(admin)/(apps)/(ecommerce)/products/components/ProductsListing'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 
-const Page = () => {
+// Forzar renderizado dinámico
+export const dynamic = 'force-dynamic'
+
+export default async function Page() {
+  let productos: any[] = []
+  let error: string | null = null
+
+  try {
+    // Usar API Route como proxy (igual que el chat)
+    // Esto maneja el token de Strapi solo en el servidor
+    const headersList = await headers()
+    const host = headersList.get('host') || 'localhost:3000'
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+    const baseUrl = `${protocol}://${host}`
+    
+    const response = await fetch(`${baseUrl}/api/tienda/productos`, {
+      cache: 'no-store', // Forzar fetch dinámico
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      productos = Array.isArray(data.data) ? data.data : [data.data]
+    } else {
+      error = data.error || 'Error al obtener productos'
+    }
+  } catch (err: any) {
+    error = err.message || 'Error al conectar con la API'
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error al obtener productos:', err)
+    }
+  }
+
   return (
     <Container fluid>
       <PageBreadcrumb title="Products" subtitle="Ecommerce" />
-      <ProductsListing />
+      <ProductsListing productos={productos} error={error} />
     </Container>
   )
 }
-
-export default Page
