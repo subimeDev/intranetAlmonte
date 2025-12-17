@@ -199,7 +199,7 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
     
     const preciosNumeros = precios
       .map((p: any) => p.attributes?.PRECIO || p.attributes?.precio)
-      .filter((p): p is number => typeof p === 'number' && p > 0)
+      .filter((p: any): p is number => typeof p === 'number' && p > 0)
     
     return preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : null
   }
