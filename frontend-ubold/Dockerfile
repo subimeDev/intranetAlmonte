@@ -23,7 +23,6 @@ RUN npm ci --prefer-offline --no-audit --legacy-peer-deps || \
 # Builder stage - Construir la app
 # ==========================================
 FROM base AS builder
-WORKDIR /app
 
 # Copiar dependencias instaladas
 COPY --from=deps /app/node_modules ./node_modules
@@ -42,7 +41,6 @@ RUN npm run build
 # Runner stage - Imagen final ligera
 # ==========================================
 FROM base AS runner
-WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -69,4 +67,3 @@ ENV HOSTNAME="0.0.0.0"
 
 # Comando para iniciar la aplicación
 CMD ["node", "server.js"]
-
