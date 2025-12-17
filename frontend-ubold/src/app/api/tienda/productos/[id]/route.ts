@@ -316,13 +316,27 @@ export async function PUT(
       )
     }
     
+    // Validar que tenemos un ID numérico válido antes de continuar
+    if (!productoId || isNaN(Number(productoId))) {
+      console.error('[API /tienda/productos/[id] PUT] ❌ ID numérico inválido:', {
+        idOriginal: id,
+        productoId,
+        tipo: typeof productoId,
+      })
+      return NextResponse.json(
+        { success: false, error: `ID numérico inválido: ${productoId}` },
+        { status: 400 }
+      )
+    }
+    
     const endpointUsed = `/api/libros/${productoId}`
     
-    console.log('[API /tienda/productos/[id] PUT] Enviando actualización:', {
-      id: productoId,
+    console.log('[API /tienda/productos/[id] PUT] Enviando actualización a Strapi:', {
+      idOriginal: id,
+      idNumerico: productoId,
       endpoint: endpointUsed,
       camposActualizados: Object.keys(updateData.data),
-      updateData,
+      updateData: JSON.stringify(updateData, null, 2),
     })
     
     // PASO 3: Enviar actualización a Strapi
@@ -337,8 +351,10 @@ export async function PUT(
       const productoActualizado = response.data || response
       
       console.log('[API /tienda/productos/[id] PUT] ✅ Actualización exitosa:', {
-        id: productoId,
+        idOriginal: id,
+        idNumerico: productoId,
         tieneRespuesta: !!productoActualizado,
+        respuestaKeys: productoActualizado ? Object.keys(productoActualizado).slice(0, 10) : [],
       })
       
       return NextResponse.json({
@@ -347,12 +363,15 @@ export async function PUT(
         message: 'Producto actualizado correctamente',
       }, { status: 200 })
     } catch (putError: any) {
-      console.error('[API /tienda/productos/[id] PUT] ❌ Error en PUT:', {
+      console.error('[API /tienda/productos/[id] PUT] ❌ Error en PUT a Strapi:', {
         message: putError.message,
         status: putError.status,
         details: putError.details,
         endpoint: endpointUsed,
+        idUsado: productoId,
+        idOriginal: id,
         updateDataEnviado: JSON.stringify(updateData, null, 2),
+        response: putError.response,
       })
       
       // Proporcionar información útil sobre el error
@@ -362,6 +381,8 @@ export async function PUT(
         errorMessage = `Error de validación: ${putError.details || putError.message}. Verifica que los campos existan en Strapi.`
       } else if (putError.status === 403 || putError.status === 401) {
         errorMessage = 'Error de permisos: El token de autenticación no tiene permisos para actualizar productos.'
+      } else if (putError.status === 404) {
+        errorMessage = `Producto con ID ${productoId} no encontrado en Strapi.`
       } else if (putError.status === 502) {
         errorMessage = 'Error de conexión con Strapi: El servidor rechazó la petición. Verifica el formato de los datos.'
       }
@@ -371,6 +392,11 @@ export async function PUT(
           success: false,
           error: errorMessage,
           details: putError.details,
+          debug: {
+            idOriginal: id,
+            idNumericoUsado: productoId,
+            endpoint: endpointUsed,
+          },
         },
         { status: putError.status || 500 }
       )
