@@ -154,6 +154,12 @@ export async function POST(request: NextRequest) {
       )
     }
     
+    console.log('[API /chat/mensajes POST] Enviando mensaje:', {
+      texto: texto.substring(0, 50),
+      remitente_id: remitenteIdNum,
+      cliente_id: colaboradorIdNum,
+    })
+    
     const response = await strapiClient.post<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(
       '/api/intranet-chats',
       {
@@ -166,6 +172,12 @@ export async function POST(request: NextRequest) {
         },
       }
     )
+    
+    console.log('[API /chat/mensajes POST] Mensaje guardado:', {
+      id: Array.isArray(response.data) ? response.data[0]?.id : response.data?.id,
+      remitente_id: Array.isArray(response.data) ? (response.data[0]?.attributes?.remitente_id || response.data[0]?.remitente_id) : (response.data?.attributes?.remitente_id || response.data?.remitente_id),
+      cliente_id: Array.isArray(response.data) ? (response.data[0]?.attributes?.cliente_id || response.data[0]?.cliente_id) : (response.data?.attributes?.cliente_id || response.data?.cliente_id),
+    })
     
     return NextResponse.json(response, { status: 201 })
   } catch (error: any) {
