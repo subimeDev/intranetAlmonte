@@ -48,7 +48,18 @@ const ProductDisplay = ({ producto }: ProductDisplayProps) => {
   }
 
   const currentImageUrl = getImageUrl()
-  const productId = producto.id || producto.documentId
+  
+  // Obtener el ID correcto: preferir id numérico, luego documentId
+  // El ID numérico es el que usa Strapi para las actualizaciones
+  const productId = producto.id?.toString() || producto.documentId || 'unknown'
+  
+  console.log('[ProductDisplay] ID del producto:', {
+    productoId: productId,
+    tieneId: !!producto.id,
+    tieneDocumentId: !!producto.documentId,
+    idValue: producto.id,
+    documentIdValue: producto.documentId,
+  })
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

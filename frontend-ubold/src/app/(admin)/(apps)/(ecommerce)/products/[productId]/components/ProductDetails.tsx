@@ -53,7 +53,18 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
   const isPublished = !!(attrs.publishedAt || producto.publishedAt)
   const createdAt = attrs.createdAt || producto.createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
-  const productId = producto.id || producto.documentId
+  
+  // Obtener el ID correcto: preferir id numérico, luego documentId, luego el id de la URL
+  // El ID numérico es el que usa Strapi para las actualizaciones
+  const productId = producto.id?.toString() || producto.documentId || 'unknown'
+  
+  console.log('[ProductDetails] ID del producto:', {
+    productoId: productId,
+    tieneId: !!producto.id,
+    tieneDocumentId: !!producto.documentId,
+    idValue: producto.id,
+    documentIdValue: producto.documentId,
+  })
 
   const handleSaveNombre = async (newValue: string) => {
     setSavingField('nombre')
