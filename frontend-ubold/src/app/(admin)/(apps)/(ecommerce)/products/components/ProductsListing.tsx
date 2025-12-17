@@ -53,7 +53,7 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
 
   // Obtener URL de imagen (manejar datos directos o en attributes - igual que Products Grid)
-  const getImageUrl = (): string => {
+  const getImageUrl = (): string | null => {
     // Acceder a portada_libro - puede venir como objeto directo o con .data
     let portada = data.portada_libro || data.PORTADA_LIBRO || data.portadaLibro
     
