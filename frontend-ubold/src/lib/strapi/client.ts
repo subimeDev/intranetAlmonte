@@ -87,12 +87,19 @@ const strapiClient = {
     
     // Logs detallados para debugging (solo en desarrollo o si hay error)
     if (process.env.NODE_ENV !== 'production' || !STRAPI_API_TOKEN) {
+      // Convertir headers a objeto para poder acceder a las propiedades
+      const headersObj = headers instanceof Headers 
+        ? Object.fromEntries(headers.entries())
+        : Array.isArray(headers)
+        ? Object.fromEntries(headers)
+        : headers as Record<string, string>
+      
       console.log('[Strapi Client GET] Petición:', {
         url,
         path,
         tieneToken: !!STRAPI_API_TOKEN,
-        tieneAuthHeader: !!headers['Authorization'],
-        headersKeys: Object.keys(headers),
+        tieneAuthHeader: !!headersObj['Authorization'],
+        headersKeys: Object.keys(headersObj),
       })
     }
     
