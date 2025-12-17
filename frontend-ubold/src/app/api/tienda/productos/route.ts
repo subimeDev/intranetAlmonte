@@ -3,7 +3,7 @@
  * Esto evita exponer el token de Strapi en el cliente
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
 import type { StrapiResponse, StrapiEntity } from '@/lib/strapi/types'
 
@@ -98,6 +98,119 @@ export async function GET() {
       },
       { status: error.status || 500 }
     )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    console.log('[API POST] 📝 Creando producto:', body)
+
+    // Validar nombre_libro obligatorio
+    if (!body.nombre_libro || body.nombre_libro.trim() === '') {
+      return NextResponse.json({
+        success: false,
+        error: 'El nombre del libro es obligatorio'
+      }, { status: 400 })
+    }
+
+    // CRÍTICO: Generar ISBN único automáticamente si no viene
+    const isbn = body.isbn_libro && body.isbn_libro.trim() !== '' 
+      ? body.isbn_libro.trim()
+      : `AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+
+    console.log('[API POST] 📚 ISBN a usar:', isbn)
+
+    // Preparar datos para Strapi (formato: { data: { campos } })
+    const productData: any = {
+      data: {
+        isbn_libro: isbn,
+        nombre_libro: body.nombre_libro.trim()
+      }
+    }
+
+    // Campos opcionales básicos
+    if (body.subtitulo_libro?.trim()) {
+      productData.data.subtitulo_libro = body.subtitulo_libro.trim()
+    }
+    
+    if (body.descripcion?.trim()) {
+      productData.data.descripcion = body.descripcion.trim()
+    }
+    
+    if (body.portada_libro) {
+      productData.data.portada_libro = body.portada_libro
+    }
+
+    // === RELACIONES SIMPLES (documentId) ===
+    if (body.obra) productData.data.obra = body.obra
+    if (body.autor_relacion) productData.data.autor_relacion = body.autor_relacion
+    if (body.editorial) productData.data.editorial = body.editorial
+    if (body.sello) productData.data.sello = body.sello
+    if (body.coleccion) productData.data.coleccion = body.coleccion
+
+    // === RELACIONES MÚLTIPLES (array de documentIds) ===
+    if (body.canales?.length > 0) productData.data.canales = body.canales
+    if (body.marcas?.length > 0) productData.data.marcas = body.marcas
+    if (body.etiquetas?.length > 0) productData.data.etiquetas = body.etiquetas
+    if (body.categorias_producto?.length > 0) productData.data.categorias_producto = body.categorias_producto
+
+    // === IDS NUMÉRICOS ===
+    if (body.id_autor) productData.data.id_autor = body.id_autor
+    if (body.id_editorial) productData.data.id_editorial = body.id_editorial
+    if (body.id_sello) productData.data.id_sello = body.id_sello
+    if (body.id_coleccion) productData.data.id_coleccion = body.id_coleccion
+    if (body.id_obra) productData.data.id_obra = body.id_obra
+
+    // === INFORMACIÓN DE EDICIÓN ===
+    if (body.numero_edicion) productData.data.numero_edicion = body.numero_edicion
+    if (body.agno_edicion) productData.data.agno_edicion = body.agno_edicion
+    if (body.idioma) productData.data.idioma = body.idioma
+    if (body.tipo_libro) productData.data.tipo_libro = body.tipo_libro
+    if (body.estado_edicion) productData.data.estado_edicion = body.estado_edicion
+
+    console.log('[API POST] 📤 Enviando a Strapi:', JSON.stringify(productData, null, 2))
+
+    // Crear en Strapi
+    const response = await strapiClient.post<any>('/api/libros', productData)
+
+    console.log('[API POST] ✅ Producto creado exitosamente:', {
+      id: response.data?.id || response.id,
+      documentId: response.data?.documentId || response.documentId,
+      nombre: response.data?.nombre_libro || response.nombre_libro
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: response.data || response,
+      message: 'Producto creado exitosamente'
+    })
+
+  } catch (error: any) {
+    console.error('[API POST] ❌ ERROR al crear producto:', {
+      message: error.message,
+      status: error.status,
+      details: error.details,
+      errores: error.details?.errors
+    })
+    
+    // Mensaje de error más específico
+    let errorMessage = 'Error al crear el producto'
+    
+    if (error.message?.includes('unique')) {
+      errorMessage = 'El ISBN ya existe. Se generará uno automático.'
+    } else if (error.details?.errors) {
+      errorMessage = error.details.errors.map((e: any) => e.message).join(', ')
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      details: error.details?.errors
+    }, { status: error.status || 500 })
   }
 }
 
