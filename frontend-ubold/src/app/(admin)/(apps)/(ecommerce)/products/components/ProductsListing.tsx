@@ -13,7 +13,7 @@ import {
   Table as TableType,
   useReactTable,
 } from '@tanstack/react-table'
-import Image from 'next/image'
+import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
