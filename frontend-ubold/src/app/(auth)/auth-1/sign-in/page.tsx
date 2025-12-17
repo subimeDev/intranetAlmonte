@@ -46,7 +46,7 @@ const Page = () => {
               <div className="auth-brand text-center mb-4">
                 <AppLogo />
                 <p className="text-muted w-lg-75 mt-3 mx-auto">
-                  Inicia sesión con tu email y contraseña de cliente.
+                  Inicia sesión con tu email y contraseña de colaborador.
                 </p>
               </div>
 

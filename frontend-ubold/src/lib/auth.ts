@@ -7,7 +7,7 @@
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
-const AUTH_CLIENTE_KEY = 'auth_cliente'
+const AUTH_COLABORADOR_KEY = 'auth_colaborador'
 
 export interface AuthUser {
   id: number
@@ -15,17 +15,21 @@ export interface AuthUser {
   username: string
 }
 
-export interface AuthCliente {
+export interface AuthColaborador {
   id: number
-  nombre?: string
-  correo_electronico: string
+  email_login: string
+  rol_principal?: string
+  rol_operativo?: string
+  activo: boolean
+  persona?: any
+  empresa?: any
   [key: string]: any
 }
 
 export interface AuthResponse {
   jwt: string
   usuario: AuthUser
-  cliente?: AuthCliente | null
+  colaborador?: AuthColaborador | null
 }
 
 /**
@@ -36,8 +40,8 @@ export function setAuth(authData: AuthResponse): void {
 
   localStorage.setItem(AUTH_TOKEN_KEY, authData.jwt)
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authData.usuario))
-  if (authData.cliente) {
-    localStorage.setItem(AUTH_CLIENTE_KEY, JSON.stringify(authData.cliente))
+  if (authData.colaborador) {
+    localStorage.setItem(AUTH_COLABORADOR_KEY, JSON.stringify(authData.colaborador))
   }
 }
 
@@ -64,14 +68,14 @@ export function getAuthUser(): AuthUser | null {
 }
 
 /**
- * Obtiene los datos del cliente vinculado
+ * Obtiene los datos del colaborador vinculado
  */
-export function getAuthCliente(): AuthCliente | null {
+export function getAuthColaborador(): AuthColaborador | null {
   if (typeof window === 'undefined') return null
-  const clienteStr = localStorage.getItem(AUTH_CLIENTE_KEY)
-  if (!clienteStr) return null
+  const colaboradorStr = localStorage.getItem(AUTH_COLABORADOR_KEY)
+  if (!colaboradorStr) return null
   try {
-    return JSON.parse(clienteStr)
+    return JSON.parse(colaboradorStr)
   } catch {
     return null
   }
@@ -91,7 +95,7 @@ export function clearAuth(): void {
   if (typeof window === 'undefined') return
   localStorage.removeItem(AUTH_TOKEN_KEY)
   localStorage.removeItem(AUTH_USER_KEY)
-  localStorage.removeItem(AUTH_CLIENTE_KEY)
+  localStorage.removeItem(AUTH_COLABORADOR_KEY)
 }
 
 /**
@@ -117,19 +121,18 @@ export async function login(email: string, password: string): Promise<AuthRespon
 }
 
 /**
- * Realiza registro de nuevo usuario cliente
+ * Realiza registro de nuevo usuario colaborador
  */
 export async function registro(
   email: string,
-  password: string,
-  cliente_id: number
+  password: string
 ): Promise<AuthResponse> {
   const response = await fetch('/api/auth/registro', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password, cliente_id }),
+    body: JSON.stringify({ email, password }),
   })
 
   if (!response.ok) {

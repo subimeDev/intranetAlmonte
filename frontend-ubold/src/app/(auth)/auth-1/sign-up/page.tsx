@@ -12,48 +12,56 @@ const Page = () => {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [cliente, setCliente] = useState<any>(null)
-  const [buscandoCliente, setBuscandoCliente] = useState(false)
+  const [colaborador, setColaborador] = useState<any>(null)
+  const [buscandoColaborador, setBuscandoColaborador] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Buscar cliente cuando el email cambia
+  // Buscar colaborador cuando el email cambia
   useEffect(() => {
-    const buscarCliente = async () => {
+    const buscarColaborador = async () => {
       if (!email || email.length < 5) {
-        setCliente(null)
+        setColaborador(null)
         return
       }
 
-      setBuscandoCliente(true)
+      setBuscandoColaborador(true)
       setError(null)
 
       try {
-        const response = await fetch(`/api/chat/clientes`)
-        if (!response.ok) throw new Error('Error al buscar cliente')
+        const response = await fetch(
+          `/api/colaboradores?email=${encodeURIComponent(email)}`
+        )
+        if (!response.ok) throw new Error('Error al buscar colaborador')
 
         const data = await response.json()
-        const clientes = Array.isArray(data.data) ? data.data : []
+        const colaboradores = Array.isArray(data.data) ? data.data : data.data ? [data.data] : []
 
-        const clienteEncontrado = clientes.find(
-          (c: any) => c.correo_electronico?.toLowerCase() === email.toLowerCase()
-        )
-
-        if (clienteEncontrado) {
-          setCliente(clienteEncontrado)
+        if (colaboradores.length > 0) {
+          const colab = colaboradores[0]
+          if (!colab.activo) {
+            setError('El colaborador no está activo. Contacta al administrador.')
+            setColaborador(null)
+          } else if (colab.usuario) {
+            setError('Este colaborador ya tiene una cuenta. Usa el login en su lugar.')
+            setColaborador(null)
+          } else {
+            setColaborador(colab)
+            setError(null)
+          }
         } else {
-          setCliente(null)
-          setError('No se encontró un cliente con este email en WO-Clientes')
+          setColaborador(null)
+          setError('No se encontró un colaborador con este email')
         }
       } catch (err: any) {
-        setError('Error al buscar cliente: ' + (err.message || 'Error desconocido'))
-        setCliente(null)
+        setError('Error al buscar colaborador: ' + (err.message || 'Error desconocido'))
+        setColaborador(null)
       } finally {
-        setBuscandoCliente(false)
+        setBuscandoColaborador(false)
       }
     }
 
-    const timeoutId = setTimeout(buscarCliente, 500) // Debounce
+    const timeoutId = setTimeout(buscarColaborador, 500) // Debounce
     return () => clearTimeout(timeoutId)
   }, [email])
 
@@ -61,8 +69,8 @@ const Page = () => {
     e.preventDefault()
     setError(null)
 
-    if (!cliente) {
-      setError('Debes ingresar un email válido de un cliente existente')
+    if (!colaborador) {
+      setError('Debes ingresar un email válido de un colaborador existente')
       return
     }
 
@@ -74,7 +82,7 @@ const Page = () => {
     setLoading(true)
 
     try {
-      await registro(email, password, cliente.id)
+      await registro(email, password)
       // Redirigir al dashboard después del registro
       router.push('/')
       router.refresh()
@@ -98,26 +106,32 @@ const Page = () => {
               <div className="auth-brand text-center mb-4">
                 <AppLogo />
                 <p className="text-muted w-lg-75 mt-3 mx-auto">
-                  Crea tu cuenta usando el email de tu cliente en WO-Clientes.
+                  Crea tu cuenta usando el email de tu colaborador en la intranet.
                 </p>
               </div>
 
               {error && (
-                <Alert variant={cliente ? 'danger' : 'warning'} className="mb-3">
+                <Alert variant={colaborador ? 'danger' : 'warning'} className="mb-3">
                   {error}
                 </Alert>
               )}
 
-              {cliente && (
+              {colaborador && (
                 <Alert variant="success" className="mb-3">
-                  <strong>Cliente encontrado:</strong> {cliente.nombre || `Cliente #${cliente.id}`}
+                  <strong>Colaborador encontrado:</strong>{' '}
+                  {colaborador.persona?.nombre_completo ||
+                    colaborador.persona?.nombres ||
+                    `Colaborador #${colaborador.id}`}
+                  {colaborador.rol_principal && (
+                    <span className="ms-2 text-muted">({colaborador.rol_principal})</span>
+                  )}
                 </Alert>
               )}
 
               <Form onSubmit={handleSubmit}>
                 <div className="mb-3 form-group">
                   <FormLabel>
-                    Email del cliente <span className="text-danger">*</span>
+                    Email del colaborador <span className="text-danger">*</span>
                   </FormLabel>
                   <FormControl
                     type="email"
@@ -125,10 +139,10 @@ const Page = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={loading || buscandoCliente}
+                    disabled={loading || buscandoColaborador}
                   />
-                  {buscandoCliente && (
-                    <small className="text-muted">Buscando cliente...</small>
+                  {buscandoColaborador && (
+                    <small className="text-muted">Buscando colaborador...</small>
                   )}
                 </div>
 
@@ -147,7 +161,7 @@ const Page = () => {
                   <Button
                     type="submit"
                     className="btn btn-primary fw-semibold py-2"
-                    disabled={loading || !cliente || !password}
+                    disabled={loading || !colaborador || !password}
                   >
                     {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
                   </Button>

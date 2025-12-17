@@ -7,43 +7,63 @@ export const dynamic = 'force-dynamic'
 interface RegistroRequest {
   email: string
   password: string
-  cliente_id: number
 }
 
 /**
- * Endpoint para registrar un nuevo usuario cliente
+ * Endpoint para registrar un nuevo usuario colaborador
  * 
  * Flujo:
- * 1. Verificar que el cliente existe en WO-Clientes
- * 2. Verificar que el email del cliente coincide
- * 3. Crear usuario en Strapi (users-permissions)
- * 4. Vincular usuario con WO-Cliente en Intranet-Usuarios-Cliente
+ * 1. Verificar que existe un Colaborador con ese email_login
+ * 2. Verificar que el Colaborador está activo
+ * 3. Verificar que no tenga usuario ya vinculado
+ * 4. Crear usuario en Strapi (users-permissions)
+ * 5. Vincular usuario con Colaborador
  */
 export async function POST(request: Request) {
   try {
     const body: RegistroRequest = await request.json()
-    const { email, password, cliente_id } = body
+    const { email, password } = body
 
     // Validar datos
-    if (!email || !password || !cliente_id) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email, contraseña y cliente_id son requeridos' },
+        { error: 'Email y contraseña son requeridos' },
         { status: 400 }
       )
     }
 
-    // 1. Verificar que el cliente existe y el email coincide
-    const clienteResponse = await strapiClient.get<any>(
-      `/api/wo-clientes/${cliente_id}`
+    // 1. Buscar Colaborador por email_login
+    const colaboradoresResponse = await strapiClient.get<any>(
+      `/api/colaboradores?filters[email_login][$eq]=${encodeURIComponent(email)}&populate=persona`
     )
 
-    const cliente = Array.isArray(clienteResponse.data)
-      ? clienteResponse.data[0]
-      : clienteResponse.data
+    const colaboradores = Array.isArray(colaboradoresResponse.data)
+      ? colaboradoresResponse.data
+      : colaboradoresResponse.data
+        ? [colaboradoresResponse.data]
+        : []
 
-    if (!cliente || cliente.correo_electronico !== email) {
+    if (colaboradores.length === 0) {
       return NextResponse.json(
-        { error: 'El email no coincide con el cliente especificado' },
+        { error: 'No se encontró un colaborador con este email' },
+        { status: 404 }
+      )
+    }
+
+    const colaborador = colaboradores[0]
+
+    // 2. Verificar que el Colaborador está activo
+    if (!colaborador.activo) {
+      return NextResponse.json(
+        { error: 'El colaborador no está activo. Contacta al administrador.' },
+        { status: 403 }
+      )
+    }
+
+    // 3. Verificar que no tenga usuario ya vinculado
+    if (colaborador.usuario) {
+      return NextResponse.json(
+        { error: 'Este colaborador ya tiene una cuenta creada. Usa el login en su lugar.' },
         { status: 400 }
       )
     }
@@ -181,18 +201,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // 4. Vincular usuario con WO-Cliente
-    const vinculacionResponse = await strapiClient.post<any>(
-      '/api/intranet-usuarios-clientes',
+    // 4. Vincular usuario con Colaborador
+    const colaboradorId = colaborador.id || colaborador.documentId
+    const updateColaboradorResponse = await strapiClient.put<any>(
+      `/api/colaboradores/${colaboradorId}`,
       {
         data: {
           usuario: usuarioId,
-          cliente: cliente_id,
-          fecha_registro: new Date().toISOString(),
-          activo: true,
         },
       }
     )
+
+    // Obtener datos completos del colaborador actualizado
+    const colaboradorActualizado = updateColaboradorResponse.data || colaborador
 
     return NextResponse.json(
       {
@@ -201,6 +222,14 @@ export async function POST(request: Request) {
           id: usuarioId,
           email: usuarioData.user?.email || usuarioData.email || email,
           username: usuarioData.user?.username || usuarioData.username || email,
+        },
+        colaborador: {
+          id: colaboradorActualizado.id,
+          email_login: colaboradorActualizado.email_login,
+          rol_principal: colaboradorActualizado.rol_principal,
+          rol_operativo: colaboradorActualizado.rol_operativo,
+          activo: colaboradorActualizado.activo,
+          persona: colaboradorActualizado.persona,
         },
         jwt: usuarioData.jwt || null, // JWT puede ser null si no se pudo generar
       },

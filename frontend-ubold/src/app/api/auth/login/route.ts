@@ -9,10 +9,10 @@ interface LoginRequest {
 }
 
 /**
- * Endpoint para login de usuarios cliente
+ * Endpoint para login de usuarios colaborador
  * 
  * Usa el endpoint de autenticación de Strapi (users-permissions)
- * y retorna el JWT token junto con los datos del cliente vinculado
+ * y retorna el JWT token junto con los datos del colaborador vinculado
  */
 export async function POST(request: Request) {
   try {
@@ -59,48 +59,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Obtener datos del cliente vinculado
+    // Obtener datos del colaborador vinculado
     const strapiUrl = getStrapiUrl(
-      `/api/intranet-usuarios-clientes?filters[usuario][id][$eq]=${usuarioId}&populate=cliente`
+      `/api/colaboradores?filters[usuario][id][$eq]=${usuarioId}&populate=persona,empresa`
     )
 
-    const vinculacionResponse = await fetch(strapiUrl, {
+    const colaboradorResponse = await fetch(strapiUrl, {
       headers: {
         'Authorization': `Bearer ${process.env.STRAPI_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
     })
 
-    let clienteData = null
-    if (vinculacionResponse.ok) {
-      const vinculacionData = await vinculacionResponse.json()
-      const vinculacion = Array.isArray(vinculacionData.data)
-        ? vinculacionData.data[0]
-        : vinculacionData.data
+    let colaboradorData = null
+    if (colaboradorResponse.ok) {
+      const colaboradorDataResponse = await colaboradorResponse.json()
+      const colaboradores = Array.isArray(colaboradorDataResponse.data)
+        ? colaboradorDataResponse.data
+        : colaboradorDataResponse.data
+          ? [colaboradorDataResponse.data]
+          : []
 
-      if (vinculacion?.cliente) {
-        clienteData = vinculacion.cliente
-      }
+      if (colaboradores.length > 0) {
+        colaboradorData = colaboradores[0]
 
-      // Actualizar último acceso
-      if (vinculacion?.id) {
-        const updateUrl = getStrapiUrl(
-          `/api/intranet-usuarios-clientes/${vinculacion.id}`
+        // Verificar que el colaborador esté activo
+        if (!colaboradorData.activo) {
+          return NextResponse.json(
+            { error: 'Tu cuenta está desactivada. Contacta al administrador.' },
+            { status: 403 }
+          )
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Usuario no está vinculado a un colaborador' },
+          { status: 403 }
         )
-        await fetch(updateUrl, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${process.env.STRAPI_API_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data: {
-              ultimo_acceso: new Date().toISOString(),
-            },
-          }),
-        }).catch((err) => {
-          console.warn('[API /auth/login] Error al actualizar último acceso:', err)
-        })
       }
     }
 
@@ -113,7 +107,15 @@ export async function POST(request: Request) {
           email: authData.user.email,
           username: authData.user.username,
         },
-        cliente: clienteData,
+        colaborador: colaboradorData ? {
+          id: colaboradorData.id,
+          email_login: colaboradorData.email_login,
+          rol_principal: colaboradorData.rol_principal,
+          rol_operativo: colaboradorData.rol_operativo,
+          activo: colaboradorData.activo,
+          persona: colaboradorData.persona,
+          empresa: colaboradorData.empresa,
+        } : null,
       },
       { status: 200 }
     )
