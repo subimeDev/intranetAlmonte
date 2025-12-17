@@ -231,23 +231,29 @@ const Page = () => {
         }
         
         // Mapear mensajes de Strapi a MessageType
-        // Los datos vienen directamente en el objeto, NO en attributes (igual que con clientes)
+        // Los datos pueden venir directamente o en attributes
         const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-          // Los datos vienen directamente: { id, texto, remitente_id, cliente_id, fecha, ... }
-          const texto = mensaje.texto || mensaje.TEXTO || ''
-          const remitenteId = mensaje.remitente_id || mensaje.REMITENTE_ID || 1
-          const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
+          // Los datos pueden venir directamente o en attributes
+          const mensajeData = mensaje.attributes || mensaje
+          const texto = mensajeData.texto || mensajeData.TEXTO || ''
+          const remitenteId = mensajeData.remitente_id || mensajeData.REMITENTE_ID || 1
+          const fecha = mensajeData.fecha ? new Date(mensajeData.fecha) : new Date(mensajeData.createdAt || Date.now())
+          
+          // Asegurar que el ID del remitente sea string para comparación consistente
+          const remitenteIdStr = String(remitenteId)
           
           console.log('[Chat] Mensaje mapeado:', {
             id: mensaje.id,
             texto,
-            remitenteId,
+            remitenteId: remitenteIdStr,
+            currentUserId,
+            isFromCurrentUser: remitenteIdStr === currentUserId,
             fecha: fecha.toISOString(),
           })
           
           return {
             id: String(mensaje.id),
-            senderId: String(remitenteId),
+            senderId: remitenteIdStr, // Asegurar que sea string
             text: texto,
             time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           }
@@ -268,8 +274,9 @@ const Page = () => {
         // Actualizar última fecha del mensaje más reciente
         if (mensajesMapeados.length > 0) {
           const ultimoMensaje = mensajesData[mensajesData.length - 1]
-          // Los datos vienen directamente, no en attributes
-          const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt
+          const ultimoMensajeData = ultimoMensaje.attributes || ultimoMensaje
+          // Los datos pueden venir directamente o en attributes
+          const ultimaFecha = ultimoMensajeData?.fecha || ultimoMensajeData?.createdAt
           if (ultimaFecha) {
             setLastMessageDate(ultimaFecha)
           }
@@ -462,9 +469,15 @@ const Page = () => {
           <SimplebarClient className="card-body pt-0 mb-5 pb-2" style={{ maxHeight: 'calc(100vh - 317px)' }}>
             {messages.length > 0 ? (
               <>
-                {messages.map((message) => (
+                {messages.map((message) => {
+                  // Asegurar comparación consistente de IDs (ambos como strings)
+                  const messageSenderId = String(message.senderId)
+                  const currentUserIdStr = currentUserId ? String(currentUserId) : null
+                  const isFromCurrentUser = currentUserIdStr !== null && messageSenderId === currentUserIdStr
+                  
+                  return (
                   <Fragment key={message.id}>
-                    {currentContact && currentUserId && message.senderId !== currentUserId && (
+                    {currentContact && currentUserIdStr && !isFromCurrentUser && (
                       <div className="d-flex align-items-start gap-2 my-3 chat-item">
                         {currentContact.avatar ? (
                           <Image 
@@ -492,7 +505,7 @@ const Page = () => {
                       </div>
                     )}
 
-                    {currentUserId && message.senderId === currentUserId && (
+                    {isFromCurrentUser && (
                       <div className="d-flex align-items-start gap-2 my-3 text-end chat-item justify-content-end">
                         <div>
                           <div className="chat-message py-2 px-3 bg-info-subtle rounded">{message.text}</div>
@@ -512,7 +525,8 @@ const Page = () => {
                       </div>
                     )}
                   </Fragment>
-                ))}
+                  )
+                })}
                 <div ref={messagesEndRef} />
               </>
             ) : (
