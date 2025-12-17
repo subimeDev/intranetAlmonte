@@ -302,30 +302,42 @@ export async function PUT(
       
       // Buscar por id numérico o documentId
       // IMPORTANTE: Los datos pueden venir directamente o dentro de attributes
+      const idStr = id.toString()
+      const idNum = parseInt(idStr)
+      
+      console.log('[API /tienda/productos/[id] PUT] Buscando producto con:', {
+        idBuscado: id,
+        idStr,
+        idNum,
+        esNumerico: !isNaN(idNum),
+        totalProductos: productos.length,
+        primerosProductos: productos.slice(0, 3).map((p: any) => ({
+          id: p.id,
+          documentId: p.documentId,
+          idTipo: typeof p.id,
+          documentIdTipo: typeof p.documentId,
+        })),
+      })
+      
       const productoEncontrado = productos.find((p: any) => {
-        // Obtener el objeto real (puede estar en p o p.attributes)
-        const productoReal = p.attributes && Object.keys(p.attributes).length > 0 ? p.attributes : p
+        // Los datos vienen directamente (sin attributes según la estructura que vimos)
+        const pId = p.id
+        const pDocId = p.documentId
         
-        const pId = productoReal.id?.toString() || p.id?.toString()
-        const pDocId = productoReal.documentId?.toString() || p.documentId?.toString()
-        const idStr = id.toString()
-        const idNum = parseInt(idStr)
-        
-        // Comparar como string y como número
+        // Comparar de múltiples formas
         const encontrado = (
-          pId === idStr ||
-          pDocId === idStr ||
-          (!isNaN(idNum) && (productoReal.id === idNum || p.id === idNum)) ||
-          pDocId === idStr
+          pId?.toString() === idStr ||
+          pDocId?.toString() === idStr ||
+          (!isNaN(idNum) && pId === idNum) ||
+          (!isNaN(idNum) && pId?.toString() === idNum.toString())
         )
         
         if (encontrado) {
           console.log('[API /tienda/productos/[id] PUT] ✅ Coincidencia encontrada:', {
             idBuscado: id,
-            pId,
-            pDocId,
-            productoId: productoReal.id || p.id,
-            documentId: productoReal.documentId || p.documentId,
+            productoId: pId,
+            documentId: pDocId,
+            productoCompleto: p,
           })
         }
         
@@ -372,19 +384,16 @@ export async function PUT(
         )
       }
       
-      // Si encontramos el producto, asegurarnos de usar el ID correcto
-      const productoReal = productoEncontrado.attributes && Object.keys(productoEncontrado.attributes).length > 0 
-        ? productoEncontrado.attributes 
-        : productoEncontrado
-      
+      // Si encontramos el producto, usar su ID directamente
       productoActual = productoEncontrado
-      productoId = productoReal.id || productoEncontrado.id
+      productoId = productoEncontrado.id
       
       console.log('[API /tienda/productos/[id] PUT] Producto encontrado, usando ID:', {
         idOriginal: id,
         idNumerico: productoId,
-        documentId: productoReal.documentId || productoEncontrado.documentId,
+        documentId: productoEncontrado.documentId,
         tieneId: !!productoId,
+        productoCompleto: productoEncontrado,
       })
       
       if (!productoId || isNaN(productoId)) {
