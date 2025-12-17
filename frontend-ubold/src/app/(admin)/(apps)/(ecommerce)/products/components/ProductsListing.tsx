@@ -370,21 +370,35 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
     setShowDeleteModal(false)
   }
 
-  // Mostrar error si existe
-  if (error) {
+  // Mostrar error si existe, pero continuar mostrando los datos de ejemplo si hay
+  // Esto permite que la aplicación siga funcionando aunque Strapi falle
+  const hasError = !!error
+  const hasData = mappedProducts.length > 0
+  
+  if (hasError && !hasData) {
     return (
       <Row>
         <Col xs={12}>
-          <Alert variant="danger">
-            <strong>Error al cargar productos:</strong> {error}
+          <Alert variant="warning">
+            <strong>Error al cargar productos desde Strapi:</strong> {error}
             <br />
             <small className="text-muted">
-              Usando datos de ejemplo. Los productos de Strapi no están disponibles.
+              Verifica que:
+              <ul className="mt-2 mb-0">
+                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
+                <li>El servidor de Strapi esté disponible</li>
+                <li>Las variables de entorno estén correctas</li>
+              </ul>
             </small>
           </Alert>
         </Col>
       </Row>
     )
+  }
+  
+  // Si hay error pero también hay datos, mostrar advertencia pero continuar
+  if (hasError && hasData) {
+    console.warn('[ProductsListing] Error al cargar desde Strapi, usando datos disponibles:', error)
   }
 
   // Debug: mostrar información sobre los datos
