@@ -128,7 +128,8 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
   const filteredProductos = useMemo(() => {
     return productos.filter((producto) => {
       // Los datos pueden venir directamente o en attributes
-      const data = producto.attributes || producto || {}
+      const attrs = producto.attributes || {}
+      const data = attrs as any // Usar 'as any' para evitar problemas de tipos con campos dinámicos
       const nombre = (getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro') || '').toLowerCase()
       const isbn = (getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro') || '').toLowerCase()
       const subtitulo = (getField(data, 'SUBTITULO_LIBRO', 'subtitulo_libro', 'subtituloLibro') || '').toLowerCase()
@@ -148,7 +149,7 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
         editorial.includes(searchLower)
 
       // Filtro de estado
-      const isPublished = !!data.publishedAt
+      const isPublished = !!attrs.publishedAt
       const matchesEstado =
         filterEstado === 'all' ||
         (filterEstado === 'published' && isPublished) ||
@@ -160,7 +161,8 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
 
   // Obtener URL de imagen (portada_libro)
   const getImageUrl = (producto: Producto): string | null => {
-    const data = producto.attributes || producto || {}
+    const attrs = producto.attributes || {}
+    const data = attrs as any
     const portada = data.PORTADA_LIBRO?.data || data.portada_libro?.data || data.portadaLibro?.data
     if (!portada) return null
 
@@ -179,7 +181,8 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
 
   // Calcular stock total
   const getStockTotal = (producto: Producto): number => {
-    const data = producto.attributes || producto || {}
+    const attrs = producto.attributes || {}
+    const data = attrs as any
     const stocks = data.STOCKS?.data || data.stocks?.data || []
     return stocks.reduce((total: number, stock: any) => {
       const cantidad = stock.attributes?.CANTIDAD || stock.attributes?.cantidad || 0
@@ -189,7 +192,8 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
 
   // Obtener precio mínimo
   const getPrecioMinimo = (producto: Producto): number | null => {
-    const data = producto.attributes || producto || {}
+    const attrs = producto.attributes || {}
+    const data = attrs as any
     const precios = data.PRECIOS?.data || data.precios?.data || []
     if (precios.length === 0) return null
     
@@ -274,13 +278,14 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
       ) : (
         <Row className="g-3">
           {filteredProductos.map((producto) => {
-            // Los datos pueden venir directamente o en attributes
-            const data = producto.attributes || producto || {}
+            // Los datos vienen en attributes
+            const attrs = producto.attributes || {}
+            const data = attrs as any // Usar 'as any' para evitar problemas de tipos con campos dinámicos
             const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro') || 'Sin nombre'
             const subtitulo = getField(data, 'SUBTITULO_LIBRO', 'subtitulo_libro', 'subtituloLibro') || ''
             const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro') || ''
             const descripcion = getField(data, 'DESCRIPCION', 'descripcion') || ''
-            const estado = data.publishedAt ? 'Publicado' : 'Borrador'
+            const estado = attrs.publishedAt ? 'Publicado' : 'Borrador'
             const estadoEdicion = getField(data, 'ESTADO_EDICION', 'estado_edicion', 'estadoEdicion') || ''
             const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || ''
             const idioma = getField(data, 'IDIOMA', 'idioma') || ''
