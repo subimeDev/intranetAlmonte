@@ -164,6 +164,13 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
+        console.log('[Chat] Datos recibidos de API:', {
+          totalMensajes: mensajesData.length,
+          primerMensaje: mensajesData[0],
+          currentUserId,
+          currentContactId: currentContact.id,
+        })
+
         // Mapear mensajes - los datos vienen directamente, no en attributes
         const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
           // Los datos vienen directamente en el objeto mensaje
@@ -171,12 +178,22 @@ const Page = () => {
           const remitenteId = mensaje.remitente_id || 1
           const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
 
-          return {
+          const mensajeMapeado = {
             id: String(mensaje.id),
             senderId: String(remitenteId),
             text: texto,
             time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           }
+
+          console.log('[Chat] Mensaje mapeado:', {
+            id: mensajeMapeado.id,
+            senderId: mensajeMapeado.senderId,
+            currentUserId,
+            isFromCurrentUser: mensajeMapeado.senderId === currentUserId,
+            texto: texto.substring(0, 30),
+          })
+
+          return mensajeMapeado
         })
 
         if (soloNuevos) {

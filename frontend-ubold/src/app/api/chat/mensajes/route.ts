@@ -86,8 +86,38 @@ export async function GET(request: NextRequest) {
     const [response1, response2] = await Promise.all(queries)
     
     // Combinar los resultados de ambas queries
-    const data1 = Array.isArray(response1.data) ? response1.data : response1.data ? [response1.data] : []
-    const data2 = Array.isArray(response2.data) ? response2.data : response2.data ? [response2.data] : []
+    // Los datos pueden venir directamente o en un array
+    let data1: any[] = []
+    if (response1.data) {
+      if (Array.isArray(response1.data)) {
+        data1 = response1.data
+      } else {
+        data1 = [response1.data]
+      }
+    }
+    
+    let data2: any[] = []
+    if (response2.data) {
+      if (Array.isArray(response2.data)) {
+        data2 = response2.data
+      } else {
+        data2 = [response2.data]
+      }
+    }
+    
+    // Log detallado antes de combinar
+    console.log('[API /chat/mensajes] Datos recibidos:', {
+      response1HasData: !!response1.data,
+      response1DataType: Array.isArray(response1.data) ? 'array' : typeof response1.data,
+      response1DataLength: Array.isArray(response1.data) ? response1.data.length : (response1.data ? 1 : 0),
+      response2HasData: !!response2.data,
+      response2DataType: Array.isArray(response2.data) ? 'array' : typeof response2.data,
+      response2DataLength: Array.isArray(response2.data) ? response2.data.length : (response2.data ? 1 : 0),
+      data1Length: data1.length,
+      data2Length: data2.length,
+      sample1: data1[0],
+      sample2: data2[0],
+    })
     
     // Combinar y ordenar por fecha
     const allMessages = [...data1, ...data2].sort((a: any, b: any) => {
@@ -102,13 +132,11 @@ export async function GET(request: NextRequest) {
       meta: response1.meta || response2.meta || {},
     }
     
-    // Log para debugging
-    const mensajesData = Array.isArray(response.data) ? response.data : [response.data]
     console.log('[API /chat/mensajes] Mensajes recibidos (combinados):', {
-      count: mensajesData.length,
+      count: allMessages.length,
       fromQuery1: data1.length,
       fromQuery2: data2.length,
-      sample: mensajesData[0],
+      sample: allMessages[0],
     })
     
     return NextResponse.json(response, { status: 200 })
