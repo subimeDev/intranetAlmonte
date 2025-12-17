@@ -25,20 +25,36 @@ export default async function Page({ params }: PageProps) {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
     const baseUrl = `${protocol}://${host}`
     
+    console.log('[Product Details Page] Obteniendo producto:', {
+      productId,
+      baseUrl,
+      url: `${baseUrl}/api/tienda/productos/${productId}`,
+    })
+    
     const response = await fetch(`${baseUrl}/api/tienda/productos/${productId}`, {
       cache: 'no-store',
     })
     
     const data = await response.json()
     
+    console.log('[Product Details Page] Respuesta de API:', {
+      success: data.success,
+      hasData: !!data.data,
+      error: data.error,
+    })
+    
     if (data.success && data.data) {
       producto = data.data
     } else {
-      error = data.error || 'Error al obtener producto'
+      error = data.error || `Error al obtener producto: ${response.status} ${response.statusText}`
     }
   } catch (err: any) {
     error = err.message || 'Error al conectar con la API'
-    console.error('Error al obtener producto:', err)
+    console.error('[Product Details Page] Error al obtener producto:', {
+      productId,
+      error: err.message,
+      stack: err.stack,
+    })
   }
 
   if (error || !producto) {
