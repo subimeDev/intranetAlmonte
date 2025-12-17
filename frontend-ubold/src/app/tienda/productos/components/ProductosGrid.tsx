@@ -277,18 +277,33 @@ export default function ProductosGrid({ productos, error }: ProductosGridProps) 
         </Alert>
       ) : (
         <Row className="g-3">
-          {filteredProductos.map((producto) => {
-            // Los datos vienen en attributes
+          {filteredProductos.map((producto, index) => {
+            // Los datos pueden venir en attributes o directamente
+            // Primero intentar attributes, luego el objeto directamente
             const attrs = producto.attributes || {}
-            const data = attrs as any // Usar 'as any' para evitar problemas de tipos con campos dinámicos
-            const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro') || 'Sin nombre'
-            const subtitulo = getField(data, 'SUBTITULO_LIBRO', 'subtitulo_libro', 'subtituloLibro') || ''
-            const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro') || ''
-            const descripcion = getField(data, 'DESCRIPCION', 'descripcion') || ''
-            const estado = attrs.publishedAt ? 'Publicado' : 'Borrador'
+            const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
+            
+            // Debug: Log del primer producto para ver la estructura
+            if (index === 0 && typeof window !== 'undefined') {
+              console.log('[ProductosGrid] Primer producto estructura:', {
+                producto,
+                tieneAttributes: !!producto.attributes,
+                keysProducto: Object.keys(producto),
+                keysAttrs: producto.attributes ? Object.keys(producto.attributes) : [],
+                keysData: Object.keys(data),
+                muestraNombre: data.NOMBRE_LIBRO || data.nombre_libro || data.nombreLibro,
+              })
+            }
+            
+            // Buscar nombre con múltiples variaciones
+            const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
+            const subtitulo = getField(data, 'SUBTITULO_LIBRO', 'subtitulo_libro', 'subtituloLibro', 'SUBTITULO', 'subtitulo') || ''
+            const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
+            const descripcion = getField(data, 'DESCRIPCION', 'descripcion', 'DESCRIPTION', 'description') || ''
+            const estado = (attrs.publishedAt || (producto as any).publishedAt) ? 'Publicado' : 'Borrador'
             const estadoEdicion = getField(data, 'ESTADO_EDICION', 'estado_edicion', 'estadoEdicion') || ''
             const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || ''
-            const idioma = getField(data, 'IDIOMA', 'idioma') || ''
+            const idioma = getField(data, 'IDIOMA', 'idioma', 'IDIOMA') || ''
             const agnoEdicion = getField(data, 'AGNO_EDICION', 'agno_edicion', 'agnoEdicion')
             const numeroEdicion = getField(data, 'NUMERO_EDICION', 'numero_edicion', 'numeroEdicion')
             const completo = getField(data, 'COMPLETO', 'completo') ?? false
