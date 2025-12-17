@@ -250,7 +250,7 @@ export async function PUT(
               tipoId: typeof id,
               totalProductos: productos.length,
               idsDisponibles: idsDisponibles.slice(0, 10),
-              mensaje: `IDs disponibles: ${idsDisponibles.map(p => `id:${p.id} (${p.nombre}) o documentId:${p.documentId}`).join(', ')}`,
+              mensaje: `IDs disponibles: ${idsDisponibles.map((p: any) => `id:${p.id} (${p.nombre}) o documentId:${p.documentId}`).join(', ')}`,
             },
           },
           { status: 404 }
