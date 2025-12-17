@@ -1,11 +1,10 @@
 'use client'
 
 import AlmonteLogo from '@/components/AlmonteLogo'
-import AlmonteAbstractLogo from '@/components/AlmonteAbstractLogo'
 import { currentYear } from '@/helpers'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Alert, Button, Card, Col, Container, Form, FormControl, FormLabel, Row } from 'react-bootstrap'
 import { login } from '@/lib/auth'
 
@@ -15,6 +14,22 @@ const Page = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    document.title = 'Iniciar sesión - Intranet Almonte'
+    // Actualizar favicon
+    const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link')
+    link.type = 'image/svg+xml'
+    link.rel = 'icon'
+    link.href = 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150">
+        <path d="M43.28,13.97c0,34.74,28.12,62.89,62.79,62.89,5.76,0,11.34-.79,16.65-2.26L106.08,13.97H43.28Z" fill="black"/>
+        <path d="M74.91,68.53l-42.93-12.18L10.36,136.65H56.83l18.08-68.12Z" fill="black"/>
+        <path d="M80.06,86.92l42.66-12.31,16.78,62.04h-46.46l-12.98-49.73Z" fill="black"/>
+      </svg>
+    `)
+    document.getElementsByTagName('head')[0].appendChild(link)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,9 +60,8 @@ const Page = () => {
               </div>
 
               <div className="auth-brand text-center mb-4">
-                <div className="d-flex justify-content-center align-items-center gap-3 mb-3">
-                  <AlmonteLogo height={60} style={{ color: '#000' }} />
-                  <AlmonteAbstractLogo height={60} />
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <AlmonteLogo height={80} style={{ color: '#000' }} />
                 </div>
                 <p className="text-muted w-lg-75 mt-3 mx-auto">
                   Inicia sesión con tu email y contraseña de colaborador.
