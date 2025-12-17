@@ -169,10 +169,12 @@ export async function POST(request: NextRequest) {
       }
     )
     
+    const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
+    const savedMessageData = (savedMessage as any)?.attributes || savedMessage
     console.log('[API /chat/mensajes POST] Mensaje guardado:', {
-      id: Array.isArray(response.data) ? response.data[0]?.id : response.data?.id,
-      remitente_id: Array.isArray(response.data) ? (response.data[0]?.attributes?.remitente_id || response.data[0]?.remitente_id) : (response.data?.attributes?.remitente_id || response.data?.remitente_id),
-      cliente_id: Array.isArray(response.data) ? (response.data[0]?.attributes?.cliente_id || response.data[0]?.cliente_id) : (response.data?.attributes?.cliente_id || response.data?.cliente_id),
+      id: (savedMessage as any)?.id || savedMessageData?.id,
+      remitente_id: savedMessageData?.remitente_id,
+      cliente_id: savedMessageData?.cliente_id,
     })
     
     return NextResponse.json(response, { status: 201 })
