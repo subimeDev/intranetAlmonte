@@ -9,7 +9,8 @@
       "frontend-ubold/package.json",
       "frontend-ubold/next.config.ts",
       "railway.json",
-      "nixpacks.toml"
+      "nixpacks.toml",
+      ".railwayignore"
     ]
   },
   "deploy": {
@@ -19,7 +20,7 @@
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100
   },
-  "version": "2"
+  "version": "3"
 }
 
 
