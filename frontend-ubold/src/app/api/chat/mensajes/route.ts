@@ -107,24 +107,44 @@ export async function GET(request: NextRequest) {
     }
     
     // Combinar los resultados de ambas queries
-    // Strapi siempre devuelve data como array, incluso si está vacío
+    // Strapi puede devolver data como array o como objeto único
+    // También puede venir en formato StrapiEntity (con attributes) o directamente
     let data1: any[] = []
     if (response1?.data) {
-      if (Array.isArray(response1.data)) {
-        data1 = response1.data
-      } else if (response1.data) {
-        data1 = [response1.data]
-      }
+      const rawData1 = Array.isArray(response1.data) ? response1.data : [response1.data]
+      // Los datos pueden venir directamente o en attributes
+      data1 = rawData1.map((item: any) => {
+        // Si tiene attributes, usar attributes, sino usar el item directamente
+        return item.attributes || item
+      })
     }
     
     let data2: any[] = []
     if (response2?.data) {
-      if (Array.isArray(response2.data)) {
-        data2 = response2.data
-      } else if (response2.data) {
-        data2 = [response2.data]
-      }
+      const rawData2 = Array.isArray(response2.data) ? response2.data : [response2.data]
+      // Los datos pueden venir directamente o en attributes
+      data2 = rawData2.map((item: any) => {
+        // Si tiene attributes, usar attributes, sino usar el item directamente
+        return item.attributes || item
+      })
     }
+    
+    // Preservar el ID del mensaje (puede estar en el item o en attributes)
+    data1 = data1.map((item: any, index: number) => {
+      const rawItem = Array.isArray(response1.data) ? response1.data[index] : response1.data
+      return {
+        ...item,
+        id: rawItem?.id || item.id,
+      }
+    })
+    
+    data2 = data2.map((item: any, index: number) => {
+      const rawItem = Array.isArray(response2.data) ? response2.data[index] : response2.data
+      return {
+        ...item,
+        id: rawItem?.id || item.id,
+      }
+    })
     
     // Log detallado antes de combinar
     console.log('[API /chat/mensajes] Datos recibidos:', {
