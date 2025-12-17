@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { FormLabel, FormSelect } from 'react-bootstrap'
 
 interface RelationSelectorProps {
@@ -14,7 +14,7 @@ interface RelationSelectorProps {
   className?: string
 }
 
-export function RelationSelector({ 
+const RelationSelector = memo(function RelationSelector({ 
   label, 
   value, 
   onChange, 
@@ -108,5 +108,7 @@ export function RelationSelector({
       )}
     </div>
   )
-}
+})
+
+export { RelationSelector }
 
