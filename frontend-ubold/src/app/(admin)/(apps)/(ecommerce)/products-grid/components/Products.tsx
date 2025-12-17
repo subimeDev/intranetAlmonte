@@ -98,13 +98,15 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
 }
 
 const Products = ({ productos, error }: ProductsProps) => {
-  // Obtener URL de imagen (portada_libro)
+  // Obtener URL de imagen (portada_libro en minúsculas como en Strapi)
   const getImageUrl = (producto: Producto): string | null => {
     const attrs = producto.attributes || {}
-    const portada = attrs.PORTADA_LIBRO?.data || attrs.portada_libro?.data
+    const data = attrs as any
+    // Intentar primero con portada_libro (minúsculas, como está en Strapi)
+    const portada = data.portada_libro?.data || data.PORTADA_LIBRO?.data || data.portadaLibro?.data
     if (!portada) return null
 
-    const url = portada.attributes?.url
+    const url = portada.attributes?.url || portada.attributes?.URL
     if (!url) return null
 
     // Si la URL ya es completa, retornarla tal cual
@@ -162,8 +164,9 @@ const Products = ({ productos, error }: ProductsProps) => {
         const attrs = producto.attributes || {}
         const data = attrs as any
         
-        const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name') || 'Sin nombre'
-        const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
+        // Buscar nombre con múltiples variaciones (usar nombre_libro en minúsculas primero, como está en Strapi)
+        const nombre = getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
+        const isbn = getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro', 'ISBN', 'isbn') || ''
         const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || ''
         const editorial = data.editorial?.data?.attributes?.nombre || data.editorial?.data?.attributes?.NOMBRE || ''
         const isPublished = !!attrs.publishedAt
