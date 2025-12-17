@@ -9,18 +9,22 @@ const modules = {
 
 interface ProductInformationProps {
   nombre_libro?: string
+  subtitulo_libro?: string
   isbn_libro?: string
   descripcion?: string
   onNombreChange?: (value: string) => void
+  onSubtituloChange?: (value: string) => void
   onIsbnChange?: (value: string) => void
   onDescripcionChange?: (value: string) => void
 }
 
 const ProductInformation = ({
   nombre_libro = '',
+  subtitulo_libro = '',
   isbn_libro = '',
   descripcion = '',
   onNombreChange,
+  onSubtituloChange,
   onIsbnChange,
   onDescripcionChange,
 }: ProductInformationProps) => {
@@ -60,18 +64,35 @@ const ProductInformation = ({
               />
             </FormGroup>
           </Col>
+          <Col xs={12}>
+            <FormGroup className="mb-3">
+              <FormLabel htmlFor="subtitulo">
+                Subtítulo <span className="text-muted">(Opcional)</span>
+              </FormLabel>
+              <FormControl 
+                type="text" 
+                id="subtitulo" 
+                placeholder="Ingresa el subtítulo del libro" 
+                value={subtitulo_libro}
+                onChange={(e) => onSubtituloChange?.(e.target.value)}
+              />
+            </FormGroup>
+          </Col>
           <Col lg={6}>
             <FormGroup className="mb-3">
               <FormLabel htmlFor="skuId">
-                ISBN/SKU <span className="text-muted">(Opcional)</span>
+                ISBN/SKU <span className="text-muted">(Opcional - se genera automático si está vacío)</span>
               </FormLabel>
               <FormControl 
                 type="text" 
                 id="skuId" 
-                placeholder="ISBN-123456" 
+                placeholder="ISBN-123456 (o déjalo vacío para generar automático)" 
                 value={isbn_libro}
                 onChange={(e) => onIsbnChange?.(e.target.value)}
               />
+              <small className="text-muted">
+                Si dejas este campo vacío, se generará un ISBN único automáticamente.
+              </small>
             </FormGroup>
           </Col>
           <Col xs={12}>

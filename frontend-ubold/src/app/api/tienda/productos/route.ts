@@ -103,83 +103,86 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[API /tienda/productos POST] 🎯 Iniciando creación de producto')
+    console.log('[API POST] 📝 Iniciando creación de producto')
     
     const body = await request.json()
-    console.log('[API /tienda/productos POST] 📦 Body recibido:', JSON.stringify(body, null, 2))
-    
+    console.log('[API POST] 📝 Datos recibidos:', JSON.stringify(body, null, 2))
+
     // Validar campos requeridos
-    if (!body.nombre_libro) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'El campo nombre_libro es requerido',
-        },
-        { status: 400 }
-      )
+    if (!body.nombre_libro || !body.nombre_libro.trim()) {
+      return NextResponse.json({
+        success: false,
+        error: 'El nombre del libro es obligatorio'
+      }, { status: 400 })
     }
-    
-    // Preparar datos para Strapi v5
-    // Strapi requiere formato: { data: { campo: valor } }
+
+    // Generar ISBN automático si no viene (para evitar error de duplicado)
+    const isbn = body.isbn_libro?.trim() || `ISBN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    console.log('[API POST] 📚 ISBN generado/usado:', isbn)
+
+    // Preparar datos básicos
     const productData: any = {
       data: {
-        nombre_libro: body.nombre_libro,
+        isbn_libro: isbn,
+        nombre_libro: body.nombre_libro.trim()
       }
     }
-    
-    // Campos opcionales
-    if (body.descripcion !== undefined) {
-      productData.data.descripcion = body.descripcion
+
+    // Campos opcionales básicos
+    if (body.subtitulo_libro?.trim()) {
+      productData.data.subtitulo_libro = body.subtitulo_libro.trim()
     }
     
-    if (body.isbn_libro !== undefined) {
-      productData.data.isbn_libro = body.isbn_libro
-    }
-    
-    if (body.subtitulo_libro !== undefined) {
-      productData.data.subtitulo_libro = body.subtitulo_libro
+    if (body.descripcion?.trim()) {
+      productData.data.descripcion = body.descripcion.trim()
     }
     
     // Si hay imagen (ID de Media de Strapi)
     if (body.portada_libro !== undefined && body.portada_libro !== null) {
       productData.data.portada_libro = body.portada_libro
     }
-    
-    console.log('[API /tienda/productos POST] 📤 Datos a enviar a Strapi:', JSON.stringify(productData, null, 2))
-    
-    // Crear producto en Strapi
-    const response = await strapiClient.post<any>(
-      '/api/libros',
-      productData
-    )
-    
-    console.log('[API /tienda/productos POST] ✅ Respuesta de Strapi:', JSON.stringify(response, null, 2))
-    
-    // Strapi puede devolver los datos en response.data o directamente
-    const productoCreado = response.data || response
-    
+
+    // FASE 2: Relaciones (preparado para implementar después)
+    // if (body.editorial) productData.data.editorial = body.editorial // documentId
+    // if (body.coleccion) productData.data.coleccion = body.coleccion
+    // if (body.sello) productData.data.sello = body.sello
+    // if (body.canales && body.canales.length > 0) {
+    //   productData.data.canales = body.canales // array de documentIds
+    // }
+
+    console.log('[API POST] 📤 Enviando a Strapi:', JSON.stringify(productData, null, 2))
+
+    const response = await strapiClient.post<any>('/api/libros', productData)
+
+    console.log('[API POST] ✅ Producto creado:', JSON.stringify(response, null, 2))
+
     return NextResponse.json({
       success: true,
-      data: productoCreado,
-      message: 'Producto creado correctamente',
+      data: response.data || response
     }, { status: 201 })
-    
+
   } catch (error: any) {
-    console.error('[API /tienda/productos POST] ❌ Error al crear producto:', {
+    console.error('[API POST] ❌ ERROR:', {
       message: error.message,
       status: error.status,
       details: error.details,
-      stack: error.stack,
+      errores: error.details?.errors
     })
     
-    return NextResponse.json(
-      { 
+    // Manejar error de ISBN duplicado específicamente
+    if (error.details?.errors?.isbn_libro) {
+      return NextResponse.json({
         success: false,
-        error: error.message || 'Error al crear producto',
-        details: error.details,
-      },
-      { status: error.status || 500 }
-    )
+        error: 'El ISBN ya existe. Por favor usa otro ISBN o déjalo vacío para generar uno automático.',
+        details: error.details.errors
+      }, { status: 400 })
+    }
+    
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error al crear producto',
+      details: error.details?.errors
+    }, { status: error.status || 500 })
   }
 }
 

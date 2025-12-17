@@ -19,6 +19,7 @@ const Page = () => {
 
   const [formData, setFormData] = useState({
     nombre_libro: '',
+    subtitulo_libro: '',
     isbn_libro: '',
     descripcion: '',
     portada_libro: null as File | null,
@@ -63,11 +64,19 @@ const Page = () => {
       // Preparar datos para crear producto
       const productData: any = {
         nombre_libro: formData.nombre_libro.trim(),
-        descripcion: formData.descripcion || null,
       }
 
+      // ISBN: si está vacío, el backend generará uno automático
       if (formData.isbn_libro.trim()) {
         productData.isbn_libro = formData.isbn_libro.trim()
+      }
+
+      if (formData.subtitulo_libro.trim()) {
+        productData.subtitulo_libro = formData.subtitulo_libro.trim()
+      }
+
+      if (formData.descripcion.trim()) {
+        productData.descripcion = formData.descripcion.trim()
       }
 
       if (portadaLibroId) {
@@ -88,7 +97,11 @@ const Page = () => {
       const result = await response.json()
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Error al crear producto')
+        // Mostrar errores detallados si vienen de Strapi
+        const errorMessage = result.details?.isbn_libro 
+          ? result.error || 'Error al crear producto'
+          : result.error || 'Error al crear producto'
+        throw new Error(errorMessage)
       }
 
       console.log('[Add Product] ✅ Producto creado:', result.data)
@@ -129,9 +142,11 @@ const Page = () => {
             <Col xxl={8}>
               <ProductInformation 
                 nombre_libro={formData.nombre_libro}
+                subtitulo_libro={formData.subtitulo_libro}
                 isbn_libro={formData.isbn_libro}
                 descripcion={formData.descripcion}
                 onNombreChange={(value) => setFormData({ ...formData, nombre_libro: value })}
+                onSubtituloChange={(value) => setFormData({ ...formData, subtitulo_libro: value })}
                 onIsbnChange={(value) => setFormData({ ...formData, isbn_libro: value })}
                 onDescripcionChange={(value) => setFormData({ ...formData, descripcion: value })}
               />
