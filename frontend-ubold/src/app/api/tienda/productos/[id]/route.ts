@@ -225,16 +225,18 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    console.log('[API PUT] 🔍 Iniciando PUT para ID:', id)
+    console.log('[API PUT] 🎯 INICIANDO - ID recibido:', id)
+    console.log('[API PUT] 🎯 Body recibido:', body)
 
-    // PASO 1: Obtener el producto usando filtro (Strapi v5 requiere documentId para GET individual)
-    const response = await strapiClient.get<any>(
-      `/api/libros?filters[id][$eq]=${id}&populate=*`
-    )
+    // CRÍTICO: Usar filtro en lugar de GET directo (Strapi v5)
+    const endpoint = `/api/libros?filters[id][$eq]=${id}&populate=*`
+    console.log('[API PUT] 🌐 Endpoint con FILTRO:', endpoint)
 
-    console.log('[API PUT] 📦 Respuesta de Strapi:', JSON.stringify(response, null, 2))
+    const response = await strapiClient.get<any>(endpoint)
 
-    // Extraer el producto de la respuesta (manejar diferentes estructuras)
+    console.log('[API PUT] 📦 Respuesta completa:', JSON.stringify(response, null, 2))
+
+    // Extraer producto
     let producto: any
     if (Array.isArray(response)) {
       producto = response[0]
@@ -247,10 +249,11 @@ export async function PUT(
     }
 
     if (!producto || !producto.documentId) {
-      console.error('[API PUT] ❌ Producto no encontrado o sin documentId')
+      console.error('[API PUT] ❌ No se encontró producto o falta documentId')
       return NextResponse.json({
         success: false,
-        error: `Producto con ID ${id} no encontrado`
+        error: `Producto con ID ${id} no encontrado`,
+        debug: { response }
       }, { status: 404 })
     }
 
@@ -260,29 +263,23 @@ export async function PUT(
       nombre: producto.nombre_libro
     })
 
-    // PASO 2: Preparar datos para actualizar
+    // Preparar actualización
     const updateData: any = { data: {} }
     
-    if (body.nombre_libro !== undefined) {
-      updateData.data.nombre_libro = body.nombre_libro
-    }
-    if (body.descripcion !== undefined) {
-      updateData.data.descripcion = body.descripcion
-    }
-    if (body.portada_libro !== undefined) {
-      updateData.data.portada_libro = body.portada_libro
-    }
+    if (body.nombre_libro !== undefined) updateData.data.nombre_libro = body.nombre_libro
+    if (body.descripcion !== undefined) updateData.data.descripcion = body.descripcion
+    if (body.portada_libro !== undefined) updateData.data.portada_libro = body.portada_libro
 
-    console.log('[API PUT] 📤 Enviando PUT a documentId:', producto.documentId)
-    console.log('[API PUT] 📤 Datos a enviar:', JSON.stringify(updateData, null, 2))
+    console.log('[API PUT] 📤 PUT a documentId:', producto.documentId)
+    console.log('[API PUT] 📤 Datos:', updateData)
 
-    // PASO 3: Actualizar usando documentId (requerido por Strapi v5)
+    // CRÍTICO: Usar documentId para el PUT
     const updateResponse = await strapiClient.put<any>(
       `/api/libros/${producto.documentId}`,
       updateData
     )
 
-    console.log('[API PUT] ✅ Respuesta del PUT:', JSON.stringify(updateResponse, null, 2))
+    console.log('[API PUT] ✅ PUT exitoso:', updateResponse)
 
     return NextResponse.json({
       success: true,
@@ -290,11 +287,11 @@ export async function PUT(
     })
 
   } catch (error: any) {
-    console.error('[API PUT] ❌ ERROR GENERAL:', error)
+    console.error('[API PUT] ❌ ERROR:', error)
     return NextResponse.json({
       success: false,
-      error: error.message || 'Error desconocido',
-      details: error
+      error: error.message,
+      stack: error.stack
     }, { status: 500 })
   }
 }
