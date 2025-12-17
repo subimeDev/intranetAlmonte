@@ -27,7 +27,58 @@ export async function POST(request: Request) {
       )
     }
 
-    // Autenticar con Strapi (users-permissions)
+    // 1. Buscar Colaborador por email_login
+    const colaboradorUrl = getStrapiUrl(
+      `/api/colaboradores?filters[email_login][$eq]=${encodeURIComponent(email)}&populate[persona]=*&populate[empresa]=*`
+    )
+
+    const colaboradorResponse = await fetch(colaboradorUrl, {
+      headers: {
+        'Authorization': `Bearer ${process.env.STRAPI_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!colaboradorResponse.ok) {
+      return NextResponse.json(
+        { error: 'Error al buscar colaborador' },
+        { status: colaboradorResponse.status }
+      )
+    }
+
+    const colaboradorData = await colaboradorResponse.json()
+    const colaboradores = Array.isArray(colaboradorData.data)
+      ? colaboradorData.data
+      : colaboradorData.data
+        ? [colaboradorData.data]
+        : []
+
+    if (colaboradores.length === 0) {
+      return NextResponse.json(
+        { error: 'No se encontró un colaborador con este email' },
+        { status: 404 }
+      )
+    }
+
+    const colaborador = colaboradores[0]
+
+    // 2. Verificar que el Colaborador esté activo
+    if (!colaborador.activo) {
+      return NextResponse.json(
+        { error: 'Tu cuenta está desactivada. Contacta al administrador.' },
+        { status: 403 }
+      )
+    }
+
+    // 3. Verificar que tenga usuario vinculado
+    if (!colaborador.usuario) {
+      return NextResponse.json(
+        { error: 'No tienes una cuenta creada. Contacta al administrador para que te cree una cuenta.' },
+        { status: 403 }
+      )
+    }
+
+    // 4. Autenticar con Strapi (users-permissions) usando el usuario vinculado
     const strapiAuthUrl = getStrapiUrl('/api/auth/local')
     const loginResponse = await fetch(strapiAuthUrl, {
       method: 'POST',
@@ -59,44 +110,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Obtener datos del colaborador vinculado
-    const strapiUrl = getStrapiUrl(
-      `/api/colaboradores?filters[usuario][id][$eq]=${usuarioId}&populate=persona,empresa`
-    )
-
-    const colaboradorResponse = await fetch(strapiUrl, {
-      headers: {
-        'Authorization': `Bearer ${process.env.STRAPI_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    })
-
-    let colaboradorData = null
-    if (colaboradorResponse.ok) {
-      const colaboradorDataResponse = await colaboradorResponse.json()
-      const colaboradores = Array.isArray(colaboradorDataResponse.data)
-        ? colaboradorDataResponse.data
-        : colaboradorDataResponse.data
-          ? [colaboradorDataResponse.data]
-          : []
-
-      if (colaboradores.length > 0) {
-        colaboradorData = colaboradores[0]
-
-        // Verificar que el colaborador esté activo
-        if (!colaboradorData.activo) {
-          return NextResponse.json(
-            { error: 'Tu cuenta está desactivada. Contacta al administrador.' },
-            { status: 403 }
-          )
-        }
-      } else {
-        return NextResponse.json(
-          { error: 'Usuario no está vinculado a un colaborador' },
-          { status: 403 }
-        )
-      }
+    // 5. Verificar que el usuario autenticado coincide con el vinculado al colaborador
+    if (String(usuarioId) !== String(colaborador.usuario.id || colaborador.usuario)) {
+      return NextResponse.json(
+        { error: 'Error: el usuario autenticado no coincide con el colaborador' },
+        { status: 403 }
+      )
     }
+
+    // Ya tenemos los datos del colaborador de antes
+    const colaboradorData = colaborador
 
     return NextResponse.json(
       {

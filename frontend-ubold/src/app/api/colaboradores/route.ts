@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
 
-    let url = '/api/colaboradores?populate=persona,empresa'
+    let url = '/api/colaboradores?populate[persona]=*&populate[empresa]=*'
     
     if (email) {
       url += `&filters[email_login][$eq]=${encodeURIComponent(email)}`

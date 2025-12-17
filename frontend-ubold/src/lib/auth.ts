@@ -120,43 +120,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return data
 }
 
-/**
- * Realiza registro de nuevo usuario colaborador
- */
-export async function registro(
-  email: string,
-  password: string
-): Promise<AuthResponse> {
-  const response = await fetch('/api/auth/registro', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, password }),
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
-    throw new Error(error.error || 'Error al registrar usuario')
-  }
-
-  const data = await response.json()
-  
-  // Si no hay JWT, hacer login automáticamente para obtenerlo
-  if (!data.jwt && data.usuario) {
-    try {
-      const loginData = await login(email, password)
-      return loginData
-    } catch (loginError) {
-      // Si el login falla, continuar sin JWT (el usuario puede hacer login después)
-      console.warn('Usuario creado pero no se pudo obtener JWT automáticamente')
-    }
-  }
-  
-  if (data.jwt) {
-    setAuth(data)
-  }
-  
-  return data
-}
+// La función de registro ha sido eliminada
+// Ahora las cuentas se crean desde el admin de Strapi por el jefe
 

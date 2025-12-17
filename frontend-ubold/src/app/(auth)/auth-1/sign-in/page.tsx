@@ -113,10 +113,7 @@ const Page = () => {
               </Form>
 
               <p className="text-muted text-center mt-4 mb-0">
-                ¿No tienes cuenta?{' '}
-                <Link href="/auth-1/sign-up" className="text-decoration-underline link-offset-3 fw-semibold">
-                  Crear cuenta
-                </Link>
+                ¿No tienes cuenta? Contacta al administrador para que te cree una.
               </p>
             </Card>
 
