@@ -38,31 +38,60 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'colaborador_id y remitente_id deben ser números válidos' }, { status: 400 })
     }
     
-    // Obtener mensajes bidireccionales:
-    // - Mensajes donde remitente_id = remitenteIdNum Y cliente_id = colaboradorIdNum (yo envié a él)
-    // - O mensajes donde remitente_id = colaboradorIdNum Y cliente_id = remitenteIdNum (él envió a mí)
-    // Usamos $or para combinar ambas condiciones
-    // Sintaxis de Strapi v4 para $or: filters[$or][0][field][$eq]=value&filters[$or][1][field][$eq]=value
-    let query = `/api/intranet-chats?filters[$or][0][remitente_id][$eq]=${remitenteIdNum}&filters[$or][0][cliente_id][$eq]=${colaboradorIdNum}&filters[$or][1][remitente_id][$eq]=${colaboradorIdNum}&filters[$or][1][cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+    // Obtener mensajes bidireccionales haciendo dos queries y combinando resultados
+    // Caso 1: Mensajes donde yo envié al otro (remitente_id = yo, cliente_id = él)
+    // Caso 2: Mensajes donde él envió a mí (remitente_id = él, cliente_id = yo)
     
+    const queries: Promise<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>[] = []
+    
+    // Query 1: Mensajes que yo envié al otro colaborador
+    let query1 = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteIdNum}&filters[cliente_id][$eq]=${colaboradorIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
     if (ultimaFecha) {
-      // Para nuevos mensajes, agregar filtro de fecha
-      query += `&filters[fecha][$gt]=${ultimaFecha}`
+      query1 += `&filters[fecha][$gt]=${ultimaFecha}`
     }
+    queries.push(strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1))
+    
+    // Query 2: Mensajes que el otro colaborador me envió a mí
+    let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorIdNum}&filters[cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+    if (ultimaFecha) {
+      query2 += `&filters[fecha][$gt]=${ultimaFecha}`
+    }
+    queries.push(strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2))
     
     console.log('[API /chat/mensajes] Obteniendo mensajes bidireccionales:', {
       colaboradorId: colaboradorIdNum,
       remitenteId: remitenteIdNum,
       ultimaFecha,
-      query,
+      query1,
+      query2,
     })
     
-    const response = await strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query)
+    // Ejecutar ambas queries en paralelo
+    const [response1, response2] = await Promise.all(queries)
+    
+    // Combinar los resultados de ambas queries
+    const data1 = Array.isArray(response1.data) ? response1.data : response1.data ? [response1.data] : []
+    const data2 = Array.isArray(response2.data) ? response2.data : response2.data ? [response2.data] : []
+    
+    // Combinar y ordenar por fecha
+    const allMessages = [...data1, ...data2].sort((a: any, b: any) => {
+      const fechaA = new Date(a.fecha || a.createdAt || 0).getTime()
+      const fechaB = new Date(b.fecha || b.createdAt || 0).getTime()
+      return fechaA - fechaB
+    })
+    
+    // Crear respuesta combinada
+    const response = {
+      data: allMessages,
+      meta: response1.meta || response2.meta || {},
+    }
     
     // Log para debugging
     const mensajesData = Array.isArray(response.data) ? response.data : [response.data]
-    console.log('[API /chat/mensajes] Mensajes recibidos:', {
+    console.log('[API /chat/mensajes] Mensajes recibidos (combinados):', {
       count: mensajesData.length,
+      fromQuery1: data1.length,
+      fromQuery2: data2.length,
       sample: mensajesData[0],
     })
     
