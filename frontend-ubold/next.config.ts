@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // reactStrictMode: false,
   output: 'standalone', // Optimiza para producción en Railway
+  // Optimizaciones de compilación
+  swcMinify: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
   images: {
     remotePatterns: [
       {
@@ -27,6 +34,10 @@ const nextConfig: NextConfig = {
       './node_modules/bootstrap/scss',
     ],
     silenceDeprecations: ['legacy-js-api'],
+  },
+  // Optimizaciones experimentales
+  experimental: {
+    optimizePackageImports: ['@tanstack/react-table', 'react-bootstrap', 'date-fns'],
   },
 };
 

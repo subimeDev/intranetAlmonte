@@ -1,3 +1,20 @@
-# Railway ignore file
-# Esto asegura que Railway use NIXPACKS en lugar de Docker
-
+# Archivos que Railway no necesita para el build
+node_modules
+.next
+out
+dist
+build
+.git
+.vscode
+.idea
+*.log
+*.tsbuildinfo
+.env*.local
+.DS_Store
+coverage
+.nyc_output
+*.md
+!README.md
+.cache
+tmp
+temp
