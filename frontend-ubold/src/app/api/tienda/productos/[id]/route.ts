@@ -139,17 +139,24 @@ export async function PUT(
     try {
       const getResponse = await strapiClient.get<any>(`${endpointUsed}?populate=*`)
       productoActual = getResponse.data || getResponse
+      
+      console.log('[API /tienda/productos/[id]] Estructura del producto actual:', {
+        tieneAttributes: !!productoActual?.attributes,
+        keysDirectas: productoActual ? Object.keys(productoActual).filter(k => !['id', 'documentId', 'createdAt', 'updatedAt'].includes(k)).slice(0, 10) : [],
+        keysAttributes: productoActual?.attributes ? Object.keys(productoActual.attributes).slice(0, 10) : [],
+      })
     } catch (getError: any) {
       console.error('[API /tienda/productos/[id]] Error al obtener producto actual:', getError.message)
     }
     
     // Preparar datos para Strapi
-    // En Strapi v4/v5, cuando los datos vienen directamente (sin attributes),
-    // el formato de actualización también debe ser directo dentro de { data: { ... } }
+    // Según la estructura del debug, los datos vienen directamente (sin attributes)
+    // Pero Strapi espera el formato { data: { campo: valor } } para actualizaciones
     const updateData: any = {
       data: {}
     }
     
+    // Mapear campos según la estructura real de Strapi
     if (body.nombre_libro !== undefined) {
       updateData.data.nombre_libro = body.nombre_libro
     }
@@ -157,28 +164,66 @@ export async function PUT(
       updateData.data.descripcion = body.descripcion
     }
     if (body.portada_libro !== undefined) {
-      // Si viene un ID de imagen, asignarlo directamente
+      // Para imágenes en Strapi, se puede asignar:
+      // - Un número (ID de la imagen existente)
+      // - null (para eliminar la imagen)
+      // - Un objeto con id (para relaciones)
       if (typeof body.portada_libro === 'number') {
+        // Si es un número, es el ID de la imagen
         updateData.data.portada_libro = body.portada_libro
       } else if (body.portada_libro === null) {
         updateData.data.portada_libro = null
+      } else if (typeof body.portada_libro === 'object' && body.portada_libro.id) {
+        // Si es un objeto con id, usar solo el id
+        updateData.data.portada_libro = body.portada_libro.id
       }
     }
     
     console.log('[API /tienda/productos/[id]] Actualizando producto:', {
       id: productoId,
       endpoint: endpointUsed,
+      bodyRecibido: body,
       updateData,
-      productoActual: productoActual ? {
-        tieneAttributes: !!productoActual.attributes,
-        keys: Object.keys(productoActual).slice(0, 10),
-      } : null,
     })
     
-    const response = await strapiClient.put<any>(
-      endpointUsed,
-      updateData
-    )
+    // Intentar actualizar
+    let response: any
+    try {
+      response = await strapiClient.put<any>(
+        endpointUsed,
+        updateData
+      )
+    } catch (putError: any) {
+      console.error('[API /tienda/productos/[id]] Error en PUT:', {
+        message: putError.message,
+        status: putError.status,
+        details: putError.details,
+        response: putError.response,
+      })
+      
+      // Si falla, intentar con formato alternativo (sin data wrapper)
+      if (putError.status === 502 || putError.status === 400) {
+        console.log('[API /tienda/productos/[id]] Intentando formato alternativo...')
+        const altUpdateData: any = {}
+        
+        if (body.nombre_libro !== undefined) altUpdateData.nombre_libro = body.nombre_libro
+        if (body.descripcion !== undefined) altUpdateData.descripcion = body.descripcion
+        if (body.portada_libro !== undefined) {
+          if (typeof body.portada_libro === 'number') {
+            altUpdateData.portada_libro = body.portada_libro
+          } else if (body.portada_libro === null) {
+            altUpdateData.portada_libro = null
+          }
+        }
+        
+        response = await strapiClient.put<any>(
+          endpointUsed,
+          { data: altUpdateData }
+        )
+      } else {
+        throw putError
+      }
+    }
     
     return NextResponse.json({
       success: true,
