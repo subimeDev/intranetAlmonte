@@ -4,16 +4,17 @@ FROM node:20.9.0-alpine
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package*.json ./
-COPY bun.lock* ./
-COPY yarn.lock* ./
+# Copiar solo el directorio frontend-ubold
+COPY frontend-ubold/package*.json ./frontend-ubold/
+COPY frontend-ubold/bun.lock* ./frontend-ubold/ 2>/dev/null || true
+COPY frontend-ubold/yarn.lock* ./frontend-ubold/ 2>/dev/null || true
 
-# Instalar dependencias
+# Cambiar al directorio frontend-ubold e instalar dependencias
+WORKDIR /app/frontend-ubold
 RUN npm ci --prefer-offline --no-audit || npm install
 
-# Copiar el resto de los archivos
-COPY . .
+# Copiar el resto de los archivos de frontend-ubold
+COPY frontend-ubold/ .
 
 # Construir la aplicación
 RUN npm run build
