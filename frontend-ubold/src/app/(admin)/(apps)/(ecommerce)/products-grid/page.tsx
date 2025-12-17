@@ -2,6 +2,7 @@ import { Container } from 'react-bootstrap'
 import { headers } from 'next/headers'
 
 import ProductsPage from '@/app/(admin)/(apps)/(ecommerce)/products-grid/components/ProductsPage'
+import ProductsGridDebug from '@/app/(admin)/(apps)/(ecommerce)/products-grid/debug'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 
 // Forzar renderizado dinámico
@@ -27,6 +28,11 @@ export default async function Page() {
     
     if (data.success && data.data) {
       productos = Array.isArray(data.data) ? data.data : [data.data]
+      // Debug: Log en servidor
+      console.log('[Products Grid Page] Productos cargados:', productos.length)
+      if (productos.length > 0) {
+        console.log('[Products Grid Page] Primer producto:', JSON.stringify(productos[0], null, 2))
+      }
     } else {
       error = data.error || 'Error al obtener productos'
     }
@@ -41,6 +47,9 @@ export default async function Page() {
   return (
     <Container fluid>
       <PageBreadcrumb title="Products Grid" subtitle="Ecommerce" />
+
+      {/* Página de debug - comentar cuando no se necesite */}
+      <ProductsGridDebug />
 
       <ProductsPage productos={productos} error={error} />
     </Container>
