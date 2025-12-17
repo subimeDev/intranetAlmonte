@@ -161,8 +161,10 @@ export default function TestTokenPage() {
                                 <small className={result.existe ? 'text-warning' : 'text-danger'}>
                                   {result.error || `Status ${result.status}`}
                                   {result.existe && (
-                                    <br />
-                                    <strong>Este endpoint existe pero puede tener problemas de permisos</strong>
+                                    <>
+                                      <br />
+                                      <strong>Este endpoint existe pero puede tener problemas de permisos</strong>
+                                    </>
                                   )}
                                 </small>
                               )}
