@@ -61,6 +61,11 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    console.log('[API /chat/mensajes] URLs de queries:', {
+      query1: query1,
+      query2: query2,
+    })
+    
     // Ejecutar ambas queries en paralelo
     const [response1, response2] = await Promise.all([
       strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1).catch((err) => {
@@ -68,10 +73,24 @@ export async function GET(request: NextRequest) {
         return { data: [] } as StrapiResponse<StrapiEntity<ChatMensajeAttributes>>
       }),
       strapiClient.get<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2).catch((err) => {
-        console.error('[API /chat/mensajes] Error en query2:', err)
+        console.error('[API /chat/mensajes] Error en query2:', {
+          message: err.message,
+          status: err.status,
+          url: query2,
+        })
         return { data: [] } as StrapiResponse<StrapiEntity<ChatMensajeAttributes>>
       }),
     ])
+    
+    console.log('[API /chat/mensajes] Respuestas raw de Strapi:', {
+      response1HasData: !!response1?.data,
+      response1DataType: Array.isArray(response1?.data) ? 'array' : typeof response1?.data,
+      response1DataLength: Array.isArray(response1?.data) ? response1.data.length : (response1?.data ? 1 : 0),
+      response2HasData: !!response2?.data,
+      response2DataType: Array.isArray(response2?.data) ? 'array' : typeof response2?.data,
+      response2DataLength: Array.isArray(response2?.data) ? response2.data.length : (response2?.data ? 1 : 0),
+      response2Sample: response2?.data ? (Array.isArray(response2.data) ? response2.data[0] : response2.data) : null,
+    })
     
     // Extraer datos de ambas respuestas
     let data1: any[] = []
