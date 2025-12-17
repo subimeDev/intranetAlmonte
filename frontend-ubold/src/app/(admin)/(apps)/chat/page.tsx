@@ -1,6 +1,6 @@
 'use client'
 import ContactList from '@/app/(admin)/(apps)/chat/components/ContactList'
-import { currentUser } from '@/app/(admin)/(apps)/chat/data'
+// Ya no usamos currentUser de data.ts, usamos datos reales del colaborador autenticado
 import { ContactType, MessageType } from '@/app/(admin)/(apps)/chat/types'
 import SimplebarClient from '@/components/client-wrapper/SimplebarClient'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
@@ -38,11 +38,20 @@ import {
   TbUser,
   TbVideo,
 } from 'react-icons/tb'
-
-// ID del usuario actual (puedes obtenerlo de sesión/autenticación)
-const CURRENT_USER_ID = 1
+import { useAuth } from '@/hooks/useAuth'
 
 const Page = () => {
+  const { colaborador, persona } = useAuth()
+  const currentUserId = colaborador?.id ? String(colaborador.id) : null
+  
+  // Obtener datos del usuario actual para mostrar en mensajes
+  const currentUserData = {
+    id: currentUserId || '1',
+    name: persona ? (persona.nombre_completo || `${persona.nombres || ''} ${persona.primer_apellido || ''}`.trim() || 'Usuario') : 'Usuario',
+    avatar: persona?.imagen?.url 
+      ? { src: `${process.env.NEXT_PUBLIC_STRAPI_URL || ''}${persona.imagen.url}` }
+      : undefined,
+  }
   const [show, setShow] = useState(false)
   const [contacts, setContacts] = useState<ContactType[]>([])
   const [currentContact, setCurrentContact] = useState<ContactType | null>(null)
@@ -183,12 +192,17 @@ const Page = () => {
 
     // Cargar mensajes y configurar polling
   useEffect(() => {
-    if (!currentContact) return
+    if (!currentContact || !currentUserId) return
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
+        // Obtener mensajes entre el usuario actual y el contacto seleccionado
+        // Necesitamos obtener mensajes donde:
+        // - remitente_id = currentUserId Y colaborador_id = currentContact.id
+        // - O remitente_id = currentContact.id Y colaborador_id = currentUserId
         const query = new URLSearchParams({
-          cliente_id: currentContact.id,
+          colaborador_id: currentContact.id,
+          remitente_id: currentUserId,
         })
         
         if (soloNuevos && lastMessageDate) {
@@ -287,7 +301,7 @@ const Page = () => {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [currentContact, lastMessageDate])
+  }, [currentContact, lastMessageDate, currentUserId])
 
   // Enviar mensaje
   const handleSendMessage = async () => {
@@ -305,8 +319,8 @@ const Page = () => {
         },
         body: JSON.stringify({
           texto,
-          cliente_id: parseInt(currentContact.id),
-          remitente_id: CURRENT_USER_ID,
+          colaborador_id: parseInt(currentContact.id), // ID del colaborador con quien chateas
+          remitente_id: colaborador?.id || 1, // ID del colaborador autenticado (quien envía)
         }),
       })
 
@@ -323,32 +337,7 @@ const Page = () => {
         if (lastMessageDate) {
           query.append('ultima_fecha', lastMessageDate)
         }
-        fetch(`/api/chat/mensajes?${query.toString()}`)
-          .then((res) => res.json())
-          .then((data) => {
-            const mensajesData = Array.isArray(data.data) ? data.data : [data.data]
-            if (mensajesData.length > 0) {
-              const ultimoMensaje = mensajesData[mensajesData.length - 1]
-              // Los datos vienen directamente, no en attributes
-              const texto = ultimoMensaje.texto || ultimoMensaje.TEXTO || ''
-              const remitenteId = ultimoMensaje.remitente_id || ultimoMensaje.REMITENTE_ID || 1
-              const fecha = ultimoMensaje.fecha ? new Date(ultimoMensaje.fecha) : new Date(ultimoMensaje.createdAt || Date.now())
-              
-              const nuevoMensaje: MessageType = {
-                id: String(ultimoMensaje.id),
-                senderId: String(remitenteId),
-                text: texto,
-                time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-              }
-              
-              setMessages((prev) => [...prev, nuevoMensaje])
-              setLastMessageDate(ultimoMensaje.fecha || ultimoMensaje.createdAt)
-              
-              setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-              }, 100)
-            }
-          })
+        // El polling automáticamente cargará el nuevo mensaje, no necesitamos recargar manualmente
       }, 200)
     } catch (err: any) {
       console.error('Error al enviar mensaje:', err)
@@ -475,7 +464,7 @@ const Page = () => {
               <>
                 {messages.map((message) => (
                   <Fragment key={message.id}>
-                    {currentContact && String(currentContact.id) !== message.senderId && (
+                    {currentContact && currentUserId && message.senderId !== currentUserId && (
                       <div className="d-flex align-items-start gap-2 my-3 chat-item">
                         {currentContact.avatar ? (
                           <Image 
@@ -503,7 +492,7 @@ const Page = () => {
                       </div>
                     )}
 
-                    {String(CURRENT_USER_ID) === message.senderId && (
+                    {currentUserId && message.senderId === currentUserId && (
                       <div className="d-flex align-items-start gap-2 my-3 text-end chat-item justify-content-end">
                         <div>
                           <div className="chat-message py-2 px-3 bg-info-subtle rounded">{message.text}</div>
@@ -511,12 +500,12 @@ const Page = () => {
                             <TbClock /> {message.time}
                           </div>
                         </div>
-                        {currentUser.avatar ? (
-                          <Image src={currentUser.avatar.src} width={36} height={36} className="avatar-md rounded-circle" alt="User" />
+                        {currentUserData.avatar ? (
+                          <Image src={currentUserData.avatar.src} width={36} height={36} className="avatar-md rounded-circle" alt="User" />
                         ) : (
                           <span className="avatar-sm flex-shrink-0">
                             <span className="avatar-title text-bg-primary fw-bold rounded-circle w-25 h-25">
-                              {currentUser.name.charAt(0).toUpperCase()}
+                              {currentUserData.name.charAt(0).toUpperCase()}
                             </span>
                           </span>
                         )}

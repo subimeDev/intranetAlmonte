@@ -17,32 +17,42 @@ interface ChatMensajeAttributes {
 }
 
 /**
- * GET - Obtener mensajes de un cliente
+ * GET - Obtener mensajes entre dos colaboradores (bidireccional)
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const clienteId = searchParams.get('cliente_id')
+    const colaboradorId = searchParams.get('colaborador_id') // ID del colaborador con quien chateas
+    const remitenteId = searchParams.get('remitente_id') // ID del colaborador autenticado (quien solicita)
     const ultimaFecha = searchParams.get('ultima_fecha')
     
-    if (!clienteId) {
-      return NextResponse.json({ error: 'cliente_id es requerido' }, { status: 400 })
+    if (!colaboradorId || !remitenteId) {
+      return NextResponse.json({ error: 'colaborador_id y remitente_id son requeridos' }, { status: 400 })
     }
     
-    // Convertir clienteId a número para asegurar que sea un integer
-    const clienteIdNum = parseInt(clienteId, 10)
-    if (isNaN(clienteIdNum)) {
-      return NextResponse.json({ error: 'cliente_id debe ser un número válido' }, { status: 400 })
+    // Convertir IDs a números
+    const colaboradorIdNum = parseInt(colaboradorId, 10)
+    const remitenteIdNum = parseInt(remitenteId, 10)
+    
+    if (isNaN(colaboradorIdNum) || isNaN(remitenteIdNum)) {
+      return NextResponse.json({ error: 'colaborador_id y remitente_id deben ser números válidos' }, { status: 400 })
     }
     
-    let query = `/api/intranet-chats?filters[cliente_id][$eq]=${clienteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+    // Obtener mensajes bidireccionales:
+    // - Mensajes donde remitente_id = remitenteIdNum Y cliente_id = colaboradorIdNum (yo envié a él)
+    // - O mensajes donde remitente_id = colaboradorIdNum Y cliente_id = remitenteIdNum (él envió a mí)
+    // Usamos $or para combinar ambas condiciones
+    // Sintaxis de Strapi v4 para $or: filters[$or][0][field][$eq]=value&filters[$or][1][field][$eq]=value
+    let query = `/api/intranet-chats?filters[$or][0][remitente_id][$eq]=${remitenteIdNum}&filters[$or][0][cliente_id][$eq]=${colaboradorIdNum}&filters[$or][1][remitente_id][$eq]=${colaboradorIdNum}&filters[$or][1][cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
     
     if (ultimaFecha) {
+      // Para nuevos mensajes, agregar filtro de fecha
       query += `&filters[fecha][$gt]=${ultimaFecha}`
     }
     
-    console.log('[API /chat/mensajes] Obteniendo mensajes:', {
-      clienteId: clienteIdNum,
+    console.log('[API /chat/mensajes] Obteniendo mensajes bidireccionales:', {
+      colaboradorId: colaboradorIdNum,
+      remitenteId: remitenteIdNum,
       ultimaFecha,
       query,
     })
@@ -79,30 +89,30 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { texto, cliente_id, remitente_id = 1 } = body
+    const { texto, colaborador_id, remitente_id } = body
     
-    if (!texto || !cliente_id) {
+    if (!texto || !colaborador_id || !remitente_id) {
       return NextResponse.json(
-        { error: 'texto y cliente_id son requeridos' },
+        { error: 'texto, colaborador_id y remitente_id son requeridos' },
         { status: 400 }
       )
     }
     
-    // Convertir cliente_id a número para asegurar que sea un integer
-    const clienteIdNum = parseInt(String(cliente_id), 10)
-    if (isNaN(clienteIdNum)) {
+    // Convertir IDs a números
+    const colaboradorIdNum = parseInt(String(colaborador_id), 10)
+    const remitenteIdNum = parseInt(String(remitente_id), 10)
+    
+    if (isNaN(colaboradorIdNum) || isNaN(remitenteIdNum)) {
       return NextResponse.json(
-        { error: 'cliente_id debe ser un número válido' },
+        { error: 'colaborador_id y remitente_id deben ser números válidos' },
         { status: 400 }
       )
     }
-    
-    const remitenteIdNum = parseInt(String(remitente_id), 10) || 1
     
     console.log('[API /chat/mensajes] Enviando mensaje:', {
       texto: texto.substring(0, 50) + '...',
-      cliente_id: clienteIdNum,
-      remitente_id: remitenteIdNum,
+      colaborador_id: colaboradorIdNum, // ID del colaborador con quien chateas
+      remitente_id: remitenteIdNum, // ID del colaborador autenticado (quien envía)
     })
     
     const response = await strapiClient.post<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(
@@ -111,7 +121,7 @@ export async function POST(request: NextRequest) {
         data: {
           texto,
           remitente_id: remitenteIdNum,
-          cliente_id: clienteIdNum,
+          cliente_id: colaboradorIdNum, // Usamos cliente_id en Strapi pero representa colaborador_id
           fecha: new Date().toISOString(),
           leido: false,
         },
