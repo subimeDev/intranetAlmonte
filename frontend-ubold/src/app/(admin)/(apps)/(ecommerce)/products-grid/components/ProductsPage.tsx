@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button, Col, Pagination, Row } from 'react-bootstrap'
 import { LuChevronLeft, LuChevronRight, LuClock, LuLayoutGrid, LuList, LuMenu, LuPlus } from 'react-icons/lu'
 
+import { productData } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
 import ProductFilter from './ProductFilter'
 import Products from './Products'
 
@@ -21,7 +22,7 @@ const ProductsPage = () => {
                   <LuMenu className="fs-lg" />
                 </Button>
               </div>
-              <h3 className="mb-0 fs-xl flex-grow-1">1025 Products</h3>
+              <h3 className="mb-0 fs-xl flex-grow-1">{productData.length} Products</h3>
               <div className="d-flex gap-1">
                 <Button href="#" variant="primary" className="btn-primary btn-icon">
                   <LuLayoutGrid className="fs-lg" />
