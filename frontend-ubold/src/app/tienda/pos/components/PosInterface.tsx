@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardBody, Button, Form, InputGroup, Alert, Badge, Spinner, Row, Col } from 'react-bootstrap'
-import { LuSearch, LuPlus, LuMinus, LuTrash2, LuShoppingCart, LuCheck, LuX, LuBarcode, LuDollarSign, LuPrinter, LuFullscreen, LuFullscreenExit } from 'react-icons/lu'
+import { LuSearch, LuPlus, LuMinus, LuTrash2, LuShoppingCart, LuCheck, LuX, LuBarcode, LuDollarSign, LuMaximize, LuMinimize } from 'react-icons/lu'
 import Image from 'next/image'
 import type { WooCommerceProduct } from '@/lib/woocommerce/types'
 import { usePosCart } from '../hooks/usePosCart'
@@ -422,7 +422,7 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
                 variant="outline-secondary"
                 onClick={toggleFullscreen}
               >
-                {isFullscreen ? <LuFullscreenExit /> : <LuFullscreen />}
+                {isFullscreen ? <LuMinimize /> : <LuMaximize />}
               </Button>
             </Col>
           </Row>

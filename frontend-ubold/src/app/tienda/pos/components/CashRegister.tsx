@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Modal, Button, Form, Alert, Table, Badge } from 'react-bootstrap'
-import { LuDollarSign, LuLock, LuUnlock } from 'react-icons/lu'
+import { LuDollarSign, LuLock, LuKey } from 'react-icons/lu'
 
 interface CashRegisterProps {
   show: boolean
@@ -151,7 +151,7 @@ export default function CashRegister({ show, onClose }: CashRegisterProps) {
               onClick={handleOpenCash}
               disabled={!initialAmount || parseFloat(initialAmount) < 0}
             >
-              <LuUnlock className="me-2" />
+              <LuKey className="me-2" />
               Abrir Caja
             </Button>
           </div>
