@@ -43,14 +43,6 @@ const Page = () => {
   const { colaborador, persona } = useAuth()
   const currentUserId = colaborador?.id ? String(colaborador.id) : null
 
-  // Log inicial para verificar que el componente se carga
-  console.log('[Chat] Componente cargado:', {
-    currentUserId,
-    colaboradorId: colaborador?.id,
-    email: colaborador?.email_login,
-  })
-
-  // Obtener datos del usuario actual para mostrar en mensajes
   const currentUserData = {
     id: currentUserId || '1',
     name: persona ? (persona.nombre_completo || `${persona.nombres || ''} ${persona.primer_apellido || ''}`.trim() || 'Usuario') : 'Usuario',
@@ -71,20 +63,17 @@ const Page = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Cargar contactos (colaboradores) desde Strapi
+  // Cargar contactos
   useEffect(() => {
     const cargarContactos = async () => {
       try {
         setIsLoading(true)
         const response = await fetch('/api/chat/colaboradores')
-        if (!response.ok) {
-          throw new Error('Error al cargar colaboradores')
-        }
+        if (!response.ok) throw new Error('Error al cargar colaboradores')
         const data = await response.json()
 
         if (!data.data || (Array.isArray(data.data) && data.data.length === 0)) {
           setContacts([])
-          setError('No se encontraron colaboradores.')
           return
         }
 
@@ -108,10 +97,7 @@ const Page = () => {
         const contactosMapeados: ContactType[] = colaboradoresArray
           .filter((colaborador: any) => {
             const colaboradorData = colaborador.attributes || colaborador
-            if (!colaborador || !colaborador.id || !colaboradorData.activo) return false
-            if (!colaboradorData.persona) return false
-            const nombre = obtenerNombrePersona(colaboradorData.persona)
-            return !!nombre && nombre.trim() !== ''
+            return colaborador?.id && colaboradorData.activo && colaboradorData.persona
           })
           .map((colaborador: any) => {
             const colaboradorData = colaborador.attributes || colaborador
@@ -126,13 +112,12 @@ const Page = () => {
               avatar: avatar ? { src: avatar } : undefined,
             }
           })
-          .filter((contacto: ContactType | null) => contacto !== null) as ContactType[]
+          .filter((c: ContactType | null) => c !== null) as ContactType[]
 
         setContacts(contactosMapeados)
         if (contactosMapeados.length > 0 && !currentContact) {
           setCurrentContact(contactosMapeados[0])
         }
-        setError(null)
       } catch (err: any) {
         console.error('Error al cargar contactos:', err)
         setError(err.message || 'Error al cargar contactos')
@@ -144,21 +129,11 @@ const Page = () => {
     cargarContactos()
   }, [])
 
-  // Cargar mensajes y configurar polling
+  // Cargar mensajes y polling
   useEffect(() => {
-    console.log('[Chat] useEffect de mensajes ejecutado:', {
-      hasCurrentContact: !!currentContact,
-      currentContactId: currentContact?.id,
-      currentUserId,
-    })
-
-    if (!currentContact || !currentUserId) {
-      console.log('[Chat] No se cargan mensajes - falta currentContact o currentUserId')
-      return
-    }
+    if (!currentContact || !currentUserId) return
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
-      console.log('[Chat] cargarMensajes llamado:', { soloNuevos, lastMessageDate })
       try {
         const query = new URLSearchParams({
           colaborador_id: currentContact.id,
@@ -171,15 +146,8 @@ const Page = () => {
         }
 
         const response = await fetch(`/api/chat/mensajes?${query.toString()}`)
-        console.log('[Chat] Respuesta de API:', {
-          status: response.status,
-          ok: response.ok,
-          url: query.toString(),
-        })
-        
         if (!response.ok) {
           if (response.status === 404 || response.status === 502 || response.status === 504) {
-            console.log('[Chat] Respuesta con error ignorado:', response.status)
             return
           }
           throw new Error('Error al cargar mensajes')
@@ -188,36 +156,18 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
-        console.log('[Chat] Datos recibidos de API:', {
-          totalMensajes: mensajesData.length,
-          primerMensaje: mensajesData[0],
-          currentUserId,
-          currentContactId: currentContact.id,
-        })
-
-        // Mapear mensajes - los datos vienen directamente, no en attributes
+        // Mapear mensajes - los datos vienen directamente
         const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-          // Los datos vienen directamente en el objeto mensaje
           const texto = mensaje.texto || ''
           const remitenteId = mensaje.remitente_id || 1
           const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
 
-          const mensajeMapeado = {
+          return {
             id: String(mensaje.id),
             senderId: String(remitenteId),
             text: texto,
             time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           }
-
-          console.log('[Chat] Mensaje mapeado:', {
-            id: mensajeMapeado.id,
-            senderId: mensajeMapeado.senderId,
-            currentUserId,
-            isFromCurrentUser: mensajeMapeado.senderId === currentUserId,
-            texto: texto.substring(0, 30),
-          })
-
-          return mensajeMapeado
         })
 
         if (soloNuevos) {
@@ -249,7 +199,6 @@ const Page = () => {
     }
 
     cargarMensajes(false)
-
     pollingIntervalRef.current = setInterval(() => {
       cargarMensajes(true)
     }, 1000)
@@ -275,9 +224,7 @@ const Page = () => {
     try {
       const response = await fetch('/api/chat/mensajes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           texto,
           colaborador_id: colaboradorIdNum,
