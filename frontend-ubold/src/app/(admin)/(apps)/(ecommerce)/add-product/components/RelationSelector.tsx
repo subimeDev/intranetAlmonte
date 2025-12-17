@@ -82,7 +82,7 @@ export function RelationSelector({
             onChange={handleSelectChange}
             multiple={multiple}
             required={required}
-            size={multiple ? 5 : 1}
+            style={multiple ? { minHeight: '120px' } : undefined}
             className={multiple ? 'form-select' : ''}
           >
             <option value="">Add or create a relation</option>
