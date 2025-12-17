@@ -247,76 +247,171 @@ export async function PUT(
       )
     }
     
-    // PASO 2: Obtener producto directamente por ID (sin fallback)
+    // PASO 2: Obtener producto directamente por ID
+    // IMPORTANTE: Si el ID es un documentId (string no numérico), necesitamos buscar en la lista
     let productoId: number | null = null
     let productoActual: any = null
     
-    console.log('[API /tienda/productos/[id] PUT] Intentando obtener producto directamente:', {
+    const esIdNumerico = !isNaN(parseInt(id)) && id.toString() === parseInt(id).toString()
+    
+    console.log('[API /tienda/productos/[id] PUT] Intentando obtener producto:', {
       idBuscado: id,
+      esIdNumerico,
       endpoint: `/api/libros/${id}?populate=*`
     })
     
-    try {
-      const directResponse = await strapiClient.get<any>(`/api/libros/${id}?populate=*`)
-      
-      console.log('[API /tienda/productos/[id] PUT] Respuesta completa del GET:', {
-        tieneData: !!directResponse.data,
-        tieneIdDirecto: !!directResponse.id,
-        keys: Object.keys(directResponse),
-        respuestaCompleta: JSON.stringify(directResponse, null, 2).substring(0, 500) + '...'
-      })
-      
-      // Manejar ambas estructuras: response.data.id o response.id
-      if (directResponse.data && directResponse.data.id) {
-        productoActual = directResponse.data
-        productoId = directResponse.data.id
-        console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado en response.data:', {
-          id: directResponse.data.id,
-          documentId: directResponse.data.documentId,
-          nombre: directResponse.data.nombre_libro
+    // Si es ID numérico, intentar GET directo primero
+    if (esIdNumerico) {
+      try {
+        const directResponse = await strapiClient.get<any>(`/api/libros/${id}?populate=*`)
+        
+        console.log('[API /tienda/productos/[id] PUT] Respuesta completa del GET:', {
+          tieneData: !!directResponse.data,
+          tieneIdDirecto: !!directResponse.id,
+          keys: Object.keys(directResponse),
+          respuestaCompleta: JSON.stringify(directResponse, null, 2).substring(0, 500) + '...'
         })
-      } else if (directResponse.id) {
-        productoActual = directResponse
-        productoId = directResponse.id
-        console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado en response directo:', {
-          id: directResponse.id,
-          documentId: directResponse.documentId,
-          nombre: directResponse.nombre_libro
+        
+        // Manejar ambas estructuras: response.data.id o response.id
+        if (directResponse.data && directResponse.data.id) {
+          productoActual = directResponse.data
+          productoId = directResponse.data.id
+          console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado en response.data:', {
+            id: directResponse.data.id,
+            documentId: directResponse.data.documentId,
+            nombre: directResponse.data.nombre_libro
+          })
+        } else if (directResponse.id) {
+          productoActual = directResponse
+          productoId = directResponse.id
+          console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado en response directo:', {
+            id: directResponse.id,
+            documentId: directResponse.documentId,
+            nombre: directResponse.nombre_libro
+          })
+        } else {
+          console.error('[API /tienda/productos/[id] PUT] ❌ Respuesta no tiene estructura esperada:', {
+            respuesta: directResponse
+          })
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: 'La respuesta de Strapi no tiene la estructura esperada',
+              debug: { respuesta: directResponse }
+            },
+            { status: 500 }
+          )
+        }
+      } catch (getError: any) {
+        console.error('[API /tienda/productos/[id] PUT] ❌ Error al obtener producto por ID numérico:', {
+          status: getError.status,
+          message: getError.message,
+          details: getError.details,
         })
-      } else {
-        console.error('[API /tienda/productos/[id] PUT] ❌ Respuesta no tiene estructura esperada:', {
-          respuesta: directResponse
+        
+        // Si es 404 con ID numérico, el producto realmente no existe
+        if (getError.status === 404) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `Producto con ID "${id}" no encontrado en Strapi`,
+              debug: {
+                idBuscado: id,
+                status: getError.status,
+                message: getError.message,
+                endpoint: `/api/libros/${id}?populate=*`
+              }
+            },
+            { status: 404 }
+          )
+        }
+        
+        // Si es otro error, retornar error específico
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Error al obtener producto: ${getError.message}`,
+            debug: {
+              idBuscado: id,
+              status: getError.status,
+              message: getError.message,
+            }
+          },
+          { status: getError.status || 500 }
+        )
+      }
+    } else {
+      // Si NO es ID numérico (es documentId), buscar en lista completa
+      console.log('[API /tienda/productos/[id] PUT] ID no es numérico, buscando por documentId en lista completa...')
+      
+      try {
+        const allProducts = await strapiClient.get<any>(
+          `/api/libros?populate=*&pagination[pageSize]=1000`
+        )
+        
+        let productos: any[] = []
+        if (Array.isArray(allProducts)) {
+          productos = allProducts
+        } else if (Array.isArray(allProducts.data)) {
+          productos = allProducts.data
+        } else if (allProducts.data && Array.isArray(allProducts.data.data)) {
+          productos = allProducts.data.data
+        }
+        
+        console.log('[API /tienda/productos/[id] PUT] Buscando producto por documentId:', {
+          idBuscado: id,
+          totalProductos: productos.length,
+        })
+        
+        // Buscar por documentId o id
+        productoActual = productos.find((p: any) => 
+          p.documentId === id || p.id?.toString() === id || p.id === parseInt(id)
+        )
+        
+        if (productoActual && productoActual.id) {
+          productoId = productoActual.id
+          console.log('[API /tienda/productos/[id] PUT] ✅ Producto encontrado por documentId:', {
+            idBuscado: id,
+            idNumerico: productoId,
+            documentId: productoActual.documentId,
+            nombre: productoActual.nombre_libro
+          })
+        } else {
+          console.error('[API /tienda/productos/[id] PUT] ❌ Producto no encontrado por documentId:', {
+            idBuscado: id,
+            totalProductos: productos.length,
+            primerosIds: productos.slice(0, 3).map((p: any) => ({ id: p.id, documentId: p.documentId }))
+          })
+          return NextResponse.json(
+            { 
+              success: false, 
+              error: `Producto con ID/documentId "${id}" no encontrado en Strapi`,
+              debug: {
+                idBuscado: id,
+                totalProductos: productos.length,
+              }
+            },
+            { status: 404 }
+          )
+        }
+      } catch (listError: any) {
+        console.error('[API /tienda/productos/[id] PUT] ❌ Error al buscar en lista completa:', {
+          status: listError.status,
+          message: listError.message,
+          details: listError.details,
         })
         return NextResponse.json(
           { 
             success: false, 
-            error: 'La respuesta de Strapi no tiene la estructura esperada',
-            debug: { respuesta: directResponse }
+            error: `Error al buscar producto: ${listError.message}`,
+            debug: {
+              idBuscado: id,
+              status: listError.status,
+            }
           },
-          { status: 500 }
+          { status: listError.status || 500 }
         )
       }
-    } catch (getError: any) {
-      console.error('[API /tienda/productos/[id] PUT] ❌ Error al obtener producto:', {
-        status: getError.status,
-        message: getError.message,
-        details: getError.details,
-        stack: getError.stack
-      })
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Producto con ID "${id}" no encontrado en Strapi`,
-          debug: {
-            idBuscado: id,
-            status: getError.status,
-            message: getError.message,
-            endpoint: `/api/libros/${id}?populate=*`
-          }
-        },
-        { status: getError.status || 404 }
-      )
     }
     
     // PASO 3: Validar que tenemos un ID numérico válido
