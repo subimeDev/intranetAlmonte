@@ -19,54 +19,98 @@ export async function GET(
       esNumerico: !isNaN(parseInt(id)),
     })
     
-    // Intentar primero con el ID numérico directamente
-    if (!isNaN(parseInt(id))) {
-      const endpointUsed = `/api/libros/${id}?populate=*`
+    // Estrategia: Primero obtener todos los productos y buscar el que coincida
+    // Esto evita problemas con endpoints específicos que pueden dar 502
+    console.log('[API /tienda/productos/[id] GET] Obteniendo lista completa de productos...')
+    
+    let allProducts: any = null
+    try {
+      allProducts = await strapiClient.get<any>(
+        `/api/libros?populate=*&pagination[pageSize]=1000`
+      )
+    } catch (listError: any) {
+      console.error('[API /tienda/productos/[id] GET] Error al obtener lista de productos:', {
+        status: listError.status,
+        message: listError.message,
+      })
       
-      try {
-        const response = await strapiClient.get<any>(endpointUsed)
-        
-        // Strapi puede devolver los datos directamente o en response.data
-        const producto = response.data || response
-        
-        if (producto) {
-          console.log('[API /tienda/productos/[id] GET] Producto obtenido exitosamente:', {
-            id,
-            tieneId: !!producto.id,
-            tieneDocumentId: !!producto.documentId,
-          })
+      // Si falla obtener la lista, intentar con el endpoint directo como último recurso
+      if (!isNaN(parseInt(id))) {
+        try {
+          const directResponse = await strapiClient.get<any>(`/api/libros/${id}?populate=*`)
+          const producto = directResponse.data || directResponse
           
-          return NextResponse.json({
-            success: true,
-            data: producto,
-          }, { status: 200 })
-        }
-      } catch (idError: any) {
-        console.error('[API /tienda/productos/[id] GET] Error con ID numérico:', {
-          id,
-          status: idError.status,
-          message: idError.message,
-          details: idError.details,
-        })
-        
-        // Si es 404, retornar directamente
-        if (idError.status === 404) {
+          if (producto) {
+            return NextResponse.json({
+              success: true,
+              data: producto,
+            }, { status: 200 })
+          }
+        } catch (directError: any) {
+          // Si también falla, retornar error
           return NextResponse.json(
             { 
               success: false,
-              error: `Producto con ID ${id} no encontrado`,
+              error: `Error al obtener producto: ${directError.message || 'Error desconocido'}`,
               data: null,
             },
-            { status: 404 }
+            { status: directError.status || 500 }
           )
         }
-        
-        // Si es 502, puede ser un problema de Strapi, intentar búsqueda alternativa
-        if (idError.status === 502) {
-          console.log('[API /tienda/productos/[id] GET] Error 502, intentando búsqueda alternativa...')
-        }
       }
+      
+      return NextResponse.json(
+        { 
+          success: false,
+          error: `Error al obtener productos: ${listError.message || 'Error desconocido'}`,
+          data: null,
+        },
+        { status: listError.status || 500 }
+      )
     }
+    
+    // Buscar el producto en la lista
+    const productos = Array.isArray(allProducts.data) ? allProducts.data : (allProducts.data ? [allProducts.data] : [])
+    
+    console.log('[API /tienda/productos/[id] GET] Productos obtenidos:', {
+      total: productos.length,
+      idBuscado: id,
+    })
+    
+    const productoEncontrado = productos.find((p: any) => {
+      const pId = p.id?.toString()
+      const pDocId = p.documentId?.toString()
+      const idStr = id.toString()
+      
+      return (
+        pId === idStr ||
+        pDocId === idStr ||
+        (!isNaN(parseInt(idStr)) && p.id === parseInt(idStr))
+      )
+    })
+    
+    if (productoEncontrado) {
+      console.log('[API /tienda/productos/[id] GET] Producto encontrado:', {
+        idBuscado: id,
+        productoId: productoEncontrado.id,
+        documentId: productoEncontrado.documentId,
+      })
+      
+      return NextResponse.json({
+        success: true,
+        data: productoEncontrado,
+      }, { status: 200 })
+    }
+    
+    // Si no se encontró, mostrar información de debug
+    console.error('[API /tienda/productos/[id] GET] Producto no encontrado:', {
+      idBuscado: id,
+      totalProductos: productos.length,
+      primerosIds: productos.slice(0, 10).map((p: any) => ({
+        id: p.id,
+        documentId: p.documentId,
+      })),
+    })
     
     // Si falla o el ID no es numérico, buscar en todos los productos
     try {
