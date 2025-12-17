@@ -115,21 +115,26 @@ const Page = () => {
         
         const contactosMapeados: ContactType[] = colaboradoresArray
           .filter((colaborador: any) => {
-            // Solo incluir colaboradores activos con persona relacionada
-            if (!colaborador || !colaborador.id || !colaborador.activo) return false
-            if (!colaborador.persona) return false
+            // Los datos pueden venir directamente o en attributes
+            const colaboradorData = colaborador.attributes || colaborador
             
-            const nombre = obtenerNombrePersona(colaborador.persona)
+            // Solo incluir colaboradores activos con persona relacionada
+            if (!colaborador || !colaborador.id || !colaboradorData.activo) return false
+            if (!colaboradorData.persona) return false
+            
+            const nombre = obtenerNombrePersona(colaboradorData.persona)
             return !!nombre && nombre.trim() !== ''
           })
           .map((colaborador: any) => {
-            const persona = colaborador.persona
+            // Los datos pueden venir directamente o en attributes
+            const colaboradorData = colaborador.attributes || colaborador
+            const persona = colaboradorData.persona
             const nombre = obtenerNombrePersona(persona)
             
             if (!nombre || nombre.trim() === '') {
               console.error('[Chat] ERROR: Colaborador sin nombre después del filtro:', {
                 id: colaborador.id,
-                email_login: colaborador.email_login,
+                email_login: colaboradorData.email_login,
               })
               return null
             }
@@ -143,8 +148,8 @@ const Page = () => {
             console.log('[Chat] Colaborador mapeado:', {
               id: colaborador.id,
               nombre: nombre.trim(),
-              email_login: colaborador.email_login,
-              rol: colaborador.rol,
+              email_login: colaboradorData.email_login,
+              rol: colaboradorData.rol,
               isOnline,
               tieneAvatar: !!avatar,
             })

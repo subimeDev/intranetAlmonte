@@ -45,15 +45,17 @@ export async function GET() {
     })
     
     if (Array.isArray(response.data) && response.data.length > 0) {
-      const firstColaborador = response.data[0]
+      const firstColaborador = response.data[0] as any
+      // Los datos pueden venir directamente o en attributes
+      const colaboradorData = firstColaborador.attributes || firstColaborador
       console.log('[API /chat/colaboradores] Primer colaborador ejemplo:', {
         id: firstColaborador.id,
-        email_login: firstColaborador.email_login,
-        persona: firstColaborador.persona ? {
-          id: firstColaborador.persona.id,
-          nombre_completo: firstColaborador.persona.nombre_completo,
-          nombres: firstColaborador.persona.nombres,
-          primer_apellido: firstColaborador.persona.primer_apellido,
+        email_login: colaboradorData.email_login,
+        persona: colaboradorData.persona ? {
+          id: colaboradorData.persona.id,
+          nombre_completo: colaboradorData.persona.nombre_completo,
+          nombres: colaboradorData.persona.nombres,
+          primer_apellido: colaboradorData.persona.primer_apellido,
         } : null,
       })
     }
