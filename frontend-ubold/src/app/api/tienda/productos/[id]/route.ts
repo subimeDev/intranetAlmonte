@@ -1,8 +1,8 @@
 /**
- * API Route para obtener un producto específico desde Strapi por ID
+ * API Route para obtener y actualizar un producto específico desde Strapi por ID
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
 
 export const dynamic = 'force-dynamic'
@@ -100,3 +100,85 @@ export async function GET(
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    
+    // Obtener el ID real del producto (puede ser numérico o documentId)
+    let productoId = id
+    
+    // Si el ID no es numérico, buscar el producto para obtener su ID numérico
+    if (isNaN(parseInt(id))) {
+      const allProducts = await strapiClient.get<any>(
+        `/api/libros?populate=*&pagination[pageSize]=1000`
+      )
+      const productos = Array.isArray(allProducts.data) ? allProducts.data : []
+      const productoEncontrado = productos.find((p: any) => 
+        p.id?.toString() === id || 
+        p.documentId === id
+      )
+      
+      if (!productoEncontrado) {
+        return NextResponse.json(
+          { success: false, error: 'Producto no encontrado' },
+          { status: 404 }
+        )
+      }
+      
+      productoId = productoEncontrado.id.toString()
+    }
+    
+    const endpointUsed = `/api/libros/${productoId}`
+    
+    // Preparar datos para Strapi (los datos pueden venir directamente o en attributes)
+    const updateData: any = {}
+    
+    if (body.nombre_libro !== undefined) {
+      updateData.nombre_libro = body.nombre_libro
+    }
+    if (body.descripcion !== undefined) {
+      updateData.descripcion = body.descripcion
+    }
+    if (body.portada_libro !== undefined) {
+      // Si viene un ID de imagen, asignarlo directamente
+      if (typeof body.portada_libro === 'number') {
+        updateData.portada_libro = body.portada_libro
+      } else if (body.portada_libro === null) {
+        updateData.portada_libro = null
+      }
+    }
+    
+    console.log('[API /tienda/productos/[id]] Actualizando producto:', {
+      id: productoId,
+      endpoint: endpointUsed,
+      updateData,
+    })
+    
+    const response = await strapiClient.put<any>(
+      endpointUsed,
+      { data: updateData }
+    )
+    
+    return NextResponse.json({
+      success: true,
+      data: response.data || response,
+    }, { status: 200 })
+  } catch (error: any) {
+    console.error('[API /tienda/productos/[id]] Error al actualizar producto:', {
+      message: error.message,
+      status: error.status,
+      details: error.details,
+    })
+    return NextResponse.json(
+      { 
+        success: false,
+        error: error.message || 'Error al actualizar producto',
+      },
+      { status: error.status || 500 }
+    )
+  }
+}

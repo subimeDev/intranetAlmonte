@@ -1,7 +1,9 @@
 'use client'
 
-import { Badge, Col, Row } from 'react-bootstrap'
+import { Badge, Col, Row, Alert } from 'react-bootstrap'
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import EditableField from './EditableField'
 
@@ -20,6 +22,10 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
 }
 
 const ProductDetails = ({ producto }: ProductDetailsProps) => {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [savingField, setSavingField] = useState<string | null>(null)
+
   const attrs = producto.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
 
@@ -47,19 +53,80 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
   const isPublished = !!(attrs.publishedAt || producto.publishedAt)
   const createdAt = attrs.createdAt || producto.createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
+  const productId = producto.id || producto.documentId
 
   const handleSaveNombre = async (newValue: string) => {
-    // TODO: Implementar guardado en Strapi
-    console.log('Guardar nombre:', newValue)
+    setSavingField('nombre')
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/tienda/productos/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre_libro: newValue,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al guardar nombre')
+      }
+
+      // Recargar la página para mostrar los cambios
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar nombre')
+      console.error('Error al guardar nombre:', err)
+      throw err // Re-lanzar para que EditableField muestre el error
+    } finally {
+      setSavingField(null)
+    }
   }
 
   const handleSaveDescripcion = async (newValue: string) => {
-    // TODO: Implementar guardado en Strapi
-    console.log('Guardar descripción:', newValue)
+    setSavingField('descripcion')
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/tienda/productos/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          descripcion: newValue,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al guardar descripción')
+      }
+
+      // Recargar la página para mostrar los cambios
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar descripción')
+      console.error('Error al guardar descripción:', err)
+      throw err // Re-lanzar para que EditableField muestre el error
+    } finally {
+      setSavingField(null)
+    }
   }
 
   return (
     <>
+      {error && (
+        <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
+          <small>{error}</small>
+        </Alert>
+      )}
+
       <div className="d-flex align-items-center justify-content-between mb-3">
         <Badge 
           bg={isPublished ? 'success' : 'secondary'} 
