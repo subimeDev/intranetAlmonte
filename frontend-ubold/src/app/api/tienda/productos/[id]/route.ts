@@ -25,16 +25,32 @@ export async function GET(
     // 2. Si falla con 404, buscar en lista completa (por si es documentId)
     // 3. Si falla con otro error, retornar error específico
     
-    // PASO 1: Intentar obtener directamente por ID numérico
+    // PASO 1: Usar filtros para obtener el producto (Strapi v5 requiere documentId)
     if (!isNaN(parseInt(id))) {
       try {
-        const directResponse = await strapiClient.get<any>(`/api/libros/${id}?populate=*`)
+        console.log('[API /tienda/productos/[id] GET] 🔍 Buscando con filtro:', {
+          idBuscado: id,
+          endpoint: `/api/libros?filters[id][$eq]=${id}&populate=*`
+        })
         
-        // Strapi puede devolver los datos en response.data o directamente
-        const producto = directResponse.data || directResponse
+        const filteredResponse = await strapiClient.get<any>(
+          `/api/libros?filters[id][$eq]=${id}&populate=*`
+        )
+        
+        // Extraer producto de la respuesta filtrada
+        let producto: any
+        if (Array.isArray(filteredResponse)) {
+          producto = filteredResponse[0]
+        } else if (filteredResponse.data && Array.isArray(filteredResponse.data)) {
+          producto = filteredResponse.data[0]
+        } else if (filteredResponse.data) {
+          producto = filteredResponse.data
+        } else {
+          producto = filteredResponse
+        }
         
         if (producto && (producto.id || producto.documentId)) {
-          console.log('[API /tienda/productos/[id] GET] ✅ Producto encontrado por ID directo:', {
+          console.log('[API /tienda/productos/[id] GET] ✅ Producto encontrado con filtro:', {
             idBuscado: id,
             productoId: producto.id,
             documentId: producto.documentId,
@@ -45,19 +61,13 @@ export async function GET(
             data: producto,
           }, { status: 200 })
         }
-      } catch (directError: any) {
-        // Si es 404, el producto no existe con ese ID numérico
-        // Continuar a buscar por documentId en la lista completa
-        if (directError.status === 404) {
-          console.log('[API /tienda/productos/[id] GET] ⚠️ Producto no encontrado por ID numérico, buscando por documentId...')
-        } else {
-          // Si es otro error (502, 500, etc), loguear pero continuar con búsqueda alternativa
-          console.warn('[API /tienda/productos/[id] GET] ⚠️ Error al obtener por ID directo:', {
-            status: directError.status,
-            message: directError.message,
-            continuandoConBusqueda: true,
-          })
-        }
+      } catch (filterError: any) {
+        // Si falla con filtro, continuar a buscar en lista completa
+        console.warn('[API /tienda/productos/[id] GET] ⚠️ Error al obtener con filtro:', {
+          status: filterError.status,
+          message: filterError.message,
+          continuandoConBusqueda: true,
+        })
       }
     }
     
