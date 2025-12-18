@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { FormLabel, FormSelect } from 'react-bootstrap'
 
 interface RelationSelectorProps {
@@ -14,7 +14,7 @@ interface RelationSelectorProps {
   className?: string
 }
 
-export function RelationSelector({ 
+const RelationSelector = memo(function RelationSelector({ 
   label, 
   value, 
   onChange, 
@@ -40,7 +40,15 @@ export function RelationSelector({
       const data = await res.json()
       
       if (data.success) {
-        setOptions(data.data || [])
+        const items = data.data || []
+        console.log(`[RelationSelector] ${label} - Items recibidos:`, items.length)
+        
+        // LOG para ver campos disponibles del primer item
+        if (items.length > 0) {
+          console.log(`[RelationSelector] ${label} - Campos del primer item:`, Object.keys(items[0]))
+        }
+        
+        setOptions(items)
       } else {
         setError(data.error || 'Error al cargar opciones')
       }
@@ -62,7 +70,13 @@ export function RelationSelector({
   }
 
   const getDisplayValue = (option: any): string => {
-    return option[displayField] || option.nombre || option.titulo || option.name || 'Sin nombre'
+    // Intentar múltiples campos posibles para el nombre
+    return option[displayField] || 
+           option.nombre || 
+           option.titulo || 
+           option.name ||
+           option.title ||
+           `Item ${option.id || option.documentId}`
   }
 
   return (
@@ -82,8 +96,7 @@ export function RelationSelector({
             onChange={handleSelectChange}
             multiple={multiple}
             required={required}
-            style={multiple ? { minHeight: '120px' } : undefined}
-            className={multiple ? 'form-select' : ''}
+            {...(multiple ? { style: { minHeight: '120px' } } : {})}
           >
             <option value="">Add or create a relation</option>
             {options.map((option: any) => {
@@ -109,5 +122,7 @@ export function RelationSelector({
       )}
     </div>
   )
-}
+})
+
+export { RelationSelector }
 

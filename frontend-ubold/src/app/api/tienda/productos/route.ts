@@ -102,9 +102,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Guardar body fuera del try para poder usarlo en el catch
+  const body = await request.json()
+  const originalIsbn = body.isbn_libro && body.isbn_libro.trim() !== '' ? body.isbn_libro.trim() : null
+  
   try {
-    const body = await request.json()
-    
     console.log('[API POST] 📝 Creando producto:', body)
 
     // Validar nombre_libro obligatorio
@@ -116,9 +118,7 @@ export async function POST(request: NextRequest) {
     }
 
     // CRÍTICO: Generar ISBN único automáticamente si no viene
-    const isbn = body.isbn_libro && body.isbn_libro.trim() !== '' 
-      ? body.isbn_libro.trim()
-      : `AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+    const isbn = originalIsbn || `AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
     console.log('[API POST] 📚 ISBN a usar:', isbn)
 
@@ -195,12 +195,85 @@ export async function POST(request: NextRequest) {
       errores: error.details?.errors
     })
     
-    // Mensaje de error más específico
+    // Si el error es por ISBN duplicado, regenerar automáticamente
+    const isDuplicateISBN = error.message?.includes('unique') || 
+                           error.details?.errors?.some((e: any) => 
+                             e.message?.includes('unique') && 
+                             e.path?.includes('isbn_libro')
+                           )
+    
+    if (isDuplicateISBN && originalIsbn) {
+      console.log('[API POST] 🔄 ISBN duplicado detectado, regenerando automáticamente...')
+      
+      // Regenerar ISBN único
+      const newIsbn = `AUTO-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+      
+      // Reintentar con nuevo ISBN - reconstruir productData desde body
+      try {
+        const retryData: any = {
+          data: {
+            isbn_libro: newIsbn,
+            nombre_libro: body.nombre_libro.trim()
+          }
+        }
+        
+        // Reconstruir todos los campos opcionales
+        if (body.subtitulo_libro?.trim()) retryData.data.subtitulo_libro = body.subtitulo_libro.trim()
+        if (body.descripcion?.trim()) retryData.data.descripcion = body.descripcion.trim()
+        if (body.portada_libro) retryData.data.portada_libro = body.portada_libro
+        if (body.obra) retryData.data.obra = body.obra
+        if (body.autor_relacion) retryData.data.autor_relacion = body.autor_relacion
+        if (body.editorial) retryData.data.editorial = body.editorial
+        if (body.sello) retryData.data.sello = body.sello
+        if (body.coleccion) retryData.data.coleccion = body.coleccion
+        if (body.canales?.length > 0) retryData.data.canales = body.canales
+        if (body.marcas?.length > 0) retryData.data.marcas = body.marcas
+        if (body.etiquetas?.length > 0) retryData.data.etiquetas = body.etiquetas
+        if (body.categorias_producto?.length > 0) retryData.data.categorias_producto = body.categorias_producto
+        if (body.id_autor) retryData.data.id_autor = body.id_autor
+        if (body.id_editorial) retryData.data.id_editorial = body.id_editorial
+        if (body.id_sello) retryData.data.id_sello = body.id_sello
+        if (body.id_coleccion) retryData.data.id_coleccion = body.id_coleccion
+        if (body.id_obra) retryData.data.id_obra = body.id_obra
+        if (body.numero_edicion) retryData.data.numero_edicion = body.numero_edicion
+        if (body.agno_edicion) retryData.data.agno_edicion = body.agno_edicion
+        if (body.idioma) retryData.data.idioma = body.idioma
+        if (body.tipo_libro) retryData.data.tipo_libro = body.tipo_libro
+        if (body.estado_edicion) retryData.data.estado_edicion = body.estado_edicion
+        
+        console.log('[API POST] 🔄 Reintentando con nuevo ISBN:', newIsbn)
+        
+        const retryResponse = await strapiClient.post<any>('/api/libros', retryData)
+        
+        console.log('[API POST] ✅ Producto creado exitosamente con ISBN regenerado:', {
+          id: retryResponse.data?.id || retryResponse.id,
+          documentId: retryResponse.data?.documentId || retryResponse.documentId,
+          nombre: retryResponse.data?.nombre_libro || retryResponse.nombre_libro,
+          isbn: newIsbn
+        })
+        
+        return NextResponse.json({
+          success: true,
+          data: retryResponse.data || retryResponse,
+          message: `Producto creado exitosamente. El ISBN "${originalIsbn}" ya existía, se generó uno nuevo automáticamente: "${newIsbn}"`,
+          isbnRegenerado: true,
+          isbnOriginal: originalIsbn,
+          isbnNuevo: newIsbn
+        })
+      } catch (retryError: any) {
+        console.error('[API POST] ❌ Error en reintento:', retryError)
+        return NextResponse.json({
+          success: false,
+          error: `El ISBN "${originalIsbn}" ya existe y no se pudo generar uno nuevo automáticamente. Intenta con otro ISBN o déjalo vacío para generar uno automático.`,
+          details: retryError.details?.errors
+        }, { status: 400 })
+      }
+    }
+    
+    // Mensaje de error más específico para otros errores
     let errorMessage = 'Error al crear el producto'
     
-    if (error.message?.includes('unique')) {
-      errorMessage = 'El ISBN ya existe. Se generará uno automático.'
-    } else if (error.details?.errors) {
+    if (error.details?.errors) {
       errorMessage = error.details.errors.map((e: any) => e.message).join(', ')
     } else if (error.message) {
       errorMessage = error.message

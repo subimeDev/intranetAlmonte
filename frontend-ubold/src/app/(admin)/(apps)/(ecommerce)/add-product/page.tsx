@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { RelationSelector } from './components/RelationSelector'
 import ProductImage from './components/ProductImage'
@@ -118,12 +118,12 @@ export default function AddProductPage() {
       if (formData.id_coleccion) dataToSend.id_coleccion = parseInt(formData.id_coleccion)
       if (formData.id_obra) dataToSend.id_obra = parseInt(formData.id_obra)
       
-      // === EDICIÓN ===
+      // === EDICIÓN (solo enviar si tienen valor) ===
       if (formData.numero_edicion) dataToSend.numero_edicion = parseInt(formData.numero_edicion)
       if (formData.agno_edicion) dataToSend.agno_edicion = parseInt(formData.agno_edicion)
-      if (formData.idioma) dataToSend.idioma = formData.idioma
-      if (formData.tipo_libro) dataToSend.tipo_libro = formData.tipo_libro
-      if (formData.estado_edicion) dataToSend.estado_edicion = formData.estado_edicion
+      if (formData.idioma && formData.idioma !== '') dataToSend.idioma = formData.idioma
+      if (formData.tipo_libro && formData.tipo_libro !== '') dataToSend.tipo_libro = formData.tipo_libro
+      if (formData.estado_edicion && formData.estado_edicion !== '') dataToSend.estado_edicion = formData.estado_edicion
       
       console.log('[AddProduct] Enviando datos:', dataToSend)
 
@@ -136,7 +136,15 @@ export default function AddProductPage() {
       const data = await response.json()
 
       if (data.success) {
-        setSuccess(true)
+        // Mostrar mensaje especial si se regeneró el ISBN
+        if (data.isbnRegenerado) {
+          setSuccess(true)
+          setError(null)
+          // Mostrar mensaje informativo sobre el ISBN regenerado
+          alert(`✅ Producto creado exitosamente.\n\nEl ISBN "${data.isbnOriginal}" ya existía, se generó uno nuevo automáticamente: "${data.isbnNuevo}"`)
+        } else {
+          setSuccess(true)
+        }
         setTimeout(() => {
           router.push('/products')
         }, 1500)
@@ -186,7 +194,10 @@ export default function AddProductPage() {
                     type="text"
                     placeholder="Ejemplo: 978-3-16-148410-0"
                     value={formData.isbn_libro}
-                    onChange={(e) => setFormData({...formData, isbn_libro: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData(prev => ({...prev, isbn_libro: value}))
+                    }}
                   />
                 </FormGroup>
               </Col>
@@ -201,7 +212,10 @@ export default function AddProductPage() {
                     required
                     placeholder="Título del libro"
                     value={formData.nombre_libro}
-                    onChange={(e) => setFormData({...formData, nombre_libro: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData(prev => ({...prev, nombre_libro: value}))
+                    }}
                   />
                 </FormGroup>
               </Col>
@@ -213,7 +227,10 @@ export default function AddProductPage() {
                 type="text"
                 placeholder="Subtítulo del libro (opcional)"
                 value={formData.subtitulo_libro}
-                onChange={(e) => setFormData({...formData, subtitulo_libro: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setFormData(prev => ({...prev, subtitulo_libro: value}))
+                }}
               />
             </FormGroup>
             
@@ -224,12 +241,15 @@ export default function AddProductPage() {
                 rows={4}
                 placeholder="Descripción del libro"
                 value={formData.descripcion}
-                onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setFormData(prev => ({...prev, descripcion: value}))
+                }}
               />
             </FormGroup>
 
             <ProductImage 
-              onImageChange={(file) => setFormData({ ...formData, portada_libro: file })}
+              onImageChange={(file) => setFormData(prev => ({ ...prev, portada_libro: file }))}
             />
           </CardBody>
         </Card>
@@ -247,7 +267,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Obra"
                   value={formData.obra}
-                  onChange={(val) => setFormData({...formData, obra: val as string})}
+                  onChange={(val) => setFormData(prev => ({...prev, obra: val as string}))}
                   endpoint="/api/tienda/obras"
                   displayField="titulo"
                 />
@@ -257,7 +277,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Autor"
                   value={formData.autor_relacion}
-                  onChange={(val) => setFormData({...formData, autor_relacion: val as string})}
+                  onChange={(val) => setFormData(prev => ({...prev, autor_relacion: val as string}))}
                   endpoint="/api/tienda/autores"
                   displayField="nombre"
                 />
@@ -269,7 +289,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Editorial"
                   value={formData.editorial}
-                  onChange={(val) => setFormData({...formData, editorial: val as string})}
+                  onChange={(val) => setFormData(prev => ({...prev, editorial: val as string}))}
                   endpoint="/api/tienda/editoriales"
                   displayField="nombre"
                 />
@@ -279,7 +299,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Sello"
                   value={formData.sello}
-                  onChange={(val) => setFormData({...formData, sello: val as string})}
+                  onChange={(val) => setFormData(prev => ({...prev, sello: val as string}))}
                   endpoint="/api/tienda/sellos"
                   displayField="nombre"
                 />
@@ -291,7 +311,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Colección / Serie"
                   value={formData.coleccion}
-                  onChange={(val) => setFormData({...formData, coleccion: val as string})}
+                  onChange={(val) => setFormData(prev => ({...prev, coleccion: val as string}))}
                   endpoint="/api/tienda/colecciones"
                   displayField="nombre"
                 />
@@ -308,16 +328,27 @@ export default function AddProductPage() {
             <h5 className="card-title mb-0">Publicación</h5>
           </CardHeader>
           <CardBody>
-            <p className="text-muted">Selecciona en qué canales/sitios web se publicará este libro</p>
+            <p className="text-muted mb-2">
+              Selecciona en qué canales/sitios web se publicará este libro. 
+              <strong className="text-primary"> Puedes seleccionar múltiples canales manteniendo presionada la tecla Ctrl (Windows) o Cmd (Mac) mientras haces clic.</strong>
+            </p>
             
             <RelationSelector
               label="Canales"
               value={formData.canales}
-              onChange={(val) => setFormData({...formData, canales: val as string[]})}
+              onChange={(val) => setFormData(prev => ({...prev, canales: val as string[]}))}
               endpoint="/api/tienda/canales"
               multiple={true}
               displayField="nombre"
             />
+            
+            {formData.canales.length > 0 && (
+              <div className="mt-2">
+                <small className="text-success">
+                  ✓ {formData.canales.length} canal{formData.canales.length > 1 ? 'es' : ''} seleccionado{formData.canales.length > 1 ? 's' : ''}
+                </small>
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -329,12 +360,12 @@ export default function AddProductPage() {
             <h5 className="card-title mb-0">Categorización</h5>
           </CardHeader>
           <CardBody>
-            <Row>
+          <Row>
               <Col md={6}>
                 <RelationSelector
                   label="Marcas"
                   value={formData.marcas}
-                  onChange={(val) => setFormData({...formData, marcas: val as string[]})}
+                  onChange={(val) => setFormData(prev => ({...prev, marcas: val as string[]}))}
                   endpoint="/api/tienda/marcas"
                   multiple={true}
                   displayField="nombre"
@@ -345,7 +376,7 @@ export default function AddProductPage() {
                 <RelationSelector
                   label="Etiquetas"
                   value={formData.etiquetas}
-                  onChange={(val) => setFormData({...formData, etiquetas: val as string[]})}
+                  onChange={(val) => setFormData(prev => ({...prev, etiquetas: val as string[]}))}
                   endpoint="/api/tienda/etiquetas"
                   multiple={true}
                   displayField="nombre"
@@ -356,7 +387,7 @@ export default function AddProductPage() {
             <RelationSelector
               label="Categorías de Producto"
               value={formData.categorias_producto}
-              onChange={(val) => setFormData({...formData, categorias_producto: val as string[]})}
+              onChange={(val) => setFormData(prev => ({...prev, categorias_producto: val as string[]}))}
               endpoint="/api/tienda/categorias"
               multiple={true}
               displayField="nombre"
@@ -380,11 +411,11 @@ export default function AddProductPage() {
                     type="number"
                     placeholder="Ej: 1"
                     value={formData.numero_edicion}
-                    onChange={(e) => setFormData({...formData, numero_edicion: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, numero_edicion: e.target.value}))}
                   />
                 </FormGroup>
-              </Col>
-              
+            </Col>
+
               <Col md={4}>
                 <FormGroup className="mb-3">
                   <FormLabel>Año de Edición</FormLabel>
@@ -392,7 +423,7 @@ export default function AddProductPage() {
                     type="number"
                     placeholder="Ej: 2024"
                     value={formData.agno_edicion}
-                    onChange={(e) => setFormData({...formData, agno_edicion: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, agno_edicion: e.target.value}))}
                   />
                 </FormGroup>
               </Col>
@@ -402,7 +433,7 @@ export default function AddProductPage() {
                   <FormLabel>Estado de Edición</FormLabel>
                   <FormSelect
                     value={formData.estado_edicion}
-                    onChange={(e) => setFormData({...formData, estado_edicion: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, estado_edicion: e.target.value}))}
                   >
                     <option value="">Seleccionar...</option>
                     <option value="Vigente">Vigente</option>
@@ -410,16 +441,16 @@ export default function AddProductPage() {
                     <option value="Descatalogado">Descatalogado</option>
                   </FormSelect>
                 </FormGroup>
-              </Col>
-            </Row>
-            
+            </Col>
+          </Row>
+
             <Row>
               <Col md={6}>
                 <FormGroup className="mb-3">
                   <FormLabel>Idioma</FormLabel>
                   <FormSelect
                     value={formData.idioma}
-                    onChange={(e) => setFormData({...formData, idioma: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, idioma: e.target.value}))}
                   >
                     <option value="">Seleccionar...</option>
                     <option value="Español">Español</option>
@@ -437,12 +468,14 @@ export default function AddProductPage() {
                   <FormLabel>Tipo de Libro</FormLabel>
                   <FormSelect
                     value={formData.tipo_libro}
-                    onChange={(e) => setFormData({...formData, tipo_libro: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, tipo_libro: e.target.value}))}
                   >
                     <option value="">Seleccionar...</option>
-                    <option value="Físico">Físico</option>
-                    <option value="Digital">Digital</option>
-                    <option value="Audiolibro">Audiolibro</option>
+                    <option value="Plan Lector">Plan Lector</option>
+                    <option value="Texto Curricular">Texto Curricular</option>
+                    <option value="Texto PAES">Texto PAES</option>
+                    <option value="Texto Complementario">Texto Complementario</option>
+                    <option value="Otro">Otro</option>
                   </FormSelect>
                 </FormGroup>
               </Col>
@@ -469,7 +502,7 @@ export default function AddProductPage() {
                   <FormControl
                     type="number"
                     value={formData.id_autor}
-                    onChange={(e) => setFormData({...formData, id_autor: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, id_autor: e.target.value}))}
                   />
                 </FormGroup>
               </Col>
@@ -480,7 +513,7 @@ export default function AddProductPage() {
                   <FormControl
                     type="number"
                     value={formData.id_editorial}
-                    onChange={(e) => setFormData({...formData, id_editorial: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, id_editorial: e.target.value}))}
                   />
                 </FormGroup>
               </Col>
@@ -491,7 +524,7 @@ export default function AddProductPage() {
                   <FormControl
                     type="number"
                     value={formData.id_sello}
-                    onChange={(e) => setFormData({...formData, id_sello: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, id_sello: e.target.value}))}
                   />
                 </FormGroup>
               </Col>
@@ -502,7 +535,7 @@ export default function AddProductPage() {
                   <FormControl
                     type="number"
                     value={formData.id_coleccion}
-                    onChange={(e) => setFormData({...formData, id_coleccion: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({...prev, id_coleccion: e.target.value}))}
                   />
                 </FormGroup>
               </Col>
@@ -524,7 +557,7 @@ export default function AddProductPage() {
                 disabled={loading}
               >
                 Cancelar
-              </Button>
+            </Button>
               <Button 
                 type="submit" 
                 variant="primary"
@@ -538,10 +571,10 @@ export default function AddProductPage() {
                 ) : (
                   'Crear Producto'
                 )}
-              </Button>
-            </div>
-          </Col>
-        </Row>
+            </Button>
+          </div>
+        </Col>
+      </Row>
       </form>
     </Container>
   )

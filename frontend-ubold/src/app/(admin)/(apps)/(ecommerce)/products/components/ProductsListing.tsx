@@ -32,7 +32,7 @@ import { format } from 'date-fns'
 
 // Tipo extendido para productos que pueden tener imagen como URL o StaticImageData
 type ProductTypeExtended = Omit<ProductType, 'image'> & {
-  image: StaticImageData | { src: string }
+  image: StaticImageData | { src: string | null }
   strapiId?: number
 }
 
@@ -53,7 +53,7 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
 
   // Obtener URL de imagen (manejar datos directos o en attributes - igual que Products Grid)
-  const getImageUrl = (): string => {
+  const getImageUrl = (): string | null => {
     // Acceder a portada_libro - puede venir como objeto directo o con .data
     let portada = data.portada_libro || data.PORTADA_LIBRO || data.portadaLibro
     
@@ -62,15 +62,15 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
       portada = portada.data
     }
     
-    // Si portada es null o undefined, usar imagen por defecto
+    // Si portada es null o undefined, retornar null (no usar imagen por defecto inexistente)
     if (!portada || portada === null) {
-      return '/images/products/1.png'
+      return null
     }
 
     // Obtener la URL - puede estar en attributes o directamente
     const url = portada.attributes?.url || portada.attributes?.URL || portada.url || portada.URL
     if (!url) {
-      return '/images/products/1.png'
+      return null
     }
     
     // Si la URL ya es completa, retornarla tal cual
@@ -114,8 +114,9 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
   const createdAt = attrs.createdAt || (producto as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
 
+  const imageUrl = getImageUrl()
   return {
-    image: { src: getImageUrl() },
+    image: { src: imageUrl || '' },
     name: nombre,
     brand: autor,
     code: isbn || `STRAPI-${producto.id}`,
@@ -194,16 +195,25 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
       cell: ({ row }) => {
         const imageSrc = typeof row.original.image === 'object' && 'src' in row.original.image
           ? row.original.image.src
-          : (row.original.image as any).src || '/images/products/1.png'
+          : null
         
-        // Debug: Log para el primer producto
-        if (row.index === 0 && typeof window !== 'undefined') {
-          console.log('[ProductsListing] Renderizando primer producto:', {
-            name: row.original.name,
-            imageSrc,
-            imageObject: row.original.image,
-            hasSrc: typeof row.original.image === 'object' && 'src' in row.original.image,
-          })
+        // Si no hay imagen, mostrar placeholder
+        if (!imageSrc) {
+          return (
+            <div className="d-flex">
+              <div className="avatar-md me-3 bg-light d-flex align-items-center justify-content-center rounded">
+                <span className="text-muted fs-xs">Sin imagen</span>
+              </div>
+              <div>
+                <h5 className="mb-0">
+                  <Link href={row.original.url} className="link-reset">
+                    {row.original.name}
+                  </Link>
+                </h5>
+                <p className="text-muted mb-0 fs-xxs">by: {row.original.brand}</p>
+              </div>
+            </div>
+          )
         }
         
         return (
