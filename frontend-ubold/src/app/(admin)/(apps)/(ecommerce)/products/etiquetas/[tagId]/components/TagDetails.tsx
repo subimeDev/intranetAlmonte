@@ -1,11 +1,10 @@
 'use client'
 
-import { Badge, Col, Row, Alert } from 'react-bootstrap'
+import { Badge, Col, Row, Alert, Card, CardHeader, CardBody, Form, Button, FormGroup, FormLabel, FormControl } from 'react-bootstrap'
 import { format } from 'date-fns'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-import EditableField from '@/app/(admin)/(apps)/(ecommerce)/products/[productId]/components/EditableField'
+import { LuSave, LuX } from 'react-icons/lu'
 
 interface TagDetailsProps {
   etiqueta: any
@@ -23,14 +22,29 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
 
 const TagDetails = ({ etiqueta }: TagDetailsProps) => {
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [savingField, setSavingField] = useState<string | null>(null)
-
+  const [success, setSuccess] = useState(false)
+  
   const attrs = etiqueta.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (etiqueta as any)
 
-  const nombre = getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || 'Sin nombre'
-  const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || ''
+  // Inicializar formData con los valores de la etiqueta
+  const [formData, setFormData] = useState({
+    nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+    descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
+  })
+
+  // Actualizar formData cuando cambie la etiqueta
+  useEffect(() => {
+    setFormData({
+      nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+      descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
+    })
+  }, [etiqueta, data])
+
+  // Obtener el ID correcto
+  const tagId = etiqueta.id?.toString() || etiqueta.documentId
   
   // Contar productos (si hay relación)
   const productos = data.productos?.data || data.products?.data || data.productos || data.products || []
@@ -51,9 +65,6 @@ const TagDetails = ({ etiqueta }: TagDetailsProps) => {
     )
   }
 
-  // Obtener el ID correcto
-  const tagId = etiqueta.id?.toString() || etiqueta.documentId
-  
   // Validar que tenemos un ID válido
   if (!tagId || tagId === 'unknown') {
     console.error('[TagDetails] No se pudo obtener un ID válido de la etiqueta:', {
@@ -61,31 +72,33 @@ const TagDetails = ({ etiqueta }: TagDetailsProps) => {
       documentId: etiqueta.documentId,
       etiqueta: etiqueta,
     })
+    return (
+      <Alert variant="danger">
+        <strong>Error:</strong> No se pudo obtener el ID de la etiqueta.
+      </Alert>
+    )
   }
 
-  const handleSaveNombre = async (newValue: string) => {
-    console.log('[TagDetails] ===== INICIANDO GUARDADO DE NOMBRE =====')
-    console.log('[TagDetails] Datos de la etiqueta:', {
-      id: etiqueta.id,
-      documentId: etiqueta.documentId,
-      tagId,
-      nombreActual: nombre,
-      nombreNuevo: newValue,
-    })
-    
-    if (!tagId || tagId === 'unknown') {
-      console.error('[TagDetails] ❌ ID inválido:', { tagId })
-      throw new Error('No se pudo obtener el ID de la etiqueta')
-    }
-
-    setSavingField('nombre')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
     setError(null)
+    setSuccess(false)
 
     try {
+      console.log('[TagDetails] ===== INICIANDO GUARDADO =====')
+      console.log('[TagDetails] Datos de la etiqueta:', {
+        id: etiqueta.id,
+        documentId: etiqueta.documentId,
+        tagId,
+        formData,
+      })
+
       const url = `/api/tienda/etiquetas/${tagId}`
       const body = JSON.stringify({
         data: {
-          name: newValue,
+          name: formData.nombre,
+          descripcion: formData.descripcion || null,
         },
       })
       
@@ -112,185 +125,164 @@ const TagDetails = ({ etiqueta }: TagDetailsProps) => {
       const result = await response.json()
 
       if (!result.success) {
-        throw new Error(result.error || 'Error al guardar nombre')
+        throw new Error(result.error || 'Error al guardar cambios')
       }
 
-      console.log('[TagDetails] ✅ Nombre guardado exitosamente')
+      console.log('[TagDetails] ✅ Cambios guardados exitosamente')
+      setSuccess(true)
       
-      // Recargar la página para mostrar los cambios
-      router.refresh()
+      // Recargar la página después de un momento para mostrar los cambios
+      setTimeout(() => {
+        router.refresh()
+      }, 1000)
     } catch (err: any) {
-      const errorMessage = err.message || 'Error al guardar nombre'
+      const errorMessage = err.message || 'Error al guardar cambios'
       setError(errorMessage)
-      console.error('[TagDetails] Error al guardar nombre:', {
+      console.error('[TagDetails] Error al guardar:', {
         tagId,
         error: errorMessage,
         err,
       })
-      throw err // Re-lanzar para que EditableField muestre el error
     } finally {
-      setSavingField(null)
-    }
-  }
-
-  const handleSaveDescripcion = async (newValue: string) => {
-    console.log('[TagDetails] ===== INICIANDO GUARDADO DE DESCRIPCIÓN =====')
-    
-    if (!tagId || tagId === 'unknown') {
-      console.error('[TagDetails] ❌ ID inválido:', { tagId })
-      throw new Error('No se pudo obtener el ID de la etiqueta')
-    }
-
-    setSavingField('descripcion')
-    setError(null)
-
-    try {
-      const url = `/api/tienda/etiquetas/${tagId}`
-      const body = JSON.stringify({
-        data: {
-          descripcion: newValue,
-        },
-      })
-      
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || `Error HTTP: ${response.status}`
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al guardar descripción')
-      }
-
-      console.log('[TagDetails] ✅ Descripción guardada exitosamente')
-      
-      // Recargar la página para mostrar los cambios
-      router.refresh()
-    } catch (err: any) {
-      const errorMessage = err.message || 'Error al guardar descripción'
-      setError(errorMessage)
-      console.error('[TagDetails] Error al guardar descripción:', {
-        tagId,
-        error: errorMessage,
-        err,
-      })
-      throw err
-    } finally {
-      setSavingField(null)
+      setLoading(false)
     }
   }
 
   return (
     <div>
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)} className="mb-4">
-          <strong>Error:</strong> {error}
-        </Alert>
-      )}
+      <Card>
+        <CardHeader>
+          <h5 className="mb-0">Editar Etiqueta</h5>
+        </CardHeader>
+        <CardBody>
+          {error && (
+            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert variant="success">
+              ¡Cambios guardados exitosamente!
+            </Alert>
+          )}
 
-      <Row className="g-4">
-        <Col xs={12}>
-          <div className="mb-4">
-            <h3 className="mb-3">Información de la Etiqueta</h3>
-            
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Nombre</label>
-              <EditableField
-                value={nombre}
-                onSave={handleSaveNombre}
-                label="nombre"
-                placeholder="Sin nombre"
-                as="h4"
-                className="mb-0"
-              />
-              {savingField === 'nombre' && (
-                <small className="text-muted d-block mt-1">Guardando...</small>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label fw-semibold">Descripción</label>
-              <EditableField
-                value={descripcion}
-                onSave={handleSaveDescripcion}
-                label="descripción"
-                placeholder="Sin descripción"
-                type="textarea"
-                as="p"
-                className="mb-0"
-              />
-              {savingField === 'descripcion' && (
-                <small className="text-muted d-block mt-1">Guardando...</small>
-              )}
-            </div>
-          </div>
-        </Col>
-
-        <Col xs={12}>
-          <div className="border-top pt-4">
-            <h5 className="mb-3">Información Adicional</h5>
-            
+          <Form onSubmit={handleSubmit}>
             <Row className="g-3">
-              <Col md={6}>
-                <div>
-                  <label className="form-label text-muted">Productos asociados</label>
-                  <div>
-                    <Badge bg="info" className="fs-base">
-                      {productosCount} producto{productosCount !== 1 ? 's' : ''}
-                    </Badge>
-                  </div>
-                </div>
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>
+                    Nombre de la Etiqueta <span className="text-danger">*</span>
+                  </FormLabel>
+                  <FormControl
+                    type="text"
+                    placeholder="Ej: Nuevo, Oferta, Recomendado"
+                    value={formData.nombre}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, nombre: e.target.value }))
+                    }
+                    required
+                  />
+                  <small className="text-muted">
+                    Nombre de la etiqueta que se mostrará en los productos
+                  </small>
+                </FormGroup>
               </Col>
 
-              <Col md={6}>
-                <div>
-                  <label className="form-label text-muted">Estado</label>
-                  <div>
-                    <Badge bg={isPublished ? 'success' : 'secondary'} className="fs-base">
-                      {isPublished ? 'Publicada' : 'Borrador'}
-                    </Badge>
-                  </div>
-                </div>
-              </Col>
-
-              <Col md={6}>
-                <div>
-                  <label className="form-label text-muted">Fecha de creación</label>
-                  <div>
-                    <span className="text-dark">
-                      {format(createdDate, 'dd MMM, yyyy')} <small className="text-muted">{format(createdDate, 'h:mm a')}</small>
-                    </span>
-                  </div>
-                </div>
-              </Col>
-
-              <Col md={6}>
-                <div>
-                  <label className="form-label text-muted">Última actualización</label>
-                  <div>
-                    <span className="text-dark">
-                      {format(updatedDate, 'dd MMM, yyyy')} <small className="text-muted">{format(updatedDate, 'h:mm a')}</small>
-                    </span>
-                  </div>
-                </div>
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>Descripción</FormLabel>
+                  <FormControl
+                    as="textarea"
+                    rows={3}
+                    placeholder="Descripción de la etiqueta..."
+                    value={formData.descripcion}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, descripcion: e.target.value }))
+                    }
+                  />
+                  <small className="text-muted">
+                    Opcional. Descripción de la etiqueta
+                  </small>
+                </FormGroup>
               </Col>
             </Row>
-          </div>
-        </Col>
-      </Row>
+
+            <div className="d-flex gap-2 mt-4">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading}
+              >
+                <LuSave className="fs-sm me-2" />
+                {loading ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+              <Button
+                type="button"
+                variant="light"
+                onClick={() => router.back()}
+              >
+                <LuX className="fs-sm me-2" />
+                Cancelar
+              </Button>
+            </div>
+          </Form>
+        </CardBody>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <h5 className="mb-0">Información Adicional</h5>
+        </CardHeader>
+        <CardBody>
+          <Row className="g-3">
+            <Col md={6}>
+              <div>
+                <label className="form-label text-muted">Productos asociados</label>
+                <div>
+                  <Badge bg="info" className="fs-base">
+                    {productosCount} producto{productosCount !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </div>
+            </Col>
+
+            <Col md={6}>
+              <div>
+                <label className="form-label text-muted">Estado</label>
+                <div>
+                  <Badge bg={isPublished ? 'success' : 'secondary'} className="fs-base">
+                    {isPublished ? 'Publicada' : 'Borrador'}
+                  </Badge>
+                </div>
+              </div>
+            </Col>
+
+            <Col md={6}>
+              <div>
+                <label className="form-label text-muted">Fecha de creación</label>
+                <div>
+                  <span className="text-dark">
+                    {format(createdDate, 'dd MMM, yyyy')} <small className="text-muted">{format(createdDate, 'h:mm a')}</small>
+                  </span>
+                </div>
+              </div>
+            </Col>
+
+            <Col md={6}>
+              <div>
+                <label className="form-label text-muted">Última actualización</label>
+                <div>
+                  <span className="text-dark">
+                    {format(updatedDate, 'dd MMM, yyyy')} <small className="text-muted">{format(updatedDate, 'h:mm a')}</small>
+                  </span>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </CardBody>
+      </Card>
     </div>
   )
 }
 
 export default TagDetails
-

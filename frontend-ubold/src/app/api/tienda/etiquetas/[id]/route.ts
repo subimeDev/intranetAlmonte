@@ -16,7 +16,7 @@ export async function GET(
       endpoint: `/api/etiquetas/${id}`,
     })
     
-    // Intentar obtener la etiqueta directamente
+    // PASO 1: Intentar con filtro si es numérico
     if (!isNaN(parseInt(id))) {
       try {
         console.log('[API /tienda/etiquetas/[id] GET] 🔍 Buscando con filtro:', {
@@ -40,19 +40,75 @@ export async function GET(
           etiqueta = filteredResponse
         }
         
-        if (etiqueta) {
+        if (etiqueta && (etiqueta.id || etiqueta.documentId)) {
           console.log('[API /tienda/etiquetas/[id] GET] ✅ Etiqueta encontrada con filtro')
           return NextResponse.json({
             success: true,
             data: etiqueta
-          })
+          }, { status: 200 })
         }
       } catch (filterError: any) {
-        console.log('[API /tienda/etiquetas/[id] GET] Filtro falló, intentando endpoint directo:', filterError.message)
+        console.warn('[API /tienda/etiquetas/[id] GET] ⚠️ Error al obtener con filtro:', {
+          status: filterError.status,
+          message: filterError.message,
+          continuandoConBusqueda: true,
+        })
       }
     }
     
-    // Intentar endpoint directo
+    // PASO 2: Buscar en lista completa (por si el ID es documentId o si el endpoint directo falló)
+    try {
+      console.log('[API /tienda/etiquetas/[id] GET] Buscando en lista completa de etiquetas...')
+      
+      const allTags = await strapiClient.get<any>(
+        `/api/etiquetas?populate=*&pagination[pageSize]=1000`
+      )
+      
+      let etiquetas: any[] = []
+      
+      if (Array.isArray(allTags)) {
+        etiquetas = allTags
+      } else if (Array.isArray(allTags.data)) {
+        etiquetas = allTags.data
+      } else if (allTags.data && Array.isArray(allTags.data.data)) {
+        etiquetas = allTags.data.data
+      } else if (allTags.data && !Array.isArray(allTags.data)) {
+        etiquetas = [allTags.data]
+      }
+      
+      console.log('[API /tienda/etiquetas/[id] GET] Lista obtenida:', {
+        total: etiquetas.length,
+        idBuscado: id,
+      })
+      
+      // Buscar por id numérico o documentId
+      const etiquetaEncontrada = etiquetas.find((e: any) => {
+        const etiquetaReal = e.attributes && Object.keys(e.attributes).length > 0 ? e.attributes : e
+        
+        const eId = etiquetaReal.id?.toString() || e.id?.toString()
+        const eDocId = etiquetaReal.documentId?.toString() || e.documentId?.toString()
+        const idStr = id.toString()
+        const idNum = parseInt(idStr)
+        
+        return (
+          eId === idStr ||
+          eDocId === idStr ||
+          (!isNaN(idNum) && (etiquetaReal.id === idNum || e.id === idNum))
+        )
+      })
+      
+      if (etiquetaEncontrada) {
+        console.log('[API /tienda/etiquetas/[id] GET] ✅ Etiqueta encontrada en lista completa')
+        return NextResponse.json({
+          success: true,
+          data: etiquetaEncontrada
+        }, { status: 200 })
+      }
+    } catch (listError: any) {
+      console.warn('[API /tienda/etiquetas/[id] GET] ⚠️ Error al buscar en lista completa:', listError.message)
+    }
+    
+    // PASO 3: Intentar endpoint directo como último recurso
     try {
       const response = await strapiClient.get<any>(`/api/etiquetas/${id}?populate=*`)
       
@@ -63,23 +119,27 @@ export async function GET(
         etiqueta = response
       }
       
-      console.log('[API /tienda/etiquetas/[id] GET] ✅ Etiqueta encontrada')
-      return NextResponse.json({
-        success: true,
-        data: etiqueta
-      })
+      if (etiqueta) {
+        console.log('[API /tienda/etiquetas/[id] GET] ✅ Etiqueta encontrada con endpoint directo')
+        return NextResponse.json({
+          success: true,
+          data: etiqueta
+        }, { status: 200 })
+      }
     } catch (directError: any) {
       console.error('[API /tienda/etiquetas/[id] GET] ❌ Error al obtener etiqueta:', {
         id,
         error: directError.message,
         status: directError.status,
       })
-      
-      return NextResponse.json({
-        success: false,
-        error: directError.message || 'Etiqueta no encontrada',
-      }, { status: directError.status || 404 })
     }
+    
+    // Si llegamos aquí, no se encontró la etiqueta
+    return NextResponse.json({
+      success: false,
+      error: 'Etiqueta no encontrada',
+    }, { status: 404 })
+    
   } catch (error: any) {
     console.error('[API /tienda/etiquetas/[id] GET] ❌ Error general:', {
       error: error.message,
