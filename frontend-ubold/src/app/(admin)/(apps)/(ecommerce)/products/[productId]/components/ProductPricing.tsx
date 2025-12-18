@@ -93,6 +93,14 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       const data = await response.json()
 
       if (data.success) {
+        console.log('[ProductPricing] ✅ Precio creado')
+        
+        // Mostrar qué endpoint funcionó (si viene en la respuesta)
+        if (data.endpoint_usado) {
+          console.log('[ProductPricing] 📍 Endpoint usado:', data.endpoint_usado)
+          console.log('[ProductPricing] 💡 Guarda este endpoint para futuras referencias')
+        }
+        
         // Resetear formulario
         setPrecioVenta('')
         setPrecioCosto('')
@@ -120,15 +128,17 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
           }
         }
       } else {
-        // Mostrar ayuda si es problema de permisos
+        setError(data.error || 'Error al agregar precio')
+        
+        // Si hay ayuda, mostrarla en consola
         if (data.ayuda) {
-          setError(`${data.error}\n\n${data.ayuda}`)
-        } else {
-          setError(data.error || 'Error al agregar precio')
+          console.error('[ProductPricing] ❌ Ayuda:', data.ayuda)
+          console.error('[ProductPricing] 📋 Endpoints probados:', data.endpoints_probados)
+          console.error('[ProductPricing] 🔍 Último error:', data.ultimo_error)
         }
       }
     } catch (err: any) {
-      console.error('Error adding price:', err)
+      console.error('[ProductPricing] Error:', err)
       setError('Error de conexión al agregar precio')
     } finally {
       setSaving(false)
