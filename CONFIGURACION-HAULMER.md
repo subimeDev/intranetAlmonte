@@ -11,6 +11,18 @@ O también puedes usar (para compatibilidad):
 OPENFACTURA_API_KEY=be794bb58cc048548e3483daa42995ef
 ```
 
+### Subscription Key (Opcional, puede ser la misma que API Key)
+Algunas APIs de Haulmer requieren un "subscription key" adicional. Si es diferente a tu API Key, configúralo:
+```
+HAULMER_SUBSCRIPTION_KEY=tu-subscription-key-aqui
+```
+O:
+```
+OPENFACTURA_SUBSCRIPTION_KEY=tu-subscription-key-aqui
+```
+
+**Nota:** Si no se configura, se usará automáticamente el valor de `HAULMER_API_KEY`.
+
 ### URL Base de la API (Opcional)
 Por defecto usa: `https://dev-api.haulmer.com` (API de OpenFactura)
 También puedes usar: `https://api.haulmer.com` o `https://espacio.haulmer.com`
@@ -94,7 +106,25 @@ Los precios se convierten automáticamente a centavos (sin decimales) como requi
 
 ## Autenticación
 
-La API de Haulmer usa el header `X-API-Key` para autenticación.
+La API de Haulmer puede usar múltiples métodos de autenticación:
+
+1. **X-API-Key**: Header principal para autenticación
+   ```
+   X-API-Key: tu-api-key
+   ```
+
+2. **Ocp-Apim-Subscription-Key**: Header requerido por algunas APIs de Haulmer (Azure API Management)
+   ```
+   Ocp-Apim-Subscription-Key: tu-subscription-key
+   ```
+   Si no configuras `HAULMER_SUBSCRIPTION_KEY`, se usará automáticamente el valor de `HAULMER_API_KEY`.
+
+3. **Authorization Bearer**: También se envía como fallback
+   ```
+   Authorization: Bearer tu-api-key
+   ```
+
+El sistema intenta enviar todos estos headers para máxima compatibilidad.
 
 ## ¿Qué son los Folios Timbrados?
 

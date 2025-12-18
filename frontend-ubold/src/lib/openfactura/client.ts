@@ -7,6 +7,8 @@
 // Puede ser espacio.haulmer.com (portal web) o api.haulmer.com/dev-api.haulmer.com (API)
 const HAULMER_API_URL = process.env.HAULMER_API_URL || process.env.OPENFACTURA_API_URL || 'https://dev-api.haulmer.com'
 const HAULMER_API_KEY = process.env.HAULMER_API_KEY || process.env.OPENFACTURA_API_KEY || ''
+// Subscription Key puede ser la misma que API Key o diferente según la configuración
+const HAULMER_SUBSCRIPTION_KEY = process.env.HAULMER_SUBSCRIPTION_KEY || process.env.OPENFACTURA_SUBSCRIPTION_KEY || HAULMER_API_KEY
 
 interface OpenFacturaResponse<T = any> {
   success: boolean
@@ -52,19 +54,45 @@ class OpenFacturaClientImpl implements OpenFacturaClient {
       })
     }
 
+    // Construir headers con todos los métodos de autenticación posibles
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'X-API-Key': this.apiKey, // Haulmer usa X-API-Key para autenticación
       'Accept': 'application/json',
       'User-Agent': 'Intranet-Almonte/1.0',
     }
     
-    // Log de autenticación (sin mostrar la key completa)
+    // Agregar X-API-Key si está disponible
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey
+    }
+    
+    // Agregar Ocp-Apim-Subscription-Key (común en APIs de Azure/Haulmer)
+    // Puede ser la misma que API Key o diferente
+    const subscriptionKey = process.env.HAULMER_SUBSCRIPTION_KEY || 
+                           process.env.OPENFACTURA_SUBSCRIPTION_KEY || 
+                           this.apiKey
+    if (subscriptionKey) {
+      headers['Ocp-Apim-Subscription-Key'] = subscriptionKey
+    }
+    
+    // También probar con Authorization Bearer (algunas APIs lo requieren)
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`
+    }
+    
+    // Log de autenticación (sin mostrar las keys completas)
     console.log('[Haulmer] Autenticación:', {
       tieneApiKey: !!this.apiKey,
+      tieneSubscriptionKey: !!subscriptionKey,
       apiKeyLength: this.apiKey?.length || 0,
+      subscriptionKeyLength: subscriptionKey?.length || 0,
       apiKeyPreview: this.apiKey ? `${this.apiKey.substring(0, 8)}...` : 'NO CONFIGURADA',
       headerKeys: Object.keys(headers),
+      headersPresent: {
+        'X-API-Key': !!headers['X-API-Key'],
+        'Ocp-Apim-Subscription-Key': !!headers['Ocp-Apim-Subscription-Key'],
+        'Authorization': !!headers['Authorization'],
+      },
     })
 
     const config: RequestInit = {
