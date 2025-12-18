@@ -58,51 +58,33 @@ type UserDropdownItemType = {
   isDivider?: boolean
   isHeader?: boolean
   class?: string
+  isLogout?: boolean
 }
 
 export const userDropdownItems: UserDropdownItemType[] = [
   {
-    label: 'Welcome back!',
+    label: '¡Bienvenido de nuevo!',
     isHeader: true,
   },
   {
-    label: 'Profile',
+    label: 'Perfil',
     icon: TbUserCircle,
     url: '/users/profile',
   },
   {
-    label: 'Notifications',
-    icon: TbBellRinging,
-    url: '#',
-  },
-  {
-    label: 'Balance: $985.25',
-    icon: TbCreditCard,
-    url: '#',
-  },
-  {
-    label: 'Account Settings',
+    label: 'Configuración de Cuenta',
     icon: TbSettings2,
-    url: '#',
-  },
-  {
-    label: 'Support Center',
-    icon: TbHeadset,
     url: '#',
   },
   {
     isDivider: true,
   },
   {
-    label: 'Lock Screen',
-    icon: TbLock,
-    url: '/auth-1/lock-screen',
-  },
-  {
-    label: 'Log Out',
+    label: 'Cerrar Sesión',
     icon: TbLogout2,
     url: '#',
     class: 'text-danger fw-semibold',
+    isLogout: true, // Marcar como logout para manejarlo de forma especial
   },
 ]
 
