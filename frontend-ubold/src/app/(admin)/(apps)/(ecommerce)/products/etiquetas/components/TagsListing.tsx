@@ -78,7 +78,7 @@ const mapStrapiTagToTagType = (etiqueta: any): TagType => {
     status: isPublished ? 'active' : 'inactive',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
-    url: `/products/etiquetas/${etiqueta.id || etiqueta.documentId || etiqueta.id}`,
+    url: `/products/etiquetas/${etiqueta.id || etiqueta.documentId || etiqueta.id}`, // URL para edición
   }
 }
 
