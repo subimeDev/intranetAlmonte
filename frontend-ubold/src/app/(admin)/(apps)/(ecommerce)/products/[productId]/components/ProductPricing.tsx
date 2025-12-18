@@ -13,7 +13,11 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
   const [precios, setPrecios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddingPrice, setIsAddingPrice] = useState(false)
-  const [newPrice, setNewPrice] = useState('')
+  const [precioVenta, setPrecioVenta] = useState('')
+  const [precioCosto, setPrecioCosto] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const [activo, setActivo] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -47,10 +51,15 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
   }
 
   const handleAddPrice = async () => {
-    const precioNumero = parseFloat(newPrice)
+    const precioVentaNumero = parseFloat(precioVenta)
     
-    if (!newPrice || isNaN(precioNumero) || precioNumero <= 0) {
-      setError('Ingresa un precio válido mayor a 0')
+    if (!precioVenta || isNaN(precioVentaNumero) || precioVentaNumero <= 0) {
+      setError('El precio de venta es requerido y debe ser mayor a 0')
+      return
+    }
+
+    if (!fechaInicio) {
+      setError('La fecha de inicio es requerida')
       return
     }
 
@@ -58,9 +67,23 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       setError(null)
       setSaving(true)
       
-      const payload = {
-        monto: precioNumero,
-        libroId: productId
+      // Preparar fecha_inicio en formato ISO
+      const fechaInicioISO = fechaInicio ? new Date(fechaInicio).toISOString() : new Date().toISOString()
+      const fechaFinISO = fechaFin ? new Date(fechaFin).toISOString() : null
+      
+      const payload: any = {
+        precio_venta: precioVentaNumero,
+        libroId: productId,
+        fecha_inicio: fechaInicioISO,
+        activo: activo
+      }
+      
+      // Agregar campos opcionales solo si tienen valor
+      if (precioCosto && !isNaN(parseFloat(precioCosto)) && parseFloat(precioCosto) > 0) {
+        payload.precio_costo = parseFloat(precioCosto)
+      }
+      if (fechaFinISO) {
+        payload.fecha_fin = fechaFinISO
       }
       
       console.log('[ProductPricing] Enviando:', payload)
@@ -75,11 +98,15 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       const data = await response.json()
 
       if (data.success) {
-        setNewPrice('')
+        // Resetear formulario
+        setPrecioVenta('')
+        setPrecioCosto('')
+        setFechaInicio('')
+        setFechaFin('')
+        setActivo(true)
         setIsAddingPrice(false)
         
         // Actualizar lista de precios inmediatamente (optimistic update)
-        // Agregar el nuevo precio a la lista local mientras se refresca desde servidor
         if (data.data) {
           setPrecios((prev) => [...prev, data.data])
         }
@@ -110,10 +137,44 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
     }
   }
 
-  // Helper para obtener el valor del precio desde diferentes estructuras posibles
-  const getPrecioValue = (precio: any): number => {
+  // Helper para obtener valores de precio desde diferentes estructuras posibles
+  const getPrecioVenta = (precio: any): number => {
     const attrs = precio.attributes || {}
-    return attrs.precio || attrs.PRECIO || precio.precio || precio.PRECIO || precio.monto || 0
+    return attrs.precio_venta || attrs.PRECIO_VENTA || precio.precio_venta || precio.PRECIO_VENTA || 0
+  }
+  
+  const getPrecioCosto = (precio: any): number | null => {
+    const attrs = precio.attributes || {}
+    const costo = attrs.precio_costo || attrs.PRECIO_COSTO || precio.precio_costo || precio.PRECIO_COSTO
+    return costo !== undefined && costo !== null ? costo : null
+  }
+  
+  const getFechaInicio = (precio: any): string => {
+    const attrs = precio.attributes || {}
+    const fecha = attrs.fecha_inicio || attrs.FECHA_INICIO || precio.fecha_inicio || precio.FECHA_INICIO
+    if (!fecha) return 'N/A'
+    try {
+      return new Date(fecha).toLocaleDateString('es-CL')
+    } catch {
+      return fecha
+    }
+  }
+  
+  const getFechaFin = (precio: any): string | null => {
+    const attrs = precio.attributes || {}
+    const fecha = attrs.fecha_fin || attrs.FECHA_FIN || precio.fecha_fin || precio.FECHA_FIN
+    if (!fecha) return null
+    try {
+      return new Date(fecha).toLocaleDateString('es-CL')
+    } catch {
+      return fecha
+    }
+  }
+  
+  const getActivo = (precio: any): boolean => {
+    const attrs = precio.attributes || {}
+    const activoValue = attrs.activo !== undefined ? attrs.activo : (precio.activo !== undefined ? precio.activo : true)
+    return Boolean(activoValue)
   }
 
   return (
@@ -142,20 +203,86 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
         {/* Form para agregar precio */}
         {isAddingPrice && (
           <div className="border rounded p-3 mb-3">
-            <div className="mb-3">
-              <label className="form-label">Precio</label>
-              <div className="input-group">
-                <span className="input-group-text">$</span>
+            <h6 className="mb-3">Nuevo Precio</h6>
+            
+            <div className="row">
+              <div className="col-md-6 mb-3">
+                <label className="form-label">
+                  Precio de Venta <span className="text-danger">*</span>
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text">$</span>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="0.00"
+                    value={precioVenta}
+                    onChange={(e) => setPrecioVenta(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    disabled={saving}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Precio de Costo</label>
+                <div className="input-group">
+                  <span className="input-group-text">$</span>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="0.00 (opcional)"
+                    value={precioCosto}
+                    onChange={(e) => setPrecioCosto(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+              
+              <div className="col-md-6 mb-3">
+                <label className="form-label">
+                  Fecha de Inicio <span className="text-danger">*</span>
+                </label>
                 <input
-                  type="number"
+                  type="datetime-local"
                   className="form-control"
-                  placeholder="0.00"
-                  value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
-                  step="0.01"
-                  min="0"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  disabled={saving}
+                  required
+                />
+              </div>
+              
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Fecha de Fin</label>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
                   disabled={saving}
                 />
+                <small className="text-muted">Opcional - Dejar vacío si no tiene fecha de fin</small>
+              </div>
+              
+              <div className="col-md-12 mb-3">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={activo}
+                    onChange={(e) => setActivo(e.target.checked)}
+                    disabled={saving}
+                    id="precioActivo"
+                  />
+                  <label className="form-check-label" htmlFor="precioActivo">
+                    Precio activo
+                  </label>
+                </div>
               </div>
             </div>
             
@@ -164,7 +291,7 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
                 variant="success"
                 size="sm"
                 onClick={handleAddPrice}
-                disabled={saving || !newPrice}
+                disabled={saving || !precioVenta || !fechaInicio}
               >
                 {saving ? (
                   <>
@@ -183,7 +310,11 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
                 size="sm"
                 onClick={() => {
                   setIsAddingPrice(false)
-                  setNewPrice('')
+                  setPrecioVenta('')
+                  setPrecioCosto('')
+                  setFechaInicio('')
+                  setFechaFin('')
+                  setActivo(true)
                   setError(null)
                 }}
                 disabled={saving}
@@ -208,24 +339,40 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
         ) : (
           <div className="list-group">
             {precios.map((precio: any, index: number) => {
-              const precioValue = getPrecioValue(precio)
+              const precioVentaValue = getPrecioVenta(precio)
+              const precioCostoValue = getPrecioCosto(precio)
+              const fechaInicioValue = getFechaInicio(precio)
+              const fechaFinValue = getFechaFin(precio)
+              const activoValue = getActivo(precio)
               const precioId = precio.id || precio.documentId || index
               
               return (
                 <div key={precioId} className="list-group-item">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6 className="mb-0">${precioValue.toFixed(2)}</h6>
-                      {precio.attributes?.canal && (
-                        <small className="text-muted">
-                          Canal: {precio.attributes.canal.nombre || precio.attributes.canal}
-                        </small>
-                      )}
-                      {precio.attributes?.moneda && (
-                        <small className="text-muted ms-2">
-                          Moneda: {precio.attributes.moneda}
-                        </small>
-                      )}
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="flex-grow-1">
+                      <div className="d-flex align-items-center gap-3 mb-2">
+                        <div>
+                          <h6 className="mb-0">
+                            Venta: <span className="text-success">${precioVentaValue.toFixed(2)}</span>
+                          </h6>
+                          {precioCostoValue !== null && (
+                            <small className="text-muted">
+                              Costo: ${precioCostoValue.toFixed(2)}
+                            </small>
+                          )}
+                        </div>
+                        <div>
+                          {activoValue ? (
+                            <span className="badge bg-success">Activo</span>
+                          ) : (
+                            <span className="badge bg-secondary">Inactivo</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="small text-muted">
+                        <div>Inicio: {fechaInicioValue}</div>
+                        {fechaFinValue && <div>Fin: {fechaFinValue}</div>}
+                      </div>
                     </div>
                     {/* TODO: Agregar botones de editar/eliminar cuando tengamos los endpoints */}
                   </div>

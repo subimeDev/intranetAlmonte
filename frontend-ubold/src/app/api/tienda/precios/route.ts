@@ -104,11 +104,11 @@ export async function POST(request: NextRequest) {
     console.log('[API Precios POST] 📦 Body recibido:', body)
     console.log('[API Precios POST] 🔑 Keys originales:', Object.keys(body))
 
-    // Validaciones
-    if (!body.monto || parseFloat(body.monto) <= 0) {
+    // Validaciones según estructura real de Strapi
+    if (!body.precio_venta || parseFloat(body.precio_venta) <= 0) {
       return NextResponse.json({
         success: false,
-        error: 'Monto es requerido y debe ser mayor a 0'
+        error: 'Precio de venta es requerido y debe ser mayor a 0'
       }, { status: 400 })
     }
 
@@ -116,6 +116,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'ID de libro es requerido'
+      }, { status: 400 })
+    }
+
+    if (!body.fecha_inicio) {
+      return NextResponse.json({
+        success: false,
+        error: 'Fecha de inicio es requerida'
       }, { status: 400 })
     }
 
@@ -146,20 +153,28 @@ export async function POST(request: NextRequest) {
       documentId: libro.documentId
     })
     
-    // CRÍTICO: Preparar datos en minúsculas SOLO
+    // CRÍTICO: Preparar datos según estructura real de Strapi (todos en minúsculas)
     const precioData: any = {
       data: {
-        precio: parseFloat(body.monto),  // minúsculas
-        libro: libro.documentId,          // minúsculas
+        precio_venta: parseFloat(body.precio_venta),  // REQUERIDO
+        libro: libro.documentId,                        // Relación manyToOne
+        fecha_inicio: body.fecha_inicio,               // REQUERIDO (formato ISO)
       }
     }
     
-    // Agregar otros campos si vienen en el body (solo minúsculas)
-    if (body.canal) precioData.data.canal = body.canal
-    if (body.moneda) precioData.data.moneda = body.moneda
-    if (body.fechaInicio) precioData.data.fecha_inicio = body.fechaInicio
-    if (body.fechaFin) precioData.data.fecha_fin = body.fechaFin
-    if (body.tipo) precioData.data.tipo = body.tipo
+    // Campos opcionales
+    if (body.precio_costo !== undefined && body.precio_costo !== null && body.precio_costo !== '') {
+      precioData.data.precio_costo = parseFloat(body.precio_costo)
+    }
+    if (body.fecha_fin) {
+      precioData.data.fecha_fin = body.fecha_fin
+    }
+    if (body.activo !== undefined) {
+      precioData.data.activo = Boolean(body.activo)
+    } else {
+      // Por defecto activo si no se especifica
+      precioData.data.activo = true
+    }
     
     // VERIFICACIÓN: Asegurar que NO hay mayúsculas
     const keys = Object.keys(precioData.data)
