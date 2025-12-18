@@ -39,11 +39,21 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
           const prod = response.data
           const attrs = prod.attributes || {}
           
+          // Función helper para obtener campo con múltiples variaciones
+          const getField = (obj: any, ...keys: string[]) => {
+            for (const key of keys) {
+              if (obj[key] !== undefined && obj[key] !== null) {
+                return obj[key]
+              }
+            }
+            return ''
+          }
+          
           setProducto(prod)
           setFormData({
-            nombre: attrs.name || '',
+            nombre: getField(attrs, 'NOMBRE_LIBRO', 'nombre_libro', 'name', 'NAME') || '',
             slug: attrs.slug || '',
-            descripcion: attrs.descripcion || '',
+            descripcion: getField(attrs, 'DESCRIPCION', 'descripcion', 'DESCRIPTION', 'description') || '',
             tipoVisualizacion: attrs.tipo_visualizacion || 'default',
             estado: attrs.publishedAt ? 'Publicado' : 'Borrador',
           })
@@ -72,11 +82,14 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
       const endpoint = `/api/libros/${productoId}`
 
       // Preparar datos para actualizar según la estructura de Strapi
+      // Intentar con ambos nombres de campo (mayúsculas y minúsculas) para asegurar compatibilidad
       const updateData: any = {
         data: {
-          name: formData.nombre,
+          nombre_libro: formData.nombre,
+          NOMBRE_LIBRO: formData.nombre,
           slug: formData.slug,
           descripcion: formData.descripcion,
+          DESCRIPCION: formData.descripcion,
           tipo_visualizacion: formData.tipoVisualizacion,
         }
       }
