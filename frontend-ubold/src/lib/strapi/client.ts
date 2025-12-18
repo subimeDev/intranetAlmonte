@@ -52,26 +52,34 @@ const getHeaders = (customHeaders?: HeadersInit): HeadersInit => {
 
 // Manejar errores de respuesta
 async function handleResponse<T>(response: Response): Promise<T> {
+  console.log('[Strapi Client] Response status:', response.status)
+  
   if (!response.ok) {
-    let errorData: StrapiError | null = null
+    const errorText = await response.text()
+    console.error('[Strapi Client] ❌ Error response:', errorText)
     
+    let errorData
     try {
-      errorData = await response.json()
+      errorData = JSON.parse(errorText)
     } catch {
-      // Si no se puede parsear como JSON, crear un error genérico
+      errorData = { message: errorText }
     }
     
-    const error = new Error(
-      errorData?.error?.message || `HTTP error! status: ${response.status}`
-    ) as Error & { status?: number; details?: unknown }
-    
+    const error: any = new Error(
+      errorData.error?.message || 
+      errorData.message || 
+      `HTTP error! status: ${response.status}`
+    )
     error.status = response.status
-    error.details = errorData?.error?.details
-    
+    error.details = errorData.error?.details || errorData.details
     throw error
   }
+
+  const data = await response.json()
   
-  return response.json()
+  // CRÍTICO: NO transformar las keys aquí
+  // Retornar los datos tal cual vienen de Strapi
+  return data
 }
 
 // Cliente de Strapi
@@ -103,9 +111,9 @@ const strapiClient = {
       })
     }
     
-    // Crear un AbortController para timeout
+    // Crear un AbortController para timeout (25 segundos para operaciones de lectura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 segundos
     
     try {
       const response = await fetch(url, {
@@ -132,7 +140,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 30 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 25 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -149,9 +157,22 @@ const strapiClient = {
   async post<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout
+    // LOG para debug - verificar keys antes de enviar
+    if (data && typeof data === 'object') {
+      const dataObj = data as any
+      if (dataObj.data) {
+        const keys = Object.keys(dataObj.data)
+        console.log('[Strapi POST] Keys a enviar:', keys)
+        const hasUppercase = keys.some(k => k !== k.toLowerCase())
+        if (hasUppercase) {
+          console.error('[Strapi POST] 🚨 ADVERTENCIA: Hay mayúsculas en keys!')
+          console.error('[Strapi POST] Keys problemáticos:', keys.filter(k => k !== k.toLowerCase()))
+        }
+      }
+    }
+    
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
     
     try {
       const response = await fetch(url, {
@@ -167,7 +188,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 30 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 60 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -183,14 +204,54 @@ const strapiClient = {
    */
   async put<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: getHeaders(options?.headers),
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
-    })
     
-    return handleResponse<T>(response)
+    // LOG para debug - verificar keys antes de enviar
+    if (data && typeof data === 'object') {
+      const dataObj = data as any
+      if (dataObj.data) {
+        const keys = Object.keys(dataObj.data)
+        console.log('[Strapi PUT] Keys a enviar:', keys)
+        const hasUppercase = keys.some(k => k !== k.toLowerCase())
+        if (hasUppercase) {
+          console.error('[Strapi PUT] 🚨 ADVERTENCIA: Hay mayúsculas en keys!')
+          console.error('[Strapi PUT] Keys problemáticos:', keys.filter(k => k !== k.toLowerCase()))
+        }
+      }
+    }
+    
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
+    
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: getHeaders(options?.headers),
+        body: data ? JSON.stringify(data) : undefined,
+        signal: controller.signal,
+        ...options,
+      })
+      
+      clearTimeout(timeoutId)
+      
+      // Log respuesta antes de manejar errores
+      if (!response.ok) {
+        console.error('[Strapi Client PUT] ❌ Error en respuesta:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+        })
+      }
+      
+      return handleResponse<T>(response)
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 60 segundos') as Error & { status?: number }
+        timeoutError.status = 504
+        throw timeoutError
+      }
+      throw error
+    }
   },
 
   /**
@@ -200,13 +261,40 @@ const strapiClient = {
    */
   async delete<T>(path: string, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: getHeaders(options?.headers),
-      ...options,
-    })
     
-    return handleResponse<T>(response)
+    // Crear un AbortController para timeout (20 segundos para operaciones de escritura)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 segundos
+    
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: getHeaders(options?.headers),
+        signal: controller.signal,
+        ...options,
+      })
+      
+      clearTimeout(timeoutId)
+      
+      // Log respuesta antes de manejar errores
+      if (!response.ok) {
+        console.error('[Strapi Client DELETE] ❌ Error en respuesta:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+        })
+      }
+      
+      return handleResponse<T>(response)
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      if (error.name === 'AbortError') {
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 20 segundos') as Error & { status?: number }
+        timeoutError.status = 504
+        throw timeoutError
+      }
+      throw error
+    }
   },
 }
 

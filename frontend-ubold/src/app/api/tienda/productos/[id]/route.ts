@@ -235,18 +235,32 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    console.log('[API PUT] 🎯 INICIANDO - ID recibido:', id)
-    console.log('[API PUT] 🎯 Body recibido:', body)
+    console.log('[API PUT] 🎯 ID:', id)
+    console.log('[API PUT] 📦 Body original:', body)
+    console.log('[API PUT] 🔑 Keys del body:', Object.keys(body))
 
-    // CRÍTICO: Usar filtro en lugar de GET directo (Strapi v5)
+    // CRÍTICO: Verificar que el body no tenga campos en MAYÚSCULAS
+    const bodyKeys = Object.keys(body)
+    const hasUppercaseKeys = bodyKeys.some(k => k !== k.toLowerCase())
+    
+    if (hasUppercaseKeys) {
+      console.error('[API PUT] 🚨 ALERTA: Body tiene campos en MAYÚSCULAS!')
+      console.error('[API PUT] Keys:', bodyKeys)
+      
+      // Convertir FORZADAMENTE a minúsculas
+      const normalizedBody: any = {}
+      for (const [key, value] of Object.entries(body)) {
+        normalizedBody[key.toLowerCase()] = value
+      }
+      console.log('[API PUT] ✅ Body normalizado:', normalizedBody)
+      // Usar el body normalizado en lugar del original
+      Object.assign(body, normalizedBody)
+    }
+
+    // Obtener producto
     const endpoint = `/api/libros?filters[id][$eq]=${id}&populate=*`
-    console.log('[API PUT] 🌐 Endpoint con FILTRO:', endpoint)
-
     const response = await strapiClient.get<any>(endpoint)
 
-    console.log('[API PUT] 📦 Respuesta completa:', JSON.stringify(response, null, 2))
-
-    // Extraer producto
     let producto: any
     if (Array.isArray(response)) {
       producto = response[0]
@@ -259,37 +273,119 @@ export async function PUT(
     }
 
     if (!producto || !producto.documentId) {
-      console.error('[API PUT] ❌ No se encontró producto o falta documentId')
       return NextResponse.json({
         success: false,
-        error: `Producto con ID ${id} no encontrado`,
-        debug: { response }
+        error: `Producto con ID ${id} no encontrado`
       }, { status: 404 })
     }
 
-    console.log('[API PUT] ✅ Producto encontrado:', {
-      id: producto.id,
-      documentId: producto.documentId,
-      nombre: producto.nombre_libro
-    })
+    console.log('[API PUT] ✅ Producto encontrado:', producto.documentId)
 
-    // Preparar actualización
+    // Preparar datos - FORZAR minúsculas SOLO
     const updateData: any = { data: {} }
+
+    // Campos básicos - SOLO minúsculas
+    if (body.nombre_libro !== undefined) {
+      updateData.data.nombre_libro = body.nombre_libro
+    }
+
+    if (body.isbn_libro !== undefined) {
+      updateData.data.isbn_libro = body.isbn_libro
+    }
+
+    if (body.subtitulo_libro !== undefined) {
+      updateData.data.subtitulo_libro = body.subtitulo_libro
+    }
+
+    // Descripción - Rich Text Blocks
+    if (body.descripcion !== undefined) {
+      if (Array.isArray(body.descripcion)) {
+        updateData.data.descripcion = body.descripcion
+      } else if (typeof body.descripcion === 'string') {
+        if (body.descripcion.trim() === '') {
+          updateData.data.descripcion = null
+        } else {
+          updateData.data.descripcion = [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', text: body.descripcion.trim() }]
+            }
+          ]
+        }
+      }
+      
+      console.log('[API PUT] Descripción formateada:', JSON.stringify(updateData.data.descripcion))
+    }
+
+    // Imagen - CRÍTICO: minúsculas
+    if (body.portada_libro !== undefined) {
+      updateData.data.portada_libro = body.portada_libro
+    }
+
+    // Campos numéricos
+    if (body.numero_edicion !== undefined && body.numero_edicion !== '') {
+      updateData.data.numero_edicion = parseInt(body.numero_edicion)
+    }
+
+    if (body.agno_edicion !== undefined && body.agno_edicion !== '') {
+      updateData.data.agno_edicion = parseInt(body.agno_edicion)
+    }
+
+    // Enumeraciones
+    if (body.idioma !== undefined && body.idioma !== '') {
+      updateData.data.idioma = body.idioma
+    }
+
+    if (body.tipo_libro !== undefined && body.tipo_libro !== '') {
+      updateData.data.tipo_libro = body.tipo_libro
+    }
+
+    if (body.estado_edicion !== undefined && body.estado_edicion !== '') {
+      updateData.data.estado_edicion = body.estado_edicion
+    }
+
+    // Relaciones simples
+    if (body.obra) updateData.data.obra = body.obra
+    if (body.autor_relacion) updateData.data.autor_relacion = body.autor_relacion
+    if (body.editorial) updateData.data.editorial = body.editorial
+    if (body.sello) updateData.data.sello = body.sello
+    if (body.coleccion) updateData.data.coleccion = body.coleccion
+
+    // Relaciones múltiples
+    if (body.canales?.length > 0) updateData.data.canales = body.canales
+    if (body.marcas?.length > 0) updateData.data.marcas = body.marcas
+    if (body.etiquetas?.length > 0) updateData.data.etiquetas = body.etiquetas
+    if (body.categorias_producto?.length > 0) {
+      updateData.data.categorias_producto = body.categorias_producto
+    }
+
+    // IDs numéricos
+    if (body.id_autor) updateData.data.id_autor = parseInt(body.id_autor)
+    if (body.id_editorial) updateData.data.id_editorial = parseInt(body.id_editorial)
+    if (body.id_sello) updateData.data.id_sello = parseInt(body.id_sello)
+    if (body.id_coleccion) updateData.data.id_coleccion = parseInt(body.id_coleccion)
+    if (body.id_obra) updateData.data.id_obra = parseInt(body.id_obra)
+
+    // VERIFICACIÓN FINAL antes de enviar
+    const finalKeys = Object.keys(updateData.data)
+    const stillHasUppercase = finalKeys.some(k => k !== k.toLowerCase())
     
-    if (body.nombre_libro !== undefined) updateData.data.nombre_libro = body.nombre_libro
-    if (body.descripcion !== undefined) updateData.data.descripcion = body.descripcion
-    if (body.portada_libro !== undefined) updateData.data.portada_libro = body.portada_libro
+    if (stillHasUppercase) {
+      console.error('[API PUT] 🚨 ERROR CRÍTICO: Todavía hay MAYÚSCULAS!')
+      console.error('[API PUT] Keys problemáticos:', finalKeys.filter(k => k !== k.toLowerCase()))
+      throw new Error('Error interno: Datos con formato incorrecto')
+    }
 
-    console.log('[API PUT] 📤 PUT a documentId:', producto.documentId)
-    console.log('[API PUT] 📤 Datos:', updateData)
+    console.log('[API PUT] 📤 Datos finales a enviar:', JSON.stringify(updateData, null, 2))
+    console.log('[API PUT] ✅ Todos los campos en minúsculas')
 
-    // CRÍTICO: Usar documentId para el PUT
+    // Actualizar
     const updateResponse = await strapiClient.put<any>(
       `/api/libros/${producto.documentId}`,
       updateData
     )
 
-    console.log('[API PUT] ✅ PUT exitoso:', updateResponse)
+    console.log('[API PUT] ✅ Actualización exitosa')
 
     return NextResponse.json({
       success: true,
@@ -301,7 +397,7 @@ export async function PUT(
     return NextResponse.json({
       success: false,
       error: error.message,
-      stack: error.stack
+      details: error.details
     }, { status: 500 })
   }
 }

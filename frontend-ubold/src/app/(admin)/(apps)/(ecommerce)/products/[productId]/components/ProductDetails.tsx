@@ -1,14 +1,13 @@
 'use client'
 
-import { Badge, Col, Row, Alert } from 'react-bootstrap'
-import { format } from 'date-fns'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-
-import EditableField from './EditableField'
+import { useState, useEffect } from 'react'
+import { Card, CardBody, Button, Alert, Form, Row, Col, Spinner } from 'react-bootstrap'
+import { TbPencil, TbCheck, TbX } from 'react-icons/tb'
 
 interface ProductDetailsProps {
   producto: any
+  onUpdate?: () => Promise<void> | void
+  onProductoUpdate?: (updates: any) => void
 }
 
 // Helper para obtener campo con múltiples variaciones
@@ -21,387 +20,490 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-const ProductDetails = ({ producto }: ProductDetailsProps) => {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [savingField, setSavingField] = useState<string | null>(null)
+// Helper para extraer texto de descripción (puede venir en formato blocks o string)
+const extractDescriptionText = (descripcion: any): string => {
+  if (!descripcion) return ''
+  if (typeof descripcion === 'string') return descripcion
+  if (Array.isArray(descripcion)) {
+    // Formato blocks de Strapi
+    return descripcion
+      .map((block: any) => {
+        if (block.children) {
+          return block.children
+            .map((child: any) => child.text || '')
+            .join('')
+        }
+        return ''
+      })
+      .join('\n')
+  }
+  return ''
+}
 
+export function ProductDetails({ producto, onUpdate, onProductoUpdate }: ProductDetailsProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  
+  // Obtener datos del producto (puede venir de attributes o directamente)
   const attrs = producto.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
-
-  const nombre = getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || 'Sin nombre'
-  const isbn = getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || 'Sin ISBN'
-  const descripcion = getField(data, 'descripcion', 'DESCRIPCION', 'descripcion') || ''
-  const tipoLibro = getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || 'Sin categoría'
-  const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
-  const editorial = data.editorial?.data?.attributes?.nombre || data.editorial?.data?.attributes?.NOMBRE || 'Sin editorial'
   
-  // Calcular stock total
-  const stocks = data.stocks?.data || data.STOCKS?.data || []
-  const stockTotal = stocks.reduce((total: number, stock: any) => {
-    const cantidad = stock.attributes?.cantidad || stock.attributes?.CANTIDAD || 0
-    return total + (typeof cantidad === 'number' ? cantidad : 0)
-  }, 0)
+  // Estados para todos los campos editables
+  const [formData, setFormData] = useState({
+    isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
+    nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
+    subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
+    descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
+    numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
+    agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
+    idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
+    tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
+    estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
+  })
 
-  // Obtener precio mínimo
-  const precios = data.precios?.data || data.PRECIOS?.data || []
-  const preciosNumeros = precios
-    .map((p: any) => p.attributes?.precio || p.attributes?.PRECIO)
-    .filter((p: any): p is number => typeof p === 'number' && p > 0)
-  const precioMinimo = preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
-
-  const isPublished = !!(attrs.publishedAt || producto.publishedAt)
-  const createdAt = attrs.createdAt || producto.createdAt || new Date().toISOString()
-  const createdDate = new Date(createdAt)
-  
-  // Validar que producto existe
-  if (!producto) {
-    return (
-      <Alert variant="warning">
-        <strong>Error:</strong> No se pudo cargar la información del producto.
-      </Alert>
-    )
-  }
-
-  // Obtener el ID correcto: preferir id numérico, luego documentId
-  // El ID numérico es el que usa Strapi para las actualizaciones
-  const productId = producto.id?.toString() || producto.documentId
-  
-  // Validar que tenemos un ID válido
-  if (!productId || productId === 'unknown') {
-    console.error('[ProductDetails] No se pudo obtener un ID válido del producto:', {
-      id: producto.id,
-      documentId: producto.documentId,
-      producto: producto,
-    })
-  }
-
-  const handleSaveNombre = async (newValue: string) => {
-    console.log('[ProductDetails] ===== INICIANDO GUARDADO DE NOMBRE =====')
-    console.log('[ProductDetails] Datos del producto:', {
-      id: producto.id,
-      documentId: producto.documentId,
-      productId,
-      nombreActual: nombre,
-      nombreNuevo: newValue,
-      productoCompleto: producto,
-    })
+  // Resetear form cuando cambia el producto
+  useEffect(() => {
+    const attrs = producto.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
     
-    if (!productId || productId === 'unknown') {
-      console.error('[ProductDetails] ❌ ID inválido:', { productId })
-      throw new Error('No se pudo obtener el ID del producto')
-    }
+    setFormData({
+      isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
+      nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
+      subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
+      descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
+      numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
+      agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
+      idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
+      tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
+      estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
+    })
+  }, [producto])
 
-    setSavingField('nombre')
+  const resetForm = () => {
+    const attrs = producto.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
+    
+    setFormData({
+      isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
+      nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
+      subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
+      descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
+      numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
+      agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
+      idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
+      tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
+      estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
+    })
+  }
+
+  const handleEdit = () => {
+    resetForm()
+    setIsEditing(true)
     setError(null)
+    setSuccess(false)
+  }
 
+  const handleCancel = () => {
+    resetForm()
+    setIsEditing(false)
+    setError(null)
+    setSuccess(false)
+  }
+
+  const handleSaveAll = async () => {
     try {
-      const url = `/api/tienda/productos/${productId}`
-      const body = JSON.stringify({
-        nombre_libro: newValue,
-      })
+      setSaving(true)
+      setError(null)
+      setSuccess(false)
+
+      // Validar campos requeridos
+      if (!formData.nombre_libro.trim()) {
+        throw new Error('El nombre del libro es obligatorio')
+      }
+
+      const productId = producto.id?.toString() || producto.documentId
       
-      console.log('[ProductDetails] Enviando petición PUT:', {
-        url,
-        productId,
-        body,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      const response = await fetch(url, {
+      if (!productId || productId === 'unknown') {
+        throw new Error('No se pudo obtener el ID del producto')
+      }
+
+      // Preparar datos (optimizado - hacer todo en el frontend)
+      const dataToSend: any = {
+        nombre_libro: formData.nombre_libro.trim()
+      }
+
+      if (formData.isbn_libro?.trim()) {
+        dataToSend.isbn_libro = formData.isbn_libro.trim()
+      }
+
+      if (formData.subtitulo_libro?.trim()) {
+        dataToSend.subtitulo_libro = formData.subtitulo_libro.trim()
+      }
+
+      // Descripción - Ya preparar en formato blocks aquí (optimización)
+      if (formData.descripcion?.trim()) {
+        dataToSend.descripcion = [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text: formData.descripcion.trim() }]
+          }
+        ]
+      }
+
+      if (formData.numero_edicion) {
+        const numEdicion = parseInt(formData.numero_edicion)
+        if (!isNaN(numEdicion)) {
+          dataToSend.numero_edicion = numEdicion
+        }
+      }
+
+      if (formData.agno_edicion) {
+        const agnoEdicion = parseInt(formData.agno_edicion)
+        if (!isNaN(agnoEdicion)) {
+          dataToSend.agno_edicion = agnoEdicion
+        }
+      }
+
+      if (formData.idioma) dataToSend.idioma = formData.idioma
+      if (formData.tipo_libro) dataToSend.tipo_libro = formData.tipo_libro
+      if (formData.estado_edicion) dataToSend.estado_edicion = formData.estado_edicion
+
+      console.log('[ProductDetails] 📤 Enviando:', dataToSend)
+
+      // UNA SOLA llamada al API
+      const response = await fetch(`/api/tienda/productos/${productId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      })
-      
-      console.log('[ProductDetails] Respuesta recibida:', {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend)
       })
 
-      if (!response.ok) {
-        console.error('[ProductDetails] ❌ Respuesta no OK:', {
-          status: response.status,
-          statusText: response.statusText,
-        })
-        
-        let errorData: any = {}
-        try {
-          const text = await response.text()
-          console.log('[ProductDetails] Cuerpo de respuesta (texto):', text)
-          errorData = JSON.parse(text)
-          console.log('[ProductDetails] Cuerpo de respuesta (JSON):', errorData)
-        } catch (parseError) {
-          console.error('[ProductDetails] Error al parsear respuesta:', parseError)
-        }
-        
-        const errorMessage = errorData.error || `Error HTTP: ${response.status}`
-        
-        console.error('[ProductDetails] Error completo:', {
-          errorMessage,
-          errorData,
-          debug: errorData.debug,
-        })
-        
-        // Si hay información de debug, incluirla en el error
-        if (errorData.debug) {
-          console.error('[ProductDetails] Debug info disponible:', errorData.debug)
-          throw new Error(`${errorMessage}\n\nDebug: ${JSON.stringify(errorData.debug, null, 2)}`)
-        }
-        
-        throw new Error(errorMessage)
-      }
-
-      let data: any = {}
-      try {
-        const text = await response.text()
-        console.log('[ProductDetails] Cuerpo de respuesta exitosa (texto):', text)
-        data = JSON.parse(text)
-        console.log('[ProductDetails] Cuerpo de respuesta exitosa (JSON):', data)
-      } catch (parseError) {
-        console.error('[ProductDetails] Error al parsear respuesta exitosa:', parseError)
-        throw new Error('Error al procesar la respuesta del servidor')
-      }
+      const data = await response.json()
 
       if (!data.success) {
-        console.error('[ProductDetails] ❌ Respuesta indica error:', {
-          success: data.success,
-          error: data.error,
-          debug: data.debug,
-        })
-        
-        // Si hay información de debug, incluirla en el error
-        if (data.debug) {
-          console.error('[ProductDetails] Debug info disponible:', data.debug)
-          throw new Error(`${data.error || 'Error al guardar nombre'}\n\nDebug: ${JSON.stringify(data.debug, null, 2)}`)
-        }
-        
-        throw new Error(data.error || 'Error al guardar nombre')
+        throw new Error(data.error || 'Error al actualizar')
       }
 
-      console.log('[ProductDetails] ✅ Nombre guardado exitosamente:', {
-        data,
-        productoActualizado: data.data,
-      })
+      console.log('[ProductDetails] ✅ Guardado exitoso')
+
+      // Actualizar estado local inmediatamente (optimistic update)
+      if (onProductoUpdate) {
+        onProductoUpdate(dataToSend)
+      }
       
-      // Recargar la página para mostrar los cambios
-      router.refresh()
+      setSuccess(true)
+      setIsEditing(false)
+      
+      // Refrescar desde servidor en segundo plano (sin esperar)
+      if (onUpdate) {
+        // onUpdate puede ser async o sync, manejarlo apropiadamente
+        const updateResult = onUpdate()
+        if (updateResult && typeof updateResult.catch === 'function') {
+          updateResult.catch((err: any) => {
+            console.error('[ProductDetails] Error al refrescar:', err)
+          })
+        }
+      }
+      
+      // Ocultar mensaje de éxito después de 2 segundos
+      setTimeout(() => {
+        setSuccess(false)
+      }, 2000)
+
     } catch (err: any) {
-      const errorMessage = err.message || 'Error al guardar nombre'
-      setError(errorMessage)
-      console.error('[ProductDetails] Error al guardar nombre:', {
-        productId,
-        error: errorMessage,
-        err,
-      })
-      throw err // Re-lanzar para que EditableField muestre el error
+      console.error('[ProductDetails] Error:', err)
+      setError(err.message || 'Error al guardar cambios')
     } finally {
-      setSavingField(null)
+      setSaving(false)
     }
   }
 
-  const handleSaveDescripcion = async (newValue: string) => {
-    console.log('[ProductDetails] ===== INICIANDO GUARDADO DE DESCRIPCIÓN =====')
-    console.log('[ProductDetails] Datos del producto:', {
-      id: producto.id,
-      documentId: producto.documentId,
-      productId,
-      descripcionActual: descripcion,
-      descripcionNueva: newValue,
-    })
-    
-    if (!productId || productId === 'unknown') {
-      console.error('[ProductDetails] ❌ ID inválido:', { productId })
-      throw new Error('No se pudo obtener el ID del producto')
-    }
-
-    setSavingField('descripcion')
-    setError(null)
-
-    try {
-      const url = `/api/tienda/productos/${productId}`
-      const body = JSON.stringify({
-        descripcion: newValue,
-      })
-      
-      console.log('[ProductDetails] Enviando petición PUT:', {
-        url,
-        productId,
-        body,
-      })
-      
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      })
-      
-      console.log('[ProductDetails] Respuesta recibida:', {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-      })
-
-      if (!response.ok) {
-        console.error('[ProductDetails] ❌ Respuesta no OK:', {
-          status: response.status,
-          statusText: response.statusText,
-        })
-        
-        let errorData: any = {}
-        try {
-          const text = await response.text()
-          console.log('[ProductDetails] Cuerpo de respuesta (texto):', text)
-          errorData = JSON.parse(text)
-          console.log('[ProductDetails] Cuerpo de respuesta (JSON):', errorData)
-        } catch (parseError) {
-          console.error('[ProductDetails] Error al parsear respuesta:', parseError)
-        }
-        
-        const errorMessage = errorData.error || `Error HTTP: ${response.status}`
-        
-        if (errorData.debug) {
-          console.error('[ProductDetails] Debug info disponible:', errorData.debug)
-          throw new Error(`${errorMessage}\n\nDebug: ${JSON.stringify(errorData.debug, null, 2)}`)
-        }
-        
-        throw new Error(errorMessage)
-      }
-
-      let data: any = {}
-      try {
-        const text = await response.text()
-        console.log('[ProductDetails] Cuerpo de respuesta exitosa (texto):', text)
-        data = JSON.parse(text)
-        console.log('[ProductDetails] Cuerpo de respuesta exitosa (JSON):', data)
-      } catch (parseError) {
-        console.error('[ProductDetails] Error al parsear respuesta exitosa:', parseError)
-        throw new Error('Error al procesar la respuesta del servidor')
-      }
-
-      if (!data.success) {
-        console.error('[ProductDetails] ❌ Respuesta indica error:', {
-          success: data.success,
-          error: data.error,
-          debug: data.debug,
-        })
-        
-        if (data.debug) {
-          console.error('[ProductDetails] Debug info disponible:', data.debug)
-          throw new Error(`${data.error || 'Error al guardar descripción'}\n\nDebug: ${JSON.stringify(data.debug, null, 2)}`)
-        }
-        
-        throw new Error(data.error || 'Error al guardar descripción')
-      }
-
-      console.log('[ProductDetails] ✅ Descripción guardada exitosamente:', {
-        data,
-        productoActualizado: data.data,
-      })
-      
-      // Recargar la página para mostrar los cambios
-      router.refresh()
-    } catch (err: any) {
-      const errorMessage = err.message || 'Error al guardar descripción'
-      setError(errorMessage)
-      console.error('[ProductDetails] Error al guardar descripción:', {
-        productId,
-        error: errorMessage,
-        err,
-      })
-      throw err // Re-lanzar para que EditableField muestre el error
-    } finally {
-      setSavingField(null)
-    }
+  // Obtener valores para mostrar en modo vista
+  const displayValues = {
+    isbn: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || 'N/A',
+    nombre: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || 'N/A',
+    subtitulo: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || 'N/A',
+    descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || 'N/A',
+    numeroEdicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || 'N/A',
+    agnoEdicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || 'N/A',
+    idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || 'N/A',
+    tipoLibro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || 'N/A',
+    estadoEdicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'N/A',
   }
 
   return (
-    <>
-      {error && (
-        <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
-          <small>{error}</small>
-        </Alert>
-      )}
-
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <Badge 
-          bg={isPublished ? 'success' : 'secondary'} 
-          className={`${isPublished ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'} px-2 py-1 fs-base rounded-pill`}
-        >
-          {isPublished ? 'Publicado' : 'Borrador'}
-        </Badge>
-        <div className="text-muted">
-          Stock: <strong>{stockTotal}</strong>
+    <Card>
+      <CardBody>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="card-title mb-0">Detalles del Producto</h5>
+          
+          {!isEditing ? (
+            <Button
+              variant="primary"
+              onClick={handleEdit}
+            >
+              <TbPencil className="me-1" />
+              Editar Producto
+            </Button>
+          ) : (
+            <div className="btn-group">
+              <Button
+                variant="success"
+                onClick={handleSaveAll}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <TbCheck className="me-1" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                <TbX className="me-1" />
+                Cancelar
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="mt-3 mb-4">
-        <EditableField
-          value={nombre}
-          onSave={handleSaveNombre}
-          label="nombre"
-          as="h4"
-          className="fs-xl"
-        />
-      </div>
+        {error && (
+          <Alert variant="danger" dismissible onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      <Row className="mb-4">
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">ISBN:</h6>
-          <p className="fw-medium mb-0">{isbn}</p>
-        </Col>
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">Categoría:</h6>
-          <p className="fw-medium mb-0">{tipoLibro}</p>
-        </Col>
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">Stock:</h6>
-          <p className="fw-medium mb-0">{stockTotal}</p>
-        </Col>
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">Publicado:</h6>
-          <p className="fw-medium mb-0">
-            {format(createdDate, 'dd MMM, yyyy')}
-            <small className="text-muted ms-1">{format(createdDate, 'h:mm a')}</small>
-          </p>
-        </Col>
-      </Row>
+        {success && (
+          <Alert variant="success">
+            ✅ Producto actualizado exitosamente
+          </Alert>
+        )}
 
-      <Row className="mb-4">
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">Autor:</h6>
-          <p className="fw-medium mb-0">{autor}</p>
-        </Col>
-        <Col md={4} xl={3}>
-          <h6 className="mb-1 text-muted text-uppercase">Editorial:</h6>
-          <p className="fw-medium mb-0">{editorial}</p>
-        </Col>
-      </Row>
+        {saving && (
+          <Alert variant="info" className="mt-3">
+            <div className="d-flex align-items-center">
+              <Spinner animation="border" size="sm" className="me-2" />
+              <div>Guardando cambios...</div>
+            </div>
+          </Alert>
+        )}
 
-      {precioMinimo > 0 && (
-        <h3 className="text-muted d-flex align-items-center gap-2 mb-4">
-          <span className="fw-bold text-danger">${precioMinimo.toFixed(2)}</span>
-        </h3>
-      )}
+        {/* MODO VISTA */}
+        {!isEditing ? (
+          <Row>
+            <Col md={6}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">ISBN</Form.Label>
+                <div className="fw-medium">{displayValues.isbn}</div>
+              </div>
+            </Col>
 
-      <h5 className="text-uppercase text-muted fs-xs mb-2">Descripción:</h5>
-      <EditableField
-        value={descripcion}
-        onSave={handleSaveDescripcion}
-        label="descripción"
-        type="textarea"
-        placeholder="Sin descripción..."
-        as="p"
-      />
-    </>
+            <Col md={6}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Nombre del Libro</Form.Label>
+                <div className="fw-medium">{displayValues.nombre}</div>
+              </div>
+            </Col>
+
+            <Col xs={12}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Subtítulo</Form.Label>
+                <div className="fw-medium">{displayValues.subtitulo}</div>
+              </div>
+            </Col>
+
+            <Col xs={12}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Descripción</Form.Label>
+                <div className="fw-medium" style={{ whiteSpace: 'pre-wrap' }}>
+                  {displayValues.descripcion}
+                </div>
+              </div>
+            </Col>
+
+            <Col md={4}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Número de Edición</Form.Label>
+                <div className="fw-medium">{displayValues.numeroEdicion}</div>
+              </div>
+            </Col>
+
+            <Col md={4}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Año de Edición</Form.Label>
+                <div className="fw-medium">{displayValues.agnoEdicion}</div>
+              </div>
+            </Col>
+
+            <Col md={4}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Estado</Form.Label>
+                <div className="fw-medium">{displayValues.estadoEdicion}</div>
+              </div>
+            </Col>
+
+            <Col md={6}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Idioma</Form.Label>
+                <div className="fw-medium">{displayValues.idioma}</div>
+              </div>
+            </Col>
+
+            <Col md={6}>
+              <div className="mb-3">
+                <Form.Label className="text-muted">Tipo de Libro</Form.Label>
+                <div className="fw-medium">{displayValues.tipoLibro}</div>
+              </div>
+            </Col>
+          </Row>
+        ) : (
+          /* MODO EDICIÓN */
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>ISBN</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.isbn_libro}
+                  onChange={(e) => setFormData({...formData, isbn_libro: e.target.value})}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>
+                  Nombre del Libro <span className="text-danger">*</span>
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  required
+                  value={formData.nombre_libro}
+                  onChange={(e) => setFormData({...formData, nombre_libro: e.target.value})}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col xs={12}>
+              <Form.Group className="mb-3">
+                <Form.Label>Subtítulo</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.subtitulo_libro}
+                  onChange={(e) => setFormData({...formData, subtitulo_libro: e.target.value})}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col xs={12}>
+              <Form.Group className="mb-3">
+                <Form.Label>Descripción</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={4}
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                />
+                <Form.Text className="text-muted">
+                  La descripción se guardará en formato de texto enriquecido
+                </Form.Text>
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Número de Edición</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={formData.numero_edicion}
+                  onChange={(e) => setFormData({...formData, numero_edicion: e.target.value})}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Año de Edición</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="2024"
+                  value={formData.agno_edicion}
+                  onChange={(e) => setFormData({...formData, agno_edicion: e.target.value})}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Estado de Edición</Form.Label>
+                <Form.Select
+                  value={formData.estado_edicion}
+                  onChange={(e) => setFormData({...formData, estado_edicion: e.target.value})}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Agotado">Agotado</option>
+                  <option value="Descatalogado">Descatalogado</option>
+                  <option value="Próximamente">Próximamente</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Idioma</Form.Label>
+                <Form.Select
+                  value={formData.idioma}
+                  onChange={(e) => setFormData({...formData, idioma: e.target.value})}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Español">Español</option>
+                  <option value="Inglés">Inglés</option>
+                  <option value="Francés">Francés</option>
+                  <option value="Alemán">Alemán</option>
+                  <option value="Portugués">Portugués</option>
+                  <option value="Italiano">Italiano</option>
+                  <option value="Otro">Otro</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Tipo de Libro</Form.Label>
+                <Form.Select
+                  value={formData.tipo_libro}
+                  onChange={(e) => setFormData({...formData, tipo_libro: e.target.value})}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Plan Lector">Plan Lector</option>
+                  <option value="Texto Curricular">Texto Curricular</option>
+                  <option value="Texto PAES">Texto PAES</option>
+                  <option value="Texto Complementario">Texto Complementario</option>
+                  <option value="Otro">Otro</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+
+            <Col xs={12}>
+              <Alert variant="info">
+                <strong>ℹ️ Nota:</strong> Revisa todos los campos antes de guardar. Los cambios se aplicarán al presionar "Guardar Cambios".
+              </Alert>
+            </Col>
+          </Row>
+        )}
+      </CardBody>
+    </Card>
   )
 }
 
