@@ -221,6 +221,29 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
 
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
+  // Estado para el orden de columnas
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('tags-column-order')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          console.error('Error al cargar orden de columnas:', e)
+        }
+      }
+    }
+    return []
+  })
+
+  // Guardar orden de columnas en localStorage
+  const handleColumnOrderChange = (newOrder: string[]) => {
+    setColumnOrder(newOrder)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tags-column-order', JSON.stringify(newOrder))
+    }
+  }
+
   // Actualizar datos cuando cambien las etiquetas de Strapi
   useEffect(() => {
     console.log('[TagsListing] useEffect - etiquetas:', etiquetas?.length, 'mappedTags:', mappedTags.length)
@@ -231,12 +254,13 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
   const table = useReactTable<TagType>({
     data,
     columns,
-    state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds },
+    state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds, columnOrder },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
     onPaginationChange: setPagination,
     onRowSelectionChange: setSelectedRowIds,
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -388,7 +412,12 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
             </div>
           </CardHeader>
 
-          <DataTable<TagType> table={table} emptyMessage="No se encontraron registros" />
+          <DataTable<TagType>
+            table={table}
+            emptyMessage="No se encontraron registros"
+            enableColumnReordering={true}
+            onColumnOrderChange={handleColumnOrderChange}
+          />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">

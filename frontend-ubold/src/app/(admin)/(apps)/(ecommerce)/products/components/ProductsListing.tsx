@@ -335,6 +335,29 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
 
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
+  // Estado para el orden de columnas
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('products-column-order')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          console.error('Error al cargar orden de columnas:', e)
+        }
+      }
+    }
+    return []
+  })
+
+  // Guardar orden de columnas en localStorage
+  const handleColumnOrderChange = (newOrder: string[]) => {
+    setColumnOrder(newOrder)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('products-column-order', JSON.stringify(newOrder))
+    }
+  }
+
   // Actualizar datos cuando cambien los productos de Strapi
   useEffect(() => {
     console.log('[ProductsListing] useEffect - productos:', productos?.length, 'mappedProducts:', mappedProducts.length)
@@ -345,12 +368,13 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
   const table = useReactTable<ProductTypeExtended>({
     data,
     columns,
-    state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds },
+    state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds, columnOrder },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
     onPaginationChange: setPagination,
     onRowSelectionChange: setSelectedRowIds,
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -518,7 +542,12 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
             </div>
           </CardHeader>
 
-          <DataTable<ProductTypeExtended> table={table} emptyMessage="No se encontraron registros" />
+          <DataTable<ProductTypeExtended>
+            table={table}
+            emptyMessage="No se encontraron registros"
+            enableColumnReordering={true}
+            onColumnOrderChange={handleColumnOrderChange}
+          />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
