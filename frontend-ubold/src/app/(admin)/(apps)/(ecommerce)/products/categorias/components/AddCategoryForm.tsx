@@ -12,35 +12,14 @@ const AddCategoryForm = () => {
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
     nombre: '',
-    slug: '',
     descripcion: '',
-    activo: true,
     imagen: null as File | null,
   })
 
-  // Generar slug automáticamente desde el nombre
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
-      .replace(/[^a-z0-9]+/g, '-') // Reemplazar caracteres especiales con guiones
-      .replace(/(^-|-$)/g, '') // Eliminar guiones al inicio y final
-  }
-
   const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nombre = e.target.value
     setFormData((prev) => ({
       ...prev,
-      nombre,
-      slug: prev.slug || generateSlug(nombre), // Solo generar slug si está vacío
-    }))
-  }
-
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      slug: e.target.value,
+      nombre: e.target.value,
     }))
   }
 
@@ -143,7 +122,7 @@ const AddCategoryForm = () => {
 
         <Form onSubmit={handleSubmit}>
           <Row className="g-3">
-            <Col md={6}>
+            <Col md={12}>
               <FormGroup>
                 <FormLabel>
                   Nombre de la Categoría <span className="text-danger">*</span>
@@ -155,23 +134,8 @@ const AddCategoryForm = () => {
                   onChange={handleNombreChange}
                   required
                 />
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup>
-                <FormLabel>
-                  Slug <span className="text-danger">*</span>
-                </FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Ej: libros, material-escolar"
-                  value={formData.slug}
-                  onChange={handleSlugChange}
-                  required
-                />
                 <small className="text-muted">
-                  Se genera automáticamente desde el nombre si está vacío
+                  El slug se generará automáticamente desde el nombre en Strapi
                 </small>
               </FormGroup>
             </Col>
@@ -191,7 +155,7 @@ const AddCategoryForm = () => {
               </FormGroup>
             </Col>
 
-            <Col md={6}>
+            <Col md={12}>
               <FormGroup>
                 <FormLabel>Imagen</FormLabel>
                 <FormControl
@@ -204,24 +168,9 @@ const AddCategoryForm = () => {
                     Archivo seleccionado: {formData.imagen.name}
                   </small>
                 )}
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup>
-                <FormLabel>Estado</FormLabel>
-                <Form.Select
-                  value={formData.activo ? 'activa' : 'inactiva'}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      activo: e.target.value === 'activa',
-                    }))
-                  }
-                >
-                  <option value="activa">Activa</option>
-                  <option value="inactiva">Inactiva</option>
-                </Form.Select>
+                <small className="text-muted">
+                  Opcional. Imagen representativa de la categoría
+                </small>
               </FormGroup>
             </Col>
           </Row>
