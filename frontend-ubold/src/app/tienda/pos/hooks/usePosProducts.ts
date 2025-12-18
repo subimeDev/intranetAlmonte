@@ -13,34 +13,76 @@ export function usePosProducts() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('')
 
-  // Cargar productos
+  // Cargar productos con paginación automática para obtener todos
   const loadProducts = useCallback(async (search: string = '', category: string = '') => {
     setLoading(true)
     setError(null)
     
     try {
-      const params = new URLSearchParams({
-        per_page: '100',
-        stock_status: 'instock',
-      })
+      let allProducts: WooCommerceProduct[] = []
+      let page = 1
+      let hasMore = true
+      const perPage = 100 // WooCommerce permite hasta 100 por página
 
+      // Si hay búsqueda, solo cargar una página (búsqueda ya filtra)
       if (search) {
-        params.append('search', search)
+        const params = new URLSearchParams({
+          per_page: perPage.toString(),
+          stock_status: 'instock',
+          search: search,
+        })
+
+        if (category) {
+          params.append('category', category)
+        }
+
+        const response = await fetch(`/api/woocommerce/products?${params}`)
+        const data = await response.json()
+
+        if (data.success) {
+          setProducts(data.data || [])
+        } else {
+          setError(data.error || 'Error al cargar productos')
+          setProducts([])
+        }
+        setLoading(false)
+        return
       }
 
-      if (category) {
-        params.append('category', category)
+      // Sin búsqueda: cargar todos los productos con paginación
+      while (hasMore) {
+        const params = new URLSearchParams({
+          per_page: perPage.toString(),
+          page: page.toString(),
+          stock_status: 'instock',
+        })
+
+        if (category) {
+          params.append('category', category)
+        }
+
+        const response = await fetch(`/api/woocommerce/products?${params}`)
+        const data = await response.json()
+
+        if (data.success && data.data) {
+          const pageProducts = Array.isArray(data.data) ? data.data : [data.data]
+          
+          if (pageProducts.length > 0) {
+            allProducts = [...allProducts, ...pageProducts]
+            // Si recibimos menos productos que per_page, es la última página
+            hasMore = pageProducts.length === perPage
+            page++
+          } else {
+            hasMore = false
+          }
+        } else {
+          setError(data.error || 'Error al cargar productos')
+          hasMore = false
+        }
       }
 
-      const response = await fetch(`/api/woocommerce/products?${params}`)
-      const data = await response.json()
-
-      if (data.success) {
-        setProducts(data.data || [])
-      } else {
-        setError(data.error || 'Error al cargar productos')
-        setProducts([])
-      }
+      setProducts(allProducts)
+      console.log(`[POS] Productos cargados: ${allProducts.length} productos`)
     } catch (err: any) {
       setError(err.message || 'Error al conectar con WooCommerce')
       setProducts([])
