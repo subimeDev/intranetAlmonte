@@ -1,5 +1,6 @@
 import { Card, CardBody, Col, Container, Row, Alert } from 'react-bootstrap'
 import { headers } from 'next/headers'
+import type { Metadata } from 'next'
 
 import TagDetails from '@/app/(admin)/(apps)/(ecommerce)/products/etiquetas/[tagId]/components/TagDetails'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
@@ -10,6 +11,12 @@ interface PageProps {
   params: Promise<{
     tagId: string
   }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  return {
+    title: 'Editar Etiqueta',
+  }
 }
 
 export default async function Page({ params }: PageProps) {
@@ -58,7 +65,7 @@ export default async function Page({ params }: PageProps) {
   if (error || !etiqueta) {
     return (
       <Container fluid>
-        <PageBreadcrumb title="Tag Details" subtitle="Ecommerce" />
+        <PageBreadcrumb title="Editar Etiqueta" subtitle="Ecommerce" />
         <Alert variant="danger">
           <div>
             <strong>Error:</strong> {error || 'Etiqueta no encontrada'}

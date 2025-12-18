@@ -1,5 +1,6 @@
 import { Card, CardBody, Col, Container, Row, Alert } from 'react-bootstrap'
 import { headers } from 'next/headers'
+import type { Metadata } from 'next'
 
 import CategoryDetails from '@/app/(admin)/(apps)/(ecommerce)/products/categorias/[categoryId]/components/CategoryDetails'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
@@ -10,6 +11,12 @@ interface PageProps {
   params: Promise<{
     categoryId: string
   }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  return {
+    title: 'Editar Categoría',
+  }
 }
 
 export default async function Page({ params }: PageProps) {
@@ -58,7 +65,7 @@ export default async function Page({ params }: PageProps) {
   if (error || !categoria) {
     return (
       <Container fluid>
-        <PageBreadcrumb title="Category Details" subtitle="Ecommerce" />
+        <PageBreadcrumb title="Editar Categoría" subtitle="Ecommerce" />
         <Alert variant="danger">
           <div>
             <strong>Error:</strong> {error || 'Categoría no encontrada'}

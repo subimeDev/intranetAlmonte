@@ -1,11 +1,16 @@
 import { Container } from 'react-bootstrap'
 import { headers } from 'next/headers'
+import type { Metadata } from 'next'
 
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 import CategoriesListing from './components/CategoriesListing'
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Todas las Categorías',
+}
 
 export default async function Page() {
   let categorias: any[] = []
