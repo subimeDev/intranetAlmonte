@@ -1,11 +1,7 @@
 /**
- * Barrel file para exportar todo lo relacionado con WooCommerce
+ * Módulo WooCommerce - Exportaciones principales
  */
 
-import wooCommerceClient from './client'
-import { WOOCOMMERCE_URL, WOOCOMMERCE_CONSUMER_KEY, WOOCOMMERCE_CONSUMER_SECRET, getWooCommerceUrl } from './config'
-export type { WooCommerceProduct, WooCommerceOrder, CartItem } from './types'
-
-export { wooCommerceClient, WOOCOMMERCE_URL, WOOCOMMERCE_CONSUMER_KEY, WOOCOMMERCE_CONSUMER_SECRET, getWooCommerceUrl }
-
-
+export { default as wooCommerceClient } from './client'
+export * from './types'
+export * from './address-utils'

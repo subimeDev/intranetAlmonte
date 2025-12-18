@@ -301,14 +301,133 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
       return
     }
 
+    // Pasar datos completos del cliente al processOrder
+    const paymentMethodWithCustomer = {
+      ...payments[0],
+      customerData: selectedCustomer || null,
+    }
+
     const order = await processOrder(
       cart,
       selectedCustomer?.id,
-      payments[0], // Usar el primer método de pago
+      paymentMethodWithCustomer as any, // Pasar método de pago con datos del cliente
       `Pago: ${payments.map(p => `${p.type} $${p.amount}`).join(', ')}`
     )
 
     if (order) {
+      // Emitir factura electrónica a través de OpenFactura y guardar en WooCommerce
+      try {
+        // Obtener datos completos del cliente para billing y shipping
+        const customerRut = selectedCustomer?.billing?.rut || 
+                           selectedCustomer?.meta_data?.find((m: any) => m.key === 'rut')?.value || 
+                           '66666666-6'
+        
+        const facturaData = {
+          tipo: 'boleta', // o 'factura' según corresponda
+          fecha: new Date().toISOString().split('T')[0],
+          receptor: selectedCustomer ? {
+            rut: customerRut,
+            razon_social: `${selectedCustomer.first_name} ${selectedCustomer.last_name}`.trim() || 'Consumidor Final',
+            email: selectedCustomer.email || '',
+            direccion: selectedCustomer.billing?.address_1 || '',
+            comuna: selectedCustomer.billing?.city || '',
+            ciudad: selectedCustomer.billing?.city || '',
+            giro: selectedCustomer.billing?.company || '',
+          } : {
+            rut: '66666666-6', // Consumidor final
+            razon_social: 'Consumidor Final',
+          },
+          items: cart.map(item => ({
+            nombre: item.product.name,
+            cantidad: item.quantity,
+            precio: parseFloat(item.product.price),
+            descuento: 0,
+            impuesto: totals.tax / cart.length, // Distribuir IVA entre items
+            codigo: item.product.sku || item.product.id.toString(),
+          })),
+          descuento_global: totals.discount,
+          observaciones: `Pedido #${order.id} - Pago: ${payments.map(p => `${p.type} $${p.amount}`).join(', ')}`,
+          referencia: order.id.toString(),
+        }
+
+        const facturaResponse = await fetch('/api/openfactura/emitir', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(facturaData),
+        })
+
+        const facturaResult = await facturaResponse.json()
+        
+        if (facturaResult.success && facturaResult.data?.pdf_url) {
+          console.log('[POS] Factura electrónica emitida:', facturaResult.data)
+          
+          // Guardar el PDF en WordPress y actualizar el pedido
+          try {
+            const guardarPdfResponse = await fetch('/api/openfactura/guardar-pdf', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                order_id: order.id,
+                pdf_url: facturaResult.data.pdf_url,
+                folio: facturaResult.data.folio,
+                documento_id: facturaResult.data.documento_id,
+                xml_url: facturaResult.data.xml_url,
+                timbre: facturaResult.data.timbre,
+              }),
+            })
+
+            const guardarPdfResult = await guardarPdfResponse.json()
+            
+            if (guardarPdfResult.success) {
+              console.log('[POS] PDF de factura guardado en WordPress:', guardarPdfResult.data)
+            } else {
+              console.warn('[POS] Error al guardar PDF:', guardarPdfResult.error)
+            }
+          } catch (pdfError: any) {
+            console.error('[POS] Error al guardar PDF de factura:', pdfError)
+          }
+
+          // Actualizar el pedido con todos los datos de billing y shipping
+          // (Ya se guardaron al crear el pedido, pero podemos actualizar si hay cambios)
+          try {
+            // Los datos ya se guardaron correctamente al crear el pedido
+            // con todos los campos detallados en meta_data
+            console.log('[POS] Datos de dirección ya guardados en el pedido')
+
+            const updateOrderResponse = await fetch(`/api/woocommerce/orders/${order.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                billing: billingData,
+                shipping: shippingData,
+              }),
+            })
+
+            const updateOrderResult = await updateOrderResponse.json()
+            
+            if (updateOrderResult.success) {
+              console.log('[POS] Pedido actualizado con datos de billing y shipping')
+            } else {
+              console.warn('[POS] Error al actualizar pedido:', updateOrderResult.error)
+            }
+          } catch (updateError: any) {
+            console.error('[POS] Error al actualizar pedido:', updateError)
+          }
+        } else {
+          console.warn('[POS] Error al emitir factura electrónica:', facturaResult.error)
+          // No bloqueamos la venta si falla la factura electrónica
+        }
+      } catch (error: any) {
+        console.error('[POS] Error al emitir factura electrónica:', error)
+        // No bloqueamos la venta si falla la factura electrónica
+      }
+
       // Imprimir ticket
       const receiptData: ReceiptData = {
         orderId: order.id,

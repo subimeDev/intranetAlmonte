@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Form, InputGroup, Button, ListGroup, Badge, Modal, Alert, Spinner } from 'react-bootstrap'
 import { LuSearch, LuUserPlus, LuUser, LuX } from 'react-icons/lu'
+import CustomerAddressForm from './CustomerAddressForm'
 
 interface Customer {
   id: number
@@ -12,7 +13,37 @@ interface Customer {
   username?: string
   billing?: {
     phone?: string
+    address_1?: string
+    address_2?: string
+    city?: string
+    state?: string
+    postcode?: string
+    country?: string
+    calle?: string
+    numero?: string
+    dpto?: string
+    block?: string
+    condominio?: string
+    [key: string]: any
   }
+  shipping?: {
+    address_1?: string
+    address_2?: string
+    city?: string
+    state?: string
+    postcode?: string
+    country?: string
+    calle?: string
+    numero?: string
+    dpto?: string
+    block?: string
+    condominio?: string
+    [key: string]: any
+  }
+  meta_data?: Array<{
+    key: string
+    value: string
+  }>
 }
 
 interface CustomerSelectorProps {
@@ -26,6 +57,7 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [creating, setCreating] = useState(false)
   
   // Formulario de nuevo cliente
@@ -51,7 +83,19 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
       const data = await response.json()
 
       if (data.success) {
-        setCustomers(data.data || [])
+        // Cargar datos completos de cada cliente para obtener meta_data
+        const customersWithDetails = await Promise.all(
+          (data.data || []).map(async (customer: Customer) => {
+            try {
+              const detailResponse = await fetch(`/api/woocommerce/customers/${customer.id}`)
+              const detailData = await detailResponse.json()
+              return detailData.success ? detailData.data : customer
+            } catch {
+              return customer
+            }
+          })
+        )
+        setCustomers(customersWithDetails)
       } else {
         setError(data.error || 'Error al buscar clientes')
         setCustomers([])
@@ -99,7 +143,18 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
       const data = await response.json()
 
       if (data.success) {
-        onSelect(data.data)
+        // Cargar datos completos del cliente recién creado
+        try {
+          const detailResponse = await fetch(`/api/woocommerce/customers/${data.data.id}`)
+          const detailData = await detailResponse.json()
+          if (detailData.success) {
+            onSelect(detailData.data)
+          } else {
+            onSelect(data.data)
+          }
+        } catch {
+          onSelect(data.data)
+        }
         setShowCreateModal(false)
         setNewCustomer({ email: '', first_name: '', last_name: '', phone: '' })
         setSearchTerm('')
@@ -142,6 +197,15 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
             <LuX />
           </Button>
         )}
+        {selectedCustomer && (
+          <Button
+            variant="outline-info"
+            onClick={() => setShowEditModal(true)}
+            title="Editar datos del cliente"
+          >
+            <LuUser />
+          </Button>
+        )}
         <Button
           variant="outline-primary"
           onClick={() => setShowCreateModal(true)}
@@ -176,8 +240,19 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
                   <ListGroup.Item
                     key={customer.id}
                     action
-                    onClick={() => {
-                      onSelect(customer)
+                    onClick={async () => {
+                      // Cargar datos completos del cliente antes de seleccionarlo
+                      try {
+                        const detailResponse = await fetch(`/api/woocommerce/customers/${customer.id}`)
+                        const detailData = await detailResponse.json()
+                        if (detailData.success) {
+                          onSelect(detailData.data)
+                        } else {
+                          onSelect(customer)
+                        }
+                      } catch {
+                        onSelect(customer)
+                      }
                       setSearchTerm('')
                       setCustomers([])
                     }}
@@ -279,6 +354,29 @@ export default function CustomerSelector({ selectedCustomer, onSelect }: Custome
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Modal para editar cliente */}
+      {selectedCustomer && (
+        <Modal 
+          show={showEditModal} 
+          onHide={() => setShowEditModal(false)}
+          size="lg"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Editar Datos del Cliente</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <CustomerAddressForm
+              customer={selectedCustomer}
+              onSave={(updatedCustomer) => {
+                onSelect(updatedCustomer)
+                setShowEditModal(false)
+              }}
+              onCancel={() => setShowEditModal(false)}
+            />
+          </Modal.Body>
+        </Modal>
+      )}
     </div>
   )
 }

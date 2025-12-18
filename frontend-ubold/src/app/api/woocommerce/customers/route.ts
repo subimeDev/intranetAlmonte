@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import wooCommerceClient from '@/lib/woocommerce/client'
+import { buildWooCommerceAddress, createAddressMetaData, type DetailedAddress } from '@/lib/woocommerce/address-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,14 +62,82 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Preparar datos de billing si vienen direcciones detalladas
+    let billingData: any = {}
+    let shippingData: any = {}
+    let metaData: Array<{ key: string; value: string }> = []
+
+    if (body.billing) {
+      // Si viene con campos detallados, construir address_1 y address_2
+      const billingDetailed: DetailedAddress = {
+        calle: body.billing.calle || '',
+        numero: body.billing.numero || '',
+        dpto: body.billing.dpto || '',
+        block: body.billing.block || '',
+        condominio: body.billing.condominio || '',
+        city: body.billing.city || '',
+        state: body.billing.state || '',
+        postcode: body.billing.postcode || '',
+        country: body.billing.country || 'CL',
+      }
+
+      const billingWooCommerce = buildWooCommerceAddress(billingDetailed)
+      metaData.push(...createAddressMetaData('billing', billingDetailed))
+
+      billingData = {
+        first_name: body.first_name,
+        last_name: body.last_name || '',
+        email: body.email,
+        phone: body.billing.phone || body.phone || '',
+        address_1: billingWooCommerce.address_1,
+        address_2: billingWooCommerce.address_2,
+        city: billingDetailed.city || '',
+        state: billingDetailed.state || '',
+        postcode: billingDetailed.postcode || '',
+        country: billingDetailed.country || 'CL',
+      }
+    } else if (body.phone) {
+      billingData = { phone: body.phone }
+    }
+
+    if (body.shipping) {
+      const shippingDetailed: DetailedAddress = {
+        calle: body.shipping.calle || '',
+        numero: body.shipping.numero || '',
+        dpto: body.shipping.dpto || '',
+        block: body.shipping.block || '',
+        condominio: body.shipping.condominio || '',
+        city: body.shipping.city || '',
+        state: body.shipping.state || '',
+        postcode: body.shipping.postcode || '',
+        country: body.shipping.country || 'CL',
+      }
+
+      const shippingWooCommerce = buildWooCommerceAddress(shippingDetailed)
+      metaData.push(...createAddressMetaData('shipping', shippingDetailed))
+
+      shippingData = {
+        first_name: body.first_name,
+        last_name: body.last_name || '',
+        address_1: shippingWooCommerce.address_1,
+        address_2: shippingWooCommerce.address_2,
+        city: shippingDetailed.city || '',
+        state: shippingDetailed.state || '',
+        postcode: shippingDetailed.postcode || '',
+        country: shippingDetailed.country || 'CL',
+      }
+    }
+
     // Crear cliente en WooCommerce
-    const customerData = {
+    const customerData: any = {
       email: body.email,
       first_name: body.first_name,
       last_name: body.last_name || '',
       username: body.email.split('@')[0] + '_' + Date.now(),
       password: body.password || `temp_${Date.now()}`,
-      ...(body.phone && { billing: { phone: body.phone } }),
+      ...(Object.keys(billingData).length > 0 && { billing: billingData }),
+      ...(Object.keys(shippingData).length > 0 && { shipping: shippingData }),
+      ...(metaData.length > 0 && { meta_data: metaData }),
     }
 
     const customer = await wooCommerceClient.post<any>('customers', customerData)

@@ -49,6 +49,12 @@
    - Información completa del pedido
    - Datos del cliente y método de pago
 
+8. **Facturación Electrónica (OpenFactura.cl)**
+   - Emisión automática de facturas/boletas electrónicas
+   - Integración con OpenFactura.cl
+   - Emisión después de cada venta
+   - Soporte para consumidor final y clientes registrados
+
 8. **Atajos de Teclado**
    - `Ctrl + F`: Focus en búsqueda
    - `Enter`: Buscar producto por código de barras
@@ -92,6 +98,7 @@ pos/
 - `/api/woocommerce/customers` - Buscar/crear clientes
 - `/api/woocommerce/coupons` - Validar cupones
 - `/api/woocommerce/reports` - Reportes de ventas
+- `/api/openfactura/emitir` - Emitir facturas electrónicas
 
 ## 🚀 Uso del Sistema
 
@@ -126,6 +133,12 @@ pos/
    - El ticket se genera automáticamente
    - Se abre ventana de impresión
    - Opción de reimprimir desde historial
+
+7. **Emitir Factura Electrónica** (automático)
+   - Se emite automáticamente a través de OpenFactura.cl
+   - Si hay cliente registrado, se usa su RUT
+   - Si no hay cliente, se emite como "Consumidor Final"
+   - La factura se genera en segundo plano sin bloquear la venta
 
 ### Gestión de Caja
 

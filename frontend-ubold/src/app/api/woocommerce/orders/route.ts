@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Preparar datos del pedido para WooCommerce
-    const orderData = {
+    const orderData: any = {
       payment_method: body.payment_method || 'pos',
       payment_method_title: body.payment_method_title || 'Punto de Venta',
       set_paid: body.set_paid !== undefined ? body.set_paid : true,
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         email: 'pos@escolar.cl',
         phone: '',
         address_1: '',
+        address_2: '',
         city: '',
         state: '',
         postcode: '',
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
         first_name: '',
         last_name: '',
         address_1: '',
+        address_2: '',
         city: '',
         state: '',
         postcode: '',
@@ -58,6 +60,8 @@ export async function POST(request: NextRequest) {
         ...(item.variation_id && { variation_id: item.variation_id }),
       })),
       ...(body.customer_note && { customer_note: body.customer_note }),
+      // Incluir meta_data si viene (para direcciones detalladas)
+      ...(body.meta_data && Array.isArray(body.meta_data) && { meta_data: body.meta_data }),
     }
 
     // Crear pedido en WooCommerce
