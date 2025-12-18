@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
       
       try {
         const libroActualizado1 = await strapiClient.put<any>(
-          `/api/libros/${libro.documentId}`,
+          `/api/libros/${libro.id}`,
           updateData1
         )
         
@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
           
           try {
             const libroActualizado3 = await strapiClient.put<any>(
-              `/api/libros/${libro.documentId}`,
+              `/api/libros/${libro.id}`,
               updateData3
             )
             
