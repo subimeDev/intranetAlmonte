@@ -10,6 +10,7 @@ import { STRAPI_API_URL } from '@/lib/strapi/config'
 interface ProductDisplayProps {
   producto: any
   onUpdate?: () => void
+  onProductoUpdate?: (updates: any) => void
 }
 
 // Función para comprimir imágenes antes de subir
@@ -74,7 +75,7 @@ const compressImage = (file: File): Promise<Blob> => {
   })
 }
 
-const ProductDisplay = ({ producto, onUpdate }: ProductDisplayProps) => {
+const ProductDisplay = ({ producto, onUpdate, onProductoUpdate }: ProductDisplayProps) => {
   const router = useRouter()
   const [isEditingImage, setIsEditingImage] = useState(false)
   const [imageUrl, setImageUrl] = useState('')

@@ -77,9 +77,22 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       if (data.success) {
         setNewPrice('')
         setIsAddingPrice(false)
-        await fetchPrecios()
+        
+        // Actualizar lista de precios inmediatamente (optimistic update)
+        // Agregar el nuevo precio a la lista local mientras se refresca desde servidor
+        if (data.data) {
+          setPrecios((prev) => [...prev, data.data])
+        }
+        
+        // Refrescar desde servidor en segundo plano
+        fetchPrecios().catch((err) => {
+          console.error('[ProductPricing] Error al refrescar precios:', err)
+        })
+        
         if (onUpdate) {
-          onUpdate()
+          onUpdate().catch((err) => {
+            console.error('[ProductPricing] Error al refrescar producto:', err)
+          })
         }
       } else {
         // Mostrar ayuda si es problema de permisos
