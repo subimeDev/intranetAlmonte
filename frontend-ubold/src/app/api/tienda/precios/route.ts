@@ -191,17 +191,166 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Si llegamos aquí, ningún endpoint funcionó
-    console.error('[API Precios POST] ❌ NINGÚN ENDPOINT FUNCIONÓ')
+    // Si llegamos aquí, ningún endpoint funcionó con POST directo
+    console.error('[API Precios POST] ❌ NINGÚN ENDPOINT ACEPTA POST DIRECTAMENTE')
     console.error('[API Precios POST] Último error:', ultimoError)
+    console.log('[API Precios POST] 🔄 Intentando método alternativo: crear precio actualizando libro...')
     
-    return NextResponse.json({
-      success: false,
-      error: 'No se pudo crear el precio. El endpoint de la API no existe.',
-      ayuda: 'Ve a Strapi → Content-Type Builder → "Product · Precio" → Busca el campo "API ID (Singular)" y verifica el nombre exacto',
-      endpoints_probados: POSIBLES_ENDPOINTS,
-      ultimo_error: ultimoError?.message
-    }, { status: 400 })
+    // MÉTODO ALTERNATIVO: Crear el precio como objeto y agregarlo al libro directamente
+    // En Strapi v5, algunas relaciones oneToMany se crean actualizando el objeto padre
+    try {
+      // Obtener precios actuales del libro
+      const libroConPrecios = await strapiClient.get<any>(
+        `/api/libros/${libro.documentId}?populate[precios]=*`
+      )
+      
+      let libroActual: any
+      if (libroConPrecios.data) {
+        libroActual = libroConPrecios.data
+      } else {
+        libroActual = libroConPrecios
+      }
+      
+      // Obtener IDs de precios existentes
+      const attrs = libroActual?.attributes || {}
+      const preciosExistentes = 
+        attrs.precios?.data || 
+        libroActual.precios?.data ||
+        attrs.precios ||
+        libroActual.precios ||
+        []
+      
+      const idsPreciosExistentes = preciosExistentes
+        .map((p: any) => p.id || p.documentId)
+        .filter((id: any) => id !== undefined && id !== null)
+      
+      console.log('[API Precios POST] Precios existentes:', idsPreciosExistentes.length)
+      
+      // Crear el precio como objeto nuevo y agregarlo a la relación
+      // En Strapi v5, podemos usar "connect" o simplemente agregar el objeto completo
+      const nuevoPrecioObjeto = {
+        precio_venta: parseFloat(body.precio_venta),
+        fecha_inicio: body.fecha_inicio,
+        activo: true,
+        precio_costo: body.precio_costo ? parseFloat(body.precio_costo) : null,
+        fecha_fin: body.fecha_fin || null
+      }
+      
+      // Intentar actualizar el libro agregando el nuevo precio
+      // Método 1: Usar "connect" con un array que incluye el nuevo objeto
+      const updateData1 = {
+        data: {
+          precios: {
+            connect: [...idsPreciosExistentes],
+            create: [nuevoPrecioObjeto]
+          }
+        }
+      }
+      
+      console.log('[API Precios POST] Intentando método 1: connect + create')
+      console.log('[API Precios POST] Datos:', JSON.stringify(updateData1, null, 2))
+      
+      try {
+        const libroActualizado1 = await strapiClient.put<any>(
+          `/api/libros/${libro.documentId}`,
+          updateData1
+        )
+        
+        console.log('[API Precios POST] ✅ ÉXITO con método alternativo (connect + create)')
+        
+        return NextResponse.json({
+          success: true,
+          data: libroActualizado1.data || libroActualizado1,
+          message: 'Precio creado actualizando el libro directamente',
+          metodo: 'libro_update_connect_create'
+        })
+      } catch (error1: any) {
+        console.log('[API Precios POST] Método 1 falló:', error1.message)
+        
+        // Método 2: Usar "set" con array que incluye el nuevo objeto
+        const updateData2 = {
+          data: {
+            precios: {
+              set: [...idsPreciosExistentes, nuevoPrecioObjeto]
+            }
+          }
+        }
+        
+        console.log('[API Precios POST] Intentando método 2: set con objeto nuevo')
+        
+        try {
+          const libroActualizado2 = await strapiClient.put<any>(
+            `/api/libros/${libro.documentId}`,
+            updateData2
+          )
+          
+          console.log('[API Precios POST] ✅ ÉXITO con método alternativo (set con objeto)')
+          
+          return NextResponse.json({
+            success: true,
+            data: libroActualizado2.data || libroActualizado2,
+            message: 'Precio creado actualizando el libro directamente',
+            metodo: 'libro_update_set_object'
+          })
+        } catch (error2: any) {
+          console.log('[API Precios POST] Método 2 falló:', error2.message)
+          
+          // Método 3: Simplemente agregar el objeto al array sin "set" ni "connect"
+          const updateData3 = {
+            data: {
+              precios: [...idsPreciosExistentes, nuevoPrecioObjeto]
+            }
+          }
+          
+          console.log('[API Precios POST] Intentando método 3: array directo')
+          
+          try {
+            const libroActualizado3 = await strapiClient.put<any>(
+              `/api/libros/${libro.documentId}`,
+              updateData3
+            )
+            
+            console.log('[API Precios POST] ✅ ÉXITO con método alternativo (array directo)')
+            
+            return NextResponse.json({
+              success: true,
+              data: libroActualizado3.data || libroActualizado3,
+              message: 'Precio creado actualizando el libro directamente',
+              metodo: 'libro_update_array_directo'
+            })
+          } catch (error3: any) {
+            console.error('[API Precios POST] ❌ TODOS LOS MÉTODOS ALTERNATIVOS FALLARON')
+            console.error('[API Precios POST] Error método 3:', error3)
+            
+            // Si todos fallan, devolver error con toda la información
+            return NextResponse.json({
+              success: false,
+              error: 'No se pudo crear el precio con ningún método',
+              detalles: {
+                endpoints_probados: POSIBLES_ENDPOINTS,
+                metodos_alternativos_probados: ['connect+create', 'set+object', 'array_directo'],
+                errores: {
+                  endpoints: ultimoError?.message,
+                  metodo1: error1?.message,
+                  metodo2: error2?.message,
+                  metodo3: error3?.message
+                }
+              },
+              ayuda: 'El endpoint de precios no acepta POST. Necesitas verificar en Strapi cómo se crean los precios, o crear un endpoint personalizado.'
+            }, { status: 400 })
+          }
+        }
+      }
+    } catch (errorAlt: any) {
+      console.error('[API Precios POST] ❌ Error en método alternativo:', errorAlt)
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Error al intentar método alternativo',
+        detalles: errorAlt.message,
+        endpoints_probados: POSIBLES_ENDPOINTS
+      }, { status: 500 })
+    }
     
   } catch (error: any) {
     console.error('[API Precios POST] ❌ ERROR GENERAL:', error)
