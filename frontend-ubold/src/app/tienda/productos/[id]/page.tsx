@@ -165,8 +165,8 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
   }
 
   // Subir imagen a Strapi
-  const handleImageUpload = async () => {
-    if (!newImageFile) return
+  const handleImageUpload = async (): Promise<number | null> => {
+    if (!newImageFile) return null
     
     setUploadingImage(true)
     setError(null)
@@ -201,7 +201,6 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
         // Actualizar estado local
         setFormData(prev => ({ ...prev, portadaLibroId: result.id }))
         setNewImageFile(null)
-        setSuccess(true)
         
         // Recargar producto para obtener la nueva URL
         const refreshResponse = await strapiClient.get<any>(`/api/libros/${productoId}?populate=*`)
@@ -210,10 +209,15 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
           const newImageUrl = getImageUrl(refreshResponse.data)
           setCurrentImageUrl(newImageUrl)
         }
+        
+        return result.id
       }
+      
+      return null
     } catch (err: any) {
       setError(err.message || 'Error al subir la imagen')
       console.error('Error al subir imagen:', err)
+      throw err
     } finally {
       setUploadingImage(false)
     }
@@ -228,6 +232,12 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
     try {
       const endpoint = `/api/libros/${productoId}`
 
+      // Si hay una nueva imagen seleccionada pero no se ha subido, subirla primero
+      let imageId: number | null = null
+      if (newImageFile) {
+        imageId = await handleImageUpload()
+      }
+
       const updateData: any = {
         data: {
           nombre_libro: formData.nombre,
@@ -239,16 +249,36 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
         }
       }
 
-      // Si hay una nueva imagen seleccionada pero no se ha subido, subirla primero
-      if (newImageFile) {
-        await handleImageUpload()
+      // Si se subió una nueva imagen, incluirla en la actualización
+      if (imageId) {
+        updateData.data.portada_libro = imageId
+        updateData.data.PORTADA_LIBRO = imageId
       }
 
       // Actualizar precio si se proporcionó
-      if (formData.precioActual) {
-        // Aquí necesitarías actualizar la relación de precios
-        // Por ahora solo guardamos los datos básicos
-        // TODO: Implementar actualización de precios en Strapi
+      if (formData.precioActual && parseFloat(formData.precioActual) > 0) {
+        const precioActual = parseFloat(formData.precioActual)
+        
+        // Obtener los precios existentes del producto
+        const attrs = producto.attributes || {}
+        const precios = (attrs as any).PRECIOS?.data || (attrs as any).precios?.data || []
+        
+        // Si hay precios existentes, actualizar el primero
+        // Si no hay precios, crear uno nuevo (esto requeriría crear la relación en Strapi)
+        if (precios.length > 0 && precios[0].id) {
+          // Actualizar el precio existente
+          try {
+            await strapiClient.put<any>(`/api/precios/${precios[0].id}`, {
+              data: {
+                PRECIO: precioActual,
+                precio: precioActual,
+              }
+            })
+          } catch (precioError: any) {
+            console.warn('No se pudo actualizar el precio:', precioError.message)
+            // Continuar con el guardado aunque falle la actualización del precio
+          }
+        }
       }
 
       if (formData.estado === 'Publicado') {

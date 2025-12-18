@@ -155,43 +155,14 @@ const ProductDisplay = ({ producto }: ProductDisplayProps) => {
           throw new Error('Por favor ingresa una URL válida')
         }
 
-        // Descargar la imagen desde la URL
-        console.log('[ProductDisplay] Descargando imagen desde URL:', imageUrl)
-        const imageResponse = await fetch(imageUrl.trim(), {
-          mode: 'cors',
-          headers: {
-            'Accept': 'image/*',
-          },
-        })
-
-        if (!imageResponse.ok) {
-          throw new Error(`Error al descargar la imagen: ${imageResponse.status} ${imageResponse.statusText}`)
-        }
-
-        // Obtener el tipo de contenido
-        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg'
-        if (!contentType.startsWith('image/')) {
-          throw new Error('La URL no apunta a una imagen válida')
-        }
-
-        // Convertir la respuesta a blob y luego a File
-        const blob = await imageResponse.blob()
-        const fileName = imageUrl.split('/').pop()?.split('?')[0] || 'image.jpg'
-        const file = new File([blob], fileName, { type: contentType })
-
-        console.log('[ProductDisplay] Imagen descargada, subiendo a Strapi:', {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-        })
-
-        // Subir archivo a Strapi
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const uploadResponse = await fetch('/api/tienda/upload', {
+        // Usar API route del servidor para evitar problemas de CORS
+        console.log('[ProductDisplay] Subiendo imagen desde URL usando API route:', imageUrl)
+        const uploadResponse = await fetch('/api/tienda/upload-url', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: imageUrl.trim() }),
         })
 
         if (!uploadResponse.ok) {
