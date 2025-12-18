@@ -20,8 +20,12 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
   const [producto, setProducto] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
+  const [newImageFile, setNewImageFile] = useState<File | null>(null)
+  const fileInputRef = useState<HTMLInputElement | null>(null)[0]
   
   const [formData, setFormData] = useState({
     nombre: '',
@@ -32,6 +36,7 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
     descuento: '',
     tipoVisualizacion: 'default',
     estado: 'Borrador',
+    portadaLibroId: null as number | null,
   })
 
   // Helper para obtener campos
@@ -101,7 +106,12 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
           const precioOriginal = precioMinimo ? precioMinimo * 1.15 : 0 // Simular precio original 15% más alto
           const descuento = precioMinimo && precioOriginal ? Math.round(((precioOriginal - precioMinimo) / precioOriginal) * 100) : 0
           
+          const imageUrl = getImageUrl(prod)
+          const portadaData = (attrs as any).PORTADA_LIBRO?.data || (attrs as any).portada_libro?.data
+          const portadaId = portadaData?.id || null
+          
           setProducto(prod)
+          setCurrentImageUrl(imageUrl)
           setFormData({
             nombre: getField(attrs, 'NOMBRE_LIBRO', 'nombre_libro', 'name', 'NAME') || '',
             slug: attrs.slug || '',
@@ -111,6 +121,7 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
             descuento: descuento.toString(),
             tipoVisualizacion: attrs.tipo_visualizacion || 'default',
             estado: attrs.publishedAt ? 'Publicado' : 'Borrador',
+            portadaLibroId: portadaId,
           })
         } else {
           setError('Producto no encontrado')
@@ -125,6 +136,88 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
 
     fetchProducto()
   }, [productoId])
+
+  // Manejar selección de archivo
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor selecciona un archivo de imagen válido')
+        return
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('La imagen no debe superar los 5MB')
+        return
+      }
+      
+      setNewImageFile(file)
+      
+      // Crear preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setCurrentImageUrl(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Subir imagen a Strapi
+  const handleImageUpload = async () => {
+    if (!newImageFile) return
+    
+    setUploadingImage(true)
+    setError(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', newImageFile)
+      
+      const response = await fetch('/api/tienda/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al subir la imagen')
+      }
+      
+      const result = await response.json()
+      
+      if (result.success && result.id) {
+        // Actualizar el producto con la nueva imagen
+        const updateData: any = {
+          data: {
+            portada_libro: result.id,
+            PORTADA_LIBRO: result.id,
+          }
+        }
+        
+        await strapiClient.put<any>(`/api/libros/${productoId}`, updateData)
+        
+        // Actualizar estado local
+        setFormData(prev => ({ ...prev, portadaLibroId: result.id }))
+        setNewImageFile(null)
+        setSuccess(true)
+        
+        // Recargar producto para obtener la nueva URL
+        const refreshResponse = await strapiClient.get<any>(`/api/libros/${productoId}?populate=*`)
+        if (refreshResponse.data) {
+          setProducto(refreshResponse.data)
+          const newImageUrl = getImageUrl(refreshResponse.data)
+          setCurrentImageUrl(newImageUrl)
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al subir la imagen')
+      console.error('Error al subir imagen:', err)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -144,6 +237,11 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
           DESCRIPCION: formData.descripcion,
           tipo_visualizacion: formData.tipoVisualizacion,
         }
+      }
+
+      // Si hay una nueva imagen seleccionada pero no se ha subido, subirla primero
+      if (newImageFile) {
+        await handleImageUpload()
       }
 
       // Actualizar precio si se proporcionó
@@ -201,7 +299,7 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
 
   if (!producto) return null
 
-  const imageUrl = getImageUrl(producto)
+  const imageUrl = currentImageUrl || getImageUrl(producto)
   const stockTotal = getStockTotal(producto)
   const isPublished = formData.estado === 'Publicado'
   const publishedDate = producto.attributes?.publishedAt 
@@ -282,17 +380,51 @@ export default function EditarProductoPage({ params }: EditarProductoPageProps) 
                     ))}
                   </div>
 
+                  {/* Input de archivo oculto */}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    style={{ display: 'none' }}
+                    ref={(el) => {
+                      if (el) (fileInputRef as any).current = el
+                    }}
+                  />
+
                   {/* Botones de acción */}
                   <div className="d-flex gap-2 justify-content-center mt-3">
-                    <Button variant="light" size="sm">
+                    <Button 
+                      variant="light" 
+                      size="sm"
+                      onClick={() => {
+                        const input = (fileInputRef as any).current
+                        if (input) input.click()
+                      }}
+                      disabled={uploadingImage}
+                    >
                       <LuPencil className="me-2" />
-                      Edit
+                      {uploadingImage ? 'Subiendo...' : 'Cambiar Imagen'}
                     </Button>
+                    {newImageFile && (
+                      <Button 
+                        variant="success" 
+                        size="sm"
+                        onClick={handleImageUpload}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? 'Subiendo...' : 'Guardar Imagen'}
+                      </Button>
+                    )}
                     <Button variant="danger" size="sm">
                       <LuSettings2 className="me-2" />
                       Delisting
                     </Button>
                   </div>
+                  {newImageFile && (
+                    <Alert variant="info" className="mt-2 mb-0">
+                      <small>Nueva imagen seleccionada: {newImageFile.name}. Haz clic en "Guardar Imagen" para subirla.</small>
+                    </Alert>
+                  )}
                 </div>
               </CardBody>
             </Card>
