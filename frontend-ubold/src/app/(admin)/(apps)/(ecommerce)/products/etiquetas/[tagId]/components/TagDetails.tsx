@@ -128,13 +128,22 @@ const TagDetails = ({ etiqueta }: TagDetailsProps) => {
         throw new Error(result.error || 'Error al guardar cambios')
       }
 
-      console.log('[TagDetails] ✅ Cambios guardados exitosamente')
+      console.log('[TagDetails] ✅ Cambios guardados exitosamente:', result)
       setSuccess(true)
       
-      // Recargar la página después de un momento para mostrar los cambios
+      // Actualizar el estado local con los datos actualizados de la respuesta
+      if (result.data) {
+        const updatedData = result.data.attributes || result.data
+        setFormData({
+          nombre: getField(updatedData, 'name', 'nombre', 'NOMBRE', 'NAME') || formData.nombre,
+          descripcion: getField(updatedData, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || formData.descripcion,
+        })
+      }
+      
+      // Ocultar el mensaje de éxito después de 2 segundos
       setTimeout(() => {
-        router.refresh()
-      }, 1000)
+        setSuccess(false)
+      }, 2000)
     } catch (err: any) {
       const errorMessage = err.message || 'Error al guardar cambios'
       setError(errorMessage)
