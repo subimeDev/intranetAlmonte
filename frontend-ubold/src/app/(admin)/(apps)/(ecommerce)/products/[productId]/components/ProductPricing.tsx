@@ -70,26 +70,15 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       // Preparar fecha_inicio en formato ISO (requerido)
       const fechaInicioISO = fechaInicio ? new Date(fechaInicio).toISOString() : new Date().toISOString()
       
-      // Payload mínimo: solo precio_venta, fecha_inicio y activo
-      // Los demás campos se envían como null o no se envían
+      // Payload simplificado: solo precio_venta, fecha_inicio, activo
+      // Los demás campos siempre como null (no se muestran en el formulario)
       const payload: any = {
         precio_venta: precioVentaNumero,
         libroId: productId,
         fecha_inicio: fechaInicioISO,
-        activo: activo,
-        // Campos opcionales: solo si tienen valor válido, sino null
-        precio_costo: null,
-        fecha_fin: null
-      }
-      
-      // Solo agregar precio_costo si tiene valor válido
-      if (precioCosto && precioCosto.trim() !== '' && !isNaN(parseFloat(precioCosto)) && parseFloat(precioCosto) > 0) {
-        payload.precio_costo = parseFloat(precioCosto)
-      }
-      
-      // Solo agregar fecha_fin si tiene valor válido
-      if (fechaFin && fechaFin.trim() !== '') {
-        payload.fecha_fin = new Date(fechaFin).toISOString()
+        activo: true, // Siempre activo por defecto
+        precio_costo: null, // Siempre null
+        fecha_fin: null // Siempre null
       }
       
       console.log('[ProductPricing] Enviando:', payload)
@@ -209,7 +198,7 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
           </Alert>
         )}
 
-        {/* Form para agregar precio */}
+        {/* Form para agregar precio - Solo precio final y fecha inicio */}
         {isAddingPrice && (
           <div className="border rounded p-3 mb-3">
             <h6 className="mb-3">Nuevo Precio</h6>
@@ -217,7 +206,7 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
             <div className="row">
               <div className="col-md-6 mb-3">
                 <label className="form-label">
-                  Precio de Venta <span className="text-danger">*</span>
+                  Precio Final <span className="text-danger">*</span>
                 </label>
                 <div className="input-group">
                   <span className="input-group-text">$</span>
@@ -231,23 +220,7 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
                     min="0"
                     disabled={saving}
                     required
-                  />
-                </div>
-              </div>
-              
-              <div className="col-md-6 mb-3">
-                <label className="form-label">Precio de Costo</label>
-                <div className="input-group">
-                  <span className="input-group-text">$</span>
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="0.00 (opcional)"
-                    value={precioCosto}
-                    onChange={(e) => setPrecioCosto(e.target.value)}
-                    step="0.01"
-                    min="0"
-                    disabled={saving}
+                    autoFocus
                   />
                 </div>
               </div>
@@ -264,34 +237,6 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
                   disabled={saving}
                   required
                 />
-              </div>
-              
-              <div className="col-md-6 mb-3">
-                <label className="form-label">Fecha de Fin</label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  disabled={saving}
-                />
-                <small className="text-muted">Opcional - Dejar vacío si no tiene fecha de fin</small>
-              </div>
-              
-              <div className="col-md-12 mb-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={activo}
-                    onChange={(e) => setActivo(e.target.checked)}
-                    disabled={saving}
-                    id="precioActivo"
-                  />
-                  <label className="form-check-label" htmlFor="precioActivo">
-                    Precio activo
-                  </label>
-                </div>
               </div>
             </div>
             

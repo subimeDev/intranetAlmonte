@@ -154,27 +154,16 @@ export async function POST(request: NextRequest) {
     })
     
     // CRÍTICO: Preparar datos según estructura real de Strapi (todos en minúsculas)
-    // Solo enviar campos requeridos y activo, los demás como null o no enviarlos
+    // Solo enviar precio_venta (precio final) y fecha_inicio, los demás como null
     const precioData: any = {
       data: {
         precio_venta: parseFloat(body.precio_venta),  // REQUERIDO - precio final
         libro: libro.id,                               // Relación manyToOne - usar ID numérico
         fecha_inicio: body.fecha_inicio,               // REQUERIDO (formato ISO)
-        activo: body.activo !== undefined ? Boolean(body.activo) : true,  // Por defecto activo
-        // Campos opcionales como null si no se proporcionan
-        precio_costo: null,
-        fecha_fin: null
+        activo: true,                                   // Siempre activo
+        precio_costo: null,                            // Siempre null
+        fecha_fin: null                                // Siempre null
       }
-    }
-    
-    // Solo agregar precio_costo si tiene valor válido
-    if (body.precio_costo !== undefined && body.precio_costo !== null && body.precio_costo !== '' && !isNaN(parseFloat(body.precio_costo))) {
-      precioData.data.precio_costo = parseFloat(body.precio_costo)
-    }
-    
-    // Solo agregar fecha_fin si tiene valor válido
-    if (body.fecha_fin && body.fecha_fin.trim() !== '') {
-      precioData.data.fecha_fin = body.fecha_fin
     }
     
     // VERIFICACIÓN: Asegurar que NO hay mayúsculas
