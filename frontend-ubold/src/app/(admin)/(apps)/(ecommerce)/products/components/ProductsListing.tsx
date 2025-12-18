@@ -303,7 +303,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
               <TbEye className="fs-lg" />
             </Button>
           </Link>
-          <Link href={`/tienda/productos/${row.original.strapiId || row.original.code}/editar`}>
+          <Link href={`/products/${row.original.strapiId || row.original.code}`}>
             <Button variant="default" size="sm" className="btn-icon rounded-circle">
               <TbEdit className="fs-lg" />
             </Button>
