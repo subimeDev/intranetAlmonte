@@ -103,9 +103,9 @@ const strapiClient = {
       })
     }
     
-    // Crear un AbortController para timeout (15 segundos para mejor UX)
+    // Crear un AbortController para timeout (25 segundos para operaciones de lectura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 segundos
     
     try {
       const response = await fetch(url, {
@@ -132,7 +132,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 15 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 25 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -149,9 +149,9 @@ const strapiClient = {
   async post<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout (15 segundos para mejor UX)
+    // Crear un AbortController para timeout (25 segundos para operaciones de lectura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 segundos
     
     try {
       const response = await fetch(url, {
@@ -167,7 +167,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 15 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 25 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -184,9 +184,9 @@ const strapiClient = {
   async put<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout (10 segundos para operaciones de escritura)
+    // Crear un AbortController para timeout (20 segundos para operaciones de escritura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 segundos
     
     try {
       const response = await fetch(url, {
@@ -212,7 +212,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 10 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 20 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -228,9 +228,9 @@ const strapiClient = {
   async delete<T>(path: string, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout (10 segundos para operaciones de escritura)
+    // Crear un AbortController para timeout (20 segundos para operaciones de escritura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 segundos
     
     try {
       const response = await fetch(url, {
@@ -255,7 +255,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 10 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 20 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
