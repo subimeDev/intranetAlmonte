@@ -227,14 +227,18 @@ export async function POST(request: NextRequest) {
       console.log('[API Precios POST] Precios existentes:', idsPreciosExistentes.length)
       
       // Crear el precio como objeto nuevo y agregarlo a la relación
-      // En Strapi v5, podemos usar "connect" o simplemente agregar el objeto completo
+      // IMPORTANTE: NO incluir el campo "libro" porque Strapi lo maneja automáticamente
+      // cuando agregamos el precio a la relación del libro
       const nuevoPrecioObjeto = {
         precio_venta: parseFloat(body.precio_venta),
         fecha_inicio: body.fecha_inicio,
         activo: true,
         precio_costo: body.precio_costo ? parseFloat(body.precio_costo) : null,
         fecha_fin: body.fecha_fin || null
+        // NO incluir "libro" aquí - Strapi lo maneja automáticamente
       }
+      
+      console.log('[API Precios POST] Objeto precio a crear (sin campo libro):', JSON.stringify(nuevoPrecioObjeto, null, 2))
       
       // Intentar actualizar el libro agregando el nuevo precio
       // Método 1: Usar "connect" con un array que incluye el nuevo objeto
@@ -267,16 +271,18 @@ export async function POST(request: NextRequest) {
       } catch (error1: any) {
         console.log('[API Precios POST] Método 1 falló:', error1.message)
         
-        // Método 2: Usar "set" con array que incluye el nuevo objeto
+        // Método 2: Usar "set" con array que incluye IDs existentes + objeto nuevo
+        // En Strapi v5, podemos mezclar IDs y objetos nuevos
         const updateData2 = {
           data: {
             precios: {
-              set: [...idsPreciosExistentes, nuevoPrecioObjeto]
+              set: [...idsPreciosExistentes.map(id => ({ id })), nuevoPrecioObjeto]
             }
           }
         }
         
-        console.log('[API Precios POST] Intentando método 2: set con objeto nuevo')
+        console.log('[API Precios POST] Intentando método 2: set con IDs + objeto nuevo')
+        console.log('[API Precios POST] Datos:', JSON.stringify(updateData2, null, 2))
         
         try {
           const libroActualizado2 = await strapiClient.put<any>(
@@ -295,14 +301,22 @@ export async function POST(request: NextRequest) {
         } catch (error2: any) {
           console.log('[API Precios POST] Método 2 falló:', error2.message)
           
-          // Método 3: Simplemente agregar el objeto al array sin "set" ni "connect"
+          // Método 3: Usar "connectOrCreate" (si está disponible en Strapi v5)
           const updateData3 = {
             data: {
-              precios: [...idsPreciosExistentes, nuevoPrecioObjeto]
+              precios: {
+                connectOrCreate: [
+                  ...idsPreciosExistentes.map(id => ({ id })),
+                  {
+                    create: nuevoPrecioObjeto
+                  }
+                ]
+              }
             }
           }
           
-          console.log('[API Precios POST] Intentando método 3: array directo')
+          console.log('[API Precios POST] Intentando método 3: connectOrCreate')
+          console.log('[API Precios POST] Datos:', JSON.stringify(updateData3, null, 2))
           
           try {
             const libroActualizado3 = await strapiClient.put<any>(
