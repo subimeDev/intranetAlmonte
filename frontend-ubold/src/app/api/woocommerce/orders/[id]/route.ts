@@ -15,10 +15,11 @@ export const dynamic = 'force-dynamic'
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const orderId = parseInt(params.id)
+    const { id } = await params
+    const orderId = parseInt(id)
     const body = await request.json()
 
     if (isNaN(orderId)) {
@@ -133,10 +134,11 @@ export async function PUT(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const orderId = parseInt(params.id)
+    const { id } = await params
+    const orderId = parseInt(id)
 
     if (isNaN(orderId)) {
       return NextResponse.json(

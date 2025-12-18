@@ -391,34 +391,9 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
             console.error('[POS] Error al guardar PDF de factura:', pdfError)
           }
 
-          // Actualizar el pedido con todos los datos de billing y shipping
-          // (Ya se guardaron al crear el pedido, pero podemos actualizar si hay cambios)
-          try {
-            // Los datos ya se guardaron correctamente al crear el pedido
-            // con todos los campos detallados en meta_data
-            console.log('[POS] Datos de dirección ya guardados en el pedido')
-
-            const updateOrderResponse = await fetch(`/api/woocommerce/orders/${order.id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                billing: billingData,
-                shipping: shippingData,
-              }),
-            })
-
-            const updateOrderResult = await updateOrderResponse.json()
-            
-            if (updateOrderResult.success) {
-              console.log('[POS] Pedido actualizado con datos de billing y shipping')
-            } else {
-              console.warn('[POS] Error al actualizar pedido:', updateOrderResult.error)
-            }
-          } catch (updateError: any) {
-            console.error('[POS] Error al actualizar pedido:', updateError)
-          }
+          // Los datos de billing y shipping ya se guardaron correctamente al crear el pedido
+          // con todos los campos detallados en meta_data a través de usePosOrders
+          console.log('[POS] Datos de dirección ya guardados en el pedido')
         } else {
           console.warn('[POS] Error al emitir factura electrónica:', facturaResult.error)
           // No bloqueamos la venta si falla la factura electrónica
