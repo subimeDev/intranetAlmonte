@@ -32,6 +32,7 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
     last_name: '',
     email: '',
     phone: '',
+    company: '', // Nombre de la empresa
   })
 
   // Estado del formulario - Dirección de facturación (billing)
@@ -70,6 +71,7 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
         last_name: customer.last_name || '',
         email: customer.email || '',
         phone: customer.billing?.phone || '',
+        company: customer.billing?.company || '',
       })
 
       // Cargar dirección de facturación desde billing o meta_data
@@ -157,7 +159,7 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
       const billingMetaData = createAddressMetaData('billing', billingAddress)
       const shippingMetaData = createAddressMetaData('shipping', useSameAddress ? billingAddress : shippingAddress)
 
-      // Preparar datos para actualizar
+      // Preparar datos para actualizar o crear
       const updateData: any = {
         first_name: formData.first_name,
         last_name: formData.last_name,
@@ -167,6 +169,7 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
           last_name: formData.last_name,
           email: formData.email,
           phone: formData.phone,
+          company: formData.company || '',
           address_1: billingWooCommerce.address_1,
           address_2: billingWooCommerce.address_2,
           city: billingAddress.city || '',
@@ -187,16 +190,30 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
         meta_data: [...billingMetaData, ...shippingMetaData],
       }
 
-      // Actualizar cliente en WooCommerce
-      const response = await fetch(`/api/woocommerce/customers/${customer.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      })
+      let response: Response
+      let data: any
 
-      const data = await response.json()
+      // Si el cliente no tiene ID o es 0, crear nuevo cliente
+      if (!customer.id || customer.id === 0) {
+        response = await fetch('/api/woocommerce/customers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateData),
+        })
+        data = await response.json()
+      } else {
+        // Actualizar cliente existente
+        response = await fetch(`/api/woocommerce/customers/${customer.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateData),
+        })
+        data = await response.json()
+      }
 
       if (data.success) {
         setSuccess(true)
@@ -310,18 +327,7 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
       </Row>
 
       <Row>
-        <Col md={6}>
-          <Form.Group className="mb-3">
-            <Form.Label>Código Postal</Form.Label>
-            <Form.Control
-              type="text"
-              value={address.postcode || ''}
-              onChange={(e) => setAddress({ ...address, postcode: e.target.value })}
-              placeholder="Ej: 7500000"
-            />
-          </Form.Group>
-        </Col>
-        <Col md={6}>
+        <Col md={12}>
           <Form.Group className="mb-3">
             <Form.Label>País</Form.Label>
             <Form.Control
@@ -415,6 +421,20 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+56 9 1234 5678"
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={12}>
+              <Form.Group className="mb-3">
+                <Form.Label>Nombre de la Empresa</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  placeholder="Ej: Mi Empresa S.A."
                 />
               </Form.Group>
             </Col>

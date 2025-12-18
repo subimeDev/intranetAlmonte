@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         last_name: body.last_name || '',
         email: body.email,
         phone: body.billing.phone || body.phone || '',
+        company: body.billing.company || body.company || '',
         address_1: billingWooCommerce.address_1,
         address_2: billingWooCommerce.address_2,
         city: billingDetailed.city || '',

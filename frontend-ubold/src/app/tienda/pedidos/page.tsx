@@ -193,8 +193,11 @@ export default async function PedidosPage() {
                             <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-primary me-1">
                               Editar
                             </a>
-                            <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-outline-secondary">
+                            <a href={`/tienda/pedidos/${pedido.id}`} className="btn btn-sm btn-outline-secondary me-1">
                               Ver
+                            </a>
+                            <a href={`/tienda/facturas/${pedido.id}`} className="btn btn-sm btn-outline-info" title="Ver Factura">
+                              📄 Factura
                             </a>
                           </td>
                           </tr>

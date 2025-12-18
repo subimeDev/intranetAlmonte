@@ -1,16 +1,53 @@
 /**
- * API Route para emitir facturas electrónicas a través de OpenFactura.cl
+ * API Route para emitir facturas electrónicas a través de Haulmer (Espacio)
+ * Documentación: https://espacio.haulmer.com/
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import openFacturaClient from '@/lib/openfactura/client'
-import type { OpenFacturaDocument, OpenFacturaEmitResponse } from '@/lib/openfactura/types'
+import type { HaulmerDTE, HaulmerEmitResponse, TipoDTE } from '@/lib/openfactura/types'
 
 export const dynamic = 'force-dynamic'
 
 /**
+ * Función auxiliar para convertir tipo de documento a código SII
+ */
+function getTipoDTE(tipo: string): TipoDTE {
+  const tipos: Record<string, TipoDTE> = {
+    'factura': 33, // Factura Electrónica
+    'factura_exenta': 34, // Factura Exenta
+    'boleta': 39, // Boleta Electrónica
+    'boleta_exenta': 41, // Boleta Exenta
+    'nota_credito': 61, // Nota de Crédito
+    'nota_debito': 56, // Nota de Débito
+  }
+  return tipos[tipo.toLowerCase()] || 39 // Por defecto Boleta
+}
+
+/**
+ * Función auxiliar para formatear RUT (12345678-9)
+ */
+function formatearRUT(rut: string): string {
+  // Limpiar y formatear RUT
+  const rutLimpio = rut.replace(/[.-]/g, '').trim()
+  if (rutLimpio.length < 8) {
+    throw new Error('RUT inválido')
+  }
+  const cuerpo = rutLimpio.slice(0, -1)
+  const dv = rutLimpio.slice(-1).toUpperCase()
+  return `${cuerpo}-${dv}`
+}
+
+/**
+ * Función auxiliar para convertir precio a centavos (sin decimales)
+ */
+function aCentavos(precio: number): number {
+  return Math.round(precio * 100)
+}
+
+/**
  * POST /api/openfactura/emitir
- * Emite una factura electrónica a través de OpenFactura
+ * Emite una factura electrónica a través de Haulmer
  */
 export async function POST(request: NextRequest) {
   try {
@@ -37,67 +74,145 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Preparar documento para OpenFactura
-    const documento: OpenFacturaDocument = {
-      tipo: body.tipo || 'boleta', // Por defecto boleta (sin IVA para consumidor final)
-      fecha: body.fecha || new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD
-      receptor: {
-        rut: body.receptor.rut.replace(/[.-]/g, ''), // Limpiar formato del RUT
-        razon_social: body.receptor.razon_social,
-        giro: body.receptor.giro,
-        direccion: body.receptor.direccion,
-        comuna: body.receptor.comuna,
-        ciudad: body.receptor.ciudad,
-        email: body.receptor.email,
-      },
-      items: body.items.map((item: any) => ({
-        nombre: item.nombre || item.name,
-        cantidad: item.cantidad || item.quantity,
-        precio: item.precio || item.price,
-        descuento: item.descuento || 0,
-        impuesto: item.impuesto || 0, // IVA u otro impuesto
-        codigo: item.codigo || item.sku,
-      })),
-      descuento_global: body.descuento_global || 0,
-      observaciones: body.observaciones || body.customer_note,
-      referencia: body.referencia || body.order_id?.toString(),
+    // Obtener datos del emisor desde variables de entorno
+    const emisorRUT = process.env.HAULMER_EMISOR_RUT || process.env.EMISOR_RUT || ''
+    const emisorRazonSocial = process.env.HAULMER_EMISOR_RAZON_SOCIAL || process.env.EMISOR_RAZON_SOCIAL || ''
+    const emisorGiro = process.env.HAULMER_EMISOR_GIRO || process.env.EMISOR_GIRO || ''
+    const emisorDireccion = process.env.HAULMER_EMISOR_DIRECCION || process.env.EMISOR_DIRECCION || ''
+    const emisorComuna = process.env.HAULMER_EMISOR_COMUNA || process.env.EMISOR_COMUNA || ''
+    const emisorCiudad = process.env.HAULMER_EMISOR_CIUDAD || process.env.EMISOR_CIUDAD || ''
+
+    if (!emisorRUT || !emisorRazonSocial) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Datos del emisor no configurados. Configure HAULMER_EMISOR_RUT y HAULMER_EMISOR_RAZON_SOCIAL',
+        },
+        { status: 400 }
+      )
     }
 
-    console.log('[OpenFactura] Emitiendo documento:', {
-      tipo: documento.tipo,
-      receptor: documento.receptor.rut,
-      items: documento.items.length,
+    const tipoDocumento = body.tipo || 'boleta'
+    const tipoDTE = getTipoDTE(tipoDocumento)
+    const fechaEmision = body.fecha || new Date().toISOString().split('T')[0]
+
+    // Calcular totales
+    let mntNeto = 0
+    let mntTotal = 0
+    let iva = 0
+    const descuentoGlobal = body.descuento_global || 0
+
+    // Procesar items y calcular totales
+    const detalle = body.items.map((item: any) => {
+      const cantidad = item.cantidad || item.quantity || 1
+      const precioUnitario = parseFloat(item.precio || item.price || 0)
+      const descuentoItem = item.descuento || 0
+      const impuestoItem = item.impuesto || 0
+      
+      const montoItem = (precioUnitario * cantidad) - descuentoItem
+      const montoItemConImpuesto = montoItem + impuestoItem
+      
+      mntNeto += montoItem
+      iva += impuestoItem
+      mntTotal += montoItemConImpuesto
+
+      return {
+        NmbItem: (item.nombre || item.name || '').substring(0, 80), // Máximo 80 caracteres
+        QtyItem: cantidad,
+        UnmdItem: item.unidad_medida || 'UN',
+        PrcItem: aCentavos(precioUnitario),
+        MontoItem: aCentavos(montoItemConImpuesto),
+        ...(item.codigo || item.sku ? {
+          CdgItem: {
+            TpoCodigo: 'INT1',
+            VlrCodigo: (item.codigo || item.sku || '').toString(),
+          }
+        } : {}),
+      }
     })
 
-    // Emitir documento en OpenFactura
-    // Nota: El endpoint exacto puede variar según la documentación de OpenFactura
-    // Ajustar según la documentación oficial: https://www.openfactura.cl/factura-electronica/api/
-    const response = await openFacturaClient.post<OpenFacturaEmitResponse>(
-      '/v1/dte/emitir', // Ajustar según la documentación real
+    // Aplicar descuento global
+    if (descuentoGlobal > 0) {
+      const descuentoEnCentavos = aCentavos(descuentoGlobal)
+      mntTotal = Math.max(0, mntTotal - descuentoEnCentavos)
+    }
+
+    // Formatear RUTs
+    const rutEmisor = formatearRUT(emisorRUT)
+    const rutReceptor = formatearRUT(body.receptor.rut)
+
+    // Construir documento en formato Haulmer
+    const documento: HaulmerDTE = {
+      Encabezado: {
+        IdDoc: {
+          TipoDTE: tipoDTE,
+          FchEmis: fechaEmision,
+        },
+        Emisor: {
+          RUTEmisor: rutEmisor,
+          RznSoc: emisorRazonSocial,
+          GiroEmis: emisorGiro,
+          DirOrigen: emisorDireccion,
+          CmnaOrigen: emisorComuna,
+          ...(emisorCiudad ? { CiudadOrigen: emisorCiudad } : {}),
+        },
+        Receptor: {
+          RUTRecep: rutReceptor,
+          RznSocRecep: body.receptor.razon_social || 'Consumidor Final',
+          ...(body.receptor.giro ? { GiroRecep: body.receptor.giro } : {}),
+          DirRecep: body.receptor.direccion || '',
+          CmnaRecep: body.receptor.comuna || '',
+          ...(body.receptor.ciudad ? { CiudadRecep: body.receptor.ciudad } : {}),
+          ...(body.receptor.email ? { Contacto: body.receptor.email } : {}),
+        },
+      },
+      Detalle: detalle,
+      Totales: {
+        MntNeto: aCentavos(mntNeto),
+        ...(iva > 0 ? { IVA: aCentavos(iva) } : {}),
+        MntTotal: aCentavos(mntTotal),
+      },
+    }
+
+    console.log('[Haulmer] Emitiendo documento:', {
+      tipo: tipoDTE,
+      receptor: rutReceptor,
+      items: detalle.length,
+      mntTotal: mntTotal / 100,
+    })
+
+    // Emitir documento en Haulmer (Espacio)
+    // Endpoint según documentación de Haulmer
+    const response = await openFacturaClient.post<HaulmerEmitResponse>(
+      '/api/dte/emitir',
       documento
     )
 
-    if (response.success) {
-      console.log('[OpenFactura] Documento emitido exitosamente:', {
-        folio: response.folio,
-        documento_id: response.documento_id,
+    // La respuesta puede venir en diferentes formatos
+    const responseData = response.data || response
+    const success = response.success !== false && (responseData.folio || responseData.documento_id)
+
+    if (success) {
+      console.log('[Haulmer] Documento emitido exitosamente:', {
+        folio: responseData.folio,
+        documento_id: responseData.documento_id,
       })
 
       return NextResponse.json({
         success: true,
         data: {
-          folio: response.folio,
-          documento_id: response.documento_id,
-          pdf_url: response.pdf_url,
-          xml_url: response.xml_url,
-          timbre: response.timbre,
+          folio: responseData.folio,
+          documento_id: responseData.documento_id,
+          pdf_url: responseData.pdf_url,
+          xml_url: responseData.xml_url,
+          timbre: responseData.timbre,
         },
       })
     } else {
       throw new Error(response.error || response.message || 'Error al emitir documento')
     }
   } catch (error: any) {
-    console.error('[OpenFactura] Error al emitir documento:', {
+    console.error('[Haulmer] Error al emitir documento:', {
       message: error.message,
       stack: error.stack,
     })
@@ -134,8 +249,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Consultar estado del documento
-    const response = await openFacturaClient.get<OpenFacturaEmitResponse>(
-      `/v1/dte/consultar`,
+    const response = await openFacturaClient.get<HaulmerEmitResponse>(
+      `/api/dte/consultar`,
       { folio, documento_id }
     )
 
@@ -144,7 +259,7 @@ export async function GET(request: NextRequest) {
       data: response,
     })
   } catch (error: any) {
-    console.error('[OpenFactura] Error al consultar documento:', error)
+    console.error('[Haulmer] Error al consultar documento:', error)
     return NextResponse.json(
       {
         success: false,

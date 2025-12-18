@@ -1,10 +1,10 @@
 /**
- * Cliente para la API de OpenFactura.cl
- * Documentación: https://www.openfactura.cl/factura-electronica/api/
+ * Cliente para la API de Haulmer (Espacio)
+ * Documentación: https://espacio.haulmer.com/
  */
 
-const OPENFACTURA_API_URL = process.env.OPENFACTURA_API_URL || 'https://api.openfactura.cl'
-const OPENFACTURA_API_KEY = process.env.OPENFACTURA_API_KEY || ''
+const HAULMER_API_URL = process.env.HAULMER_API_URL || 'https://espacio.haulmer.com'
+const HAULMER_API_KEY = process.env.HAULMER_API_KEY || process.env.OPENFACTURA_API_KEY || ''
 
 interface OpenFacturaResponse<T = any> {
   success: boolean
@@ -23,11 +23,11 @@ class OpenFacturaClientImpl implements OpenFacturaClient {
   private baseUrl: string
 
   constructor() {
-    this.apiKey = OPENFACTURA_API_KEY
-    this.baseUrl = OPENFACTURA_API_URL
+    this.apiKey = HAULMER_API_KEY
+    this.baseUrl = HAULMER_API_URL
 
     if (!this.apiKey) {
-      console.warn('[OpenFactura] API Key no configurada. Las facturas electrónicas no se emitirán.')
+      console.warn('[Haulmer] API Key no configurada. Las facturas electrónicas no se emitirán.')
     }
   }
 
@@ -38,7 +38,7 @@ class OpenFacturaClientImpl implements OpenFacturaClient {
     params?: Record<string, any>
   ): Promise<T> {
     if (!this.apiKey) {
-      throw new Error('OpenFactura API Key no configurada')
+      throw new Error('Haulmer API Key no configurada')
     }
 
     const url = new URL(`${this.baseUrl}${endpoint}`)
@@ -52,8 +52,8 @@ class OpenFacturaClientImpl implements OpenFacturaClient {
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.apiKey}`,
-      'X-API-Key': this.apiKey, // Algunas APIs usan este header
+      'X-API-Key': this.apiKey, // Haulmer usa X-API-Key para autenticación
+      'Accept': 'application/json',
     }
 
     const config: RequestInit = {
@@ -80,7 +80,7 @@ class OpenFacturaClientImpl implements OpenFacturaClient {
       const result = await response.json()
       return result as T
     } catch (error: any) {
-      console.error('[OpenFactura] Error en request:', {
+      console.error('[Haulmer] Error en request:', {
         method,
         endpoint,
         error: error.message,

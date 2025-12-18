@@ -2,16 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardBody, Button, Form, InputGroup, Alert, Badge, Spinner, Row, Col } from 'react-bootstrap'
-import { LuSearch, LuPlus, LuMinus, LuTrash2, LuShoppingCart, LuCheck, LuX, LuBarcode, LuDollarSign, LuMaximize, LuMinimize } from 'react-icons/lu'
+import { useRef } from 'react'
+import { LuSearch, LuPlus, LuMinus, LuTrash2, LuShoppingCart, LuCheck, LuX, LuBarcode, LuDollarSign, LuMaximize, LuMinimize, LuHistory } from 'react-icons/lu'
 import Image from 'next/image'
 import type { WooCommerceProduct } from '@/lib/woocommerce/types'
 import { usePosCart } from '../hooks/usePosCart'
 import { usePosProducts } from '../hooks/usePosProducts'
 import { usePosOrders, type PaymentMethod } from '../hooks/usePosOrders'
+import { usePosToast } from '../hooks/usePosToast'
 import PaymentModal from './PaymentModal'
 import CustomerSelector from './CustomerSelector'
 import DiscountInput from './DiscountInput'
 import CashRegister from './CashRegister'
+import RecentOrders from './RecentOrders'
+import QuickStats from './QuickStats'
 import { formatCurrencyNumber } from '../utils/calculations'
 import { printReceipt, type ReceiptData } from '../utils/receipt'
 import { isValidBarcode, normalizeBarcode } from '../utils/barcode'
@@ -23,9 +27,10 @@ interface PosInterfaceProps {}
 interface ProductCardProps {
   product: WooCommerceProduct
   onAddToCart: (product: WooCommerceProduct) => void
+  onAddSuccess?: (productName: string) => void
 }
 
-const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
+const ProductCard = ({ product, onAddToCart, onAddSuccess }: ProductCardProps) => {
   const [imageError, setImageError] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   
@@ -37,16 +42,29 @@ const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
 
   const handleClick = () => {
     if (inStock) {
+      // Verificar stock antes de agregar
+      if (stockQuantity !== null && stockQuantity <= 0) {
+        return
+      }
       onAddToCart(product)
+      onAddSuccess?.(product.name)
+      
+      // Mostrar advertencia si es el último producto
+      if (stockQuantity !== null && stockQuantity === 1) {
+        // La advertencia se mostrará a través del toast
+      }
     }
   }
 
   const getStockBadgeVariant = () => {
     if (stockQuantity === null) return 'secondary'
     if (stockQuantity > 10) return 'success'
+    if (stockQuantity > 5) return 'warning'
     if (stockQuantity > 0) return 'warning'
     return 'danger'
   }
+
+  const isLowStock = stockQuantity !== null && stockQuantity <= 5 && stockQuantity > 0
 
   return (
     <Card
@@ -150,7 +168,13 @@ const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
           {stockQuantity !== null && (
             <Badge bg={getStockBadgeVariant()} className="ms-2">
               {stockQuantity} u.
+              {isLowStock && <span className="ms-1">⚠</span>}
             </Badge>
+          )}
+          {isLowStock && (
+            <div className="mt-1">
+              <small className="text-warning fw-bold">⚠ Stock bajo</small>
+            </div>
           )}
         </div>
       </CardBody>
@@ -166,10 +190,38 @@ interface CartItemRowProps {
 }
 
 const CartItemRow = ({ item, onUpdateQuantity, onRemove }: CartItemRowProps) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState(item.quantity.toString())
+  const inputRef = useRef<HTMLInputElement>(null)
   const price = parseFloat(item.product.price) || 0
   const imageUrl = item.product.images && item.product.images.length > 0 
     ? item.product.images[0].src 
     : null
+  const stockQuantity = item.product.stock_quantity
+
+  const handleQuantityClick = () => {
+    setIsEditing(true)
+    setEditValue(item.quantity.toString())
+    setTimeout(() => inputRef.current?.select(), 10)
+  }
+
+  const handleQuantityBlur = () => {
+    const newQuantity = parseInt(editValue) || 1
+    const finalQuantity = Math.max(1, Math.min(newQuantity, stockQuantity !== null ? stockQuantity : 9999))
+    if (finalQuantity !== item.quantity) {
+      onUpdateQuantity(item.product.id, finalQuantity)
+    }
+    setIsEditing(false)
+  }
+
+  const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleQuantityBlur()
+    } else if (e.key === 'Escape') {
+      setEditValue(item.quantity.toString())
+      setIsEditing(false)
+    }
+  }
 
   return (
     <div className="cart-item border-bottom pb-3 mb-3">
@@ -199,32 +251,65 @@ const CartItemRow = ({ item, onUpdateQuantity, onRemove }: CartItemRowProps) => 
               size="sm"
               onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
               className="p-1"
-              style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <LuMinus size={14} />
+              <LuMinus size={16} />
             </Button>
-            <span className="fw-bold" style={{ minWidth: '30px', textAlign: 'center' }}>
-              {item.quantity}
-            </span>
+            {isEditing ? (
+              <Form.Control
+                ref={inputRef}
+                type="number"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleQuantityBlur}
+                onKeyDown={handleQuantityKeyPress}
+                min="1"
+                max={stockQuantity !== null ? stockQuantity : undefined}
+                className="text-center fw-bold"
+                style={{ width: '60px', height: '32px', padding: '4px' }}
+                autoFocus
+              />
+            ) : (
+              <span 
+                className="fw-bold border rounded px-2 py-1" 
+                style={{ 
+                  minWidth: '50px', 
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  backgroundColor: '#f8f9fa'
+                }}
+                onClick={handleQuantityClick}
+                title="Click para editar cantidad"
+              >
+                {item.quantity}
+              </span>
+            )}
             <Button
               variant="outline-secondary"
               size="sm"
               onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+              disabled={stockQuantity !== null && item.quantity >= stockQuantity}
               className="p-1"
-              style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <LuPlus size={14} />
+              <LuPlus size={16} />
             </Button>
             <Button
               variant="outline-danger"
               size="sm"
               onClick={() => onRemove(item.product.id)}
               className="ms-auto p-1"
-              style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <LuTrash2 size={14} />
+              <LuTrash2 size={16} />
             </Button>
           </div>
+          {stockQuantity !== null && item.quantity >= stockQuantity && (
+            <small className="text-warning d-block mt-1">
+              Stock máximo alcanzado
+            </small>
+          )}
         </div>
         
         <div className="text-end" style={{ minWidth: '80px' }}>
@@ -241,28 +326,95 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showCashRegister, setShowCashRegister] = useState(false)
+  const [showRecentOrders, setShowRecentOrders] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [barcodeInput, setBarcodeInput] = useState('')
   const barcodeInputRef = useRef<HTMLInputElement>(null)
+  const [searchHistory, setSearchHistory] = useState<string[]>([])
+  const [lastInvoiceStatus, setLastInvoiceStatus] = useState<{
+    orderId: number
+    success: boolean
+    folio?: number
+    pdfUrl?: string
+    error?: string
+  } | null>(null)
 
   // Hooks personalizados
   const { cart, addToCart, updateQuantity, removeFromCart, clearCart, totals } = usePosCart(discount)
   const { products, loading, error, searchTerm, setSearchTerm, searchByBarcode, reloadProducts } = usePosProducts()
   const { processing, error: orderError, success, orderId, processOrder, clearError, clearSuccess } = usePosOrders()
+  const { showSuccess, showError, showWarning, showInfo, ToastComponent } = usePosToast()
+
+  // Cargar historial de búsquedas desde localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('pos_search_history')
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved))
+      } catch {
+        setSearchHistory([])
+      }
+    }
+  }, [])
+
+  // Guardar búsquedas en historial
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    if (value.trim().length >= 2) {
+      const newHistory = [value.trim(), ...searchHistory.filter(h => h !== value.trim())].slice(0, 10)
+      setSearchHistory(newHistory)
+      localStorage.setItem('pos_search_history', JSON.stringify(newHistory))
+    }
+  }
 
   // Atajos de teclado
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      // No procesar atajos si estamos en un input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
       // Ctrl+F: Focus en búsqueda
       if (e.ctrlKey && e.key === 'f') {
         e.preventDefault()
         barcodeInputRef.current?.focus()
       }
       
-      // Esc: Limpiar búsqueda
+      // Ctrl+N: Nueva venta (limpiar carrito)
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault()
+        if (cart.length > 0 && confirm('¿Limpiar carrito y empezar nueva venta?')) {
+          clearCart()
+          setDiscount(null)
+          setSelectedCustomer(null)
+          showInfo('Nueva venta iniciada')
+        }
+      }
+      
+      // Ctrl+P: Procesar pedido
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault()
+        if (cart.length > 0 && totals.total > 0) {
+          setShowPaymentModal(true)
+        } else {
+          showWarning('El carrito está vacío')
+        }
+      }
+      
+      // Esc: Limpiar búsqueda o cerrar modales
       if (e.key === 'Escape') {
-        setSearchTerm('')
-        setBarcodeInput('')
+        if (showPaymentModal) {
+          setShowPaymentModal(false)
+        } else if (showCashRegister) {
+          setShowCashRegister(false)
+        } else if (showRecentOrders) {
+          setShowRecentOrders(false)
+        } else {
+          setSearchTerm('')
+          setBarcodeInput('')
+        }
       }
       
       // Enter en búsqueda: buscar
@@ -273,7 +425,7 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [searchTerm, barcodeInput])
+  }, [searchTerm, barcodeInput, cart.length, totals.total, showPaymentModal, showCashRegister, showRecentOrders, clearCart])
 
   // Manejar búsqueda por código de barras
   const handleBarcodeSearch = async () => {
@@ -289,6 +441,9 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
     if (product) {
       addToCart(product)
       setBarcodeInput('')
+      showSuccess(`${product.name} agregado al carrito`)
+    } else {
+      showWarning('Producto no encontrado')
     }
   }
 
@@ -315,7 +470,7 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
     )
 
     if (order) {
-      // Emitir factura electrónica a través de OpenFactura y guardar en WooCommerce
+      // Emitir factura electrónica a través de Haulmer y guardar en WooCommerce
       try {
         // Obtener datos completos del cliente para billing y shipping
         const customerRut = selectedCustomer?.billing?.rut || 
@@ -361,7 +516,8 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
         const facturaResult = await facturaResponse.json()
         
         if (facturaResult.success && facturaResult.data?.pdf_url) {
-          console.log('[POS] Factura electrónica emitida:', facturaResult.data)
+          console.log('[POS] Factura electrónica emitida (Haulmer):', facturaResult.data)
+          showSuccess(`Factura electrónica emitida (Folio: ${facturaResult.data.folio || 'N/A'})`, 'Factura Emitida')
           
           // Guardar el PDF en WordPress y actualizar el pedido
           try {
@@ -386,9 +542,11 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
               console.log('[POS] PDF de factura guardado en WordPress:', guardarPdfResult.data)
             } else {
               console.warn('[POS] Error al guardar PDF:', guardarPdfResult.error)
+              showWarning('Factura emitida pero hubo un problema al guardar el PDF')
             }
           } catch (pdfError: any) {
             console.error('[POS] Error al guardar PDF de factura:', pdfError)
+            showWarning('Factura emitida pero hubo un problema al guardar el PDF')
           }
 
           // Los datos de billing y shipping ya se guardaron correctamente al crear el pedido
@@ -396,10 +554,12 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
           console.log('[POS] Datos de dirección ya guardados en el pedido')
         } else {
           console.warn('[POS] Error al emitir factura electrónica:', facturaResult.error)
+          showWarning(`No se pudo emitir la factura: ${facturaResult.error || 'Error desconocido'}`)
           // No bloqueamos la venta si falla la factura electrónica
         }
       } catch (error: any) {
         console.error('[POS] Error al emitir factura electrónica:', error)
+        showWarning('Error al emitir factura electrónica. La venta se completó correctamente.')
         // No bloqueamos la venta si falla la factura electrónica
       }
 
@@ -430,11 +590,20 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
 
       printReceipt(receiptData)
       
-      // Limpiar carrito y recargar productos
-      clearCart()
-      setDiscount(null)
-      setSelectedCustomer(null)
-      reloadProducts()
+      // Mostrar éxito
+      showSuccess(`Pedido #${order.id} procesado exitosamente`, 'Venta Completada')
+      
+      // Limpiar carrito y recargar productos después de un delay para que se vea el mensaje
+      setTimeout(() => {
+        clearCart()
+        setDiscount(null)
+        setSelectedCustomer(null)
+        setLastInvoiceStatus(null)
+        reloadProducts()
+      }, 5000) // Limpiar después de 5 segundos
+    } else {
+      showError('Error al procesar el pedido. Por favor, intente nuevamente.')
+      setLastInvoiceStatus(null)
     }
 
     setShowPaymentModal(false)
@@ -453,6 +622,7 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
 
   return (
     <div className="pos-interface">
+      <ToastComponent />
       <style jsx global>{`
         .pos-interface .product-card {
           transition: all 0.2s ease-in-out;
@@ -477,6 +647,9 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
       {/* Header con controles */}
       <Card className="mb-3">
         <CardBody>
+          <div className="mb-3">
+            <QuickStats />
+          </div>
           <Row className="g-3 align-items-center">
             <Col md={4}>
               <CustomerSelector
@@ -505,6 +678,14 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
               </InputGroup>
             </Col>
             <Col md={4} className="d-flex gap-2">
+              <Button
+                variant="outline-info"
+                onClick={() => setShowRecentOrders(true)}
+                title="Ver pedidos recientes"
+              >
+                <LuHistory className="me-1" />
+                Historial
+              </Button>
               <Button
                 variant="outline-primary"
                 onClick={() => setShowCashRegister(true)}
@@ -536,26 +717,53 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
               </div>
 
               {/* Búsqueda */}
-              <InputGroup className="mb-4">
-                <InputGroup.Text>
-                  <LuSearch />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="Buscar productos por nombre, SKU o categoría..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="fs-6"
-                />
-                {searchTerm && (
-                  <Button
-                    variant="outline-secondary"
-                    onClick={() => setSearchTerm('')}
-                  >
-                    <LuX />
-                  </Button>
+              <div className="mb-4">
+                <InputGroup>
+                  <InputGroup.Text>
+                    <LuSearch />
+                  </InputGroup.Text>
+                  <Form.Control
+                    type="text"
+                    placeholder="Buscar productos por nombre, SKU o categoría..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="fs-6"
+                    onFocus={() => {
+                      // Mostrar historial cuando se enfoca
+                    }}
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setSearchTerm('')
+                        handleSearchChange('')
+                      }}
+                    >
+                      <LuX />
+                    </Button>
+                  )}
+                </InputGroup>
+                
+                {/* Historial de búsquedas */}
+                {!searchTerm && searchHistory.length > 0 && (
+                  <div className="mt-2">
+                    <small className="text-muted">Búsquedas recientes:</small>
+                    <div className="d-flex flex-wrap gap-1 mt-1">
+                      {searchHistory.slice(0, 5).map((term, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => handleSearchChange(term)}
+                        >
+                          {term}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </InputGroup>
+              </div>
 
               {/* Mensajes */}
               {error && (
@@ -582,11 +790,39 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
 
               {success && (
                 <Alert variant="success" className="mb-3">
-                  <LuCheck className="me-2" />
-                  <strong>Pedido procesado exitosamente</strong>
-                  {orderId && (
-                    <span className="ms-2">(ID: #{orderId})</span>
-                  )}
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <LuCheck className="me-2" />
+                      <strong>Pedido procesado exitosamente</strong>
+                      {orderId && (
+                        <span className="ms-2">(ID: #{orderId})</span>
+                      )}
+                    </div>
+                    {lastInvoiceStatus && lastInvoiceStatus.orderId === orderId && (
+                      <div className="d-flex gap-2 align-items-center">
+                        {lastInvoiceStatus.success ? (
+                          <>
+                            <Badge bg="success">
+                              ✓ Factura: {lastInvoiceStatus.folio || 'Emitida'}
+                            </Badge>
+                            {lastInvoiceStatus.pdfUrl && (
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => window.open(`/tienda/facturas/${orderId}`, '_blank')}
+                              >
+                                Ver Factura
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <Badge bg="warning">
+                            ⚠ Factura no emitida
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Alert>
               )}
 
@@ -613,7 +849,11 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
                 >
                   {products.map((product) => (
                     <Col key={product.id} md={4} sm={6} xs={12}>
-                      <ProductCard product={product} onAddToCart={addToCart} />
+                      <ProductCard 
+                        product={product} 
+                        onAddToCart={addToCart}
+                        onAddSuccess={(name) => showSuccess(`${name} agregado al carrito`)}
+                      />
                     </Col>
                   ))}
                 </div>
@@ -749,6 +989,11 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
       <CashRegister
         show={showCashRegister}
         onClose={() => setShowCashRegister(false)}
+      />
+
+      <RecentOrders
+        show={showRecentOrders}
+        onClose={() => setShowRecentOrders(false)}
       />
     </div>
   )

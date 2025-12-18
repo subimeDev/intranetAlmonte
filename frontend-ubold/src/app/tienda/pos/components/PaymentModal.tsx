@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Modal, Button, Form, InputGroup, Row, Col, Alert, Badge } from 'react-bootstrap'
-import { LuDollarSign, LuCreditCard, LuArrowRightLeft, LuX } from 'react-icons/lu'
+import { LuDollarSign, LuCreditCard, LuArrowRightLeft, LuX, LuCheck } from 'react-icons/lu'
 import type { PaymentMethod } from '../hooks/usePosOrders'
 import { calculateChange, formatCurrencyNumber } from '../utils/calculations'
 
@@ -18,12 +18,49 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
   const [currentPaymentType, setCurrentPaymentType] = useState<PaymentMethod['type']>('cash')
   const [currentAmount, setCurrentAmount] = useState('')
   const [reference, setReference] = useState('')
+  const amountInputRef = useRef<HTMLInputElement>(null)
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
   const remaining = total - totalPaid
-  const change = currentPaymentType === 'cash' && parseFloat(currentAmount) > remaining
-    ? calculateChange(remaining, parseFloat(currentAmount))
+  const currentAmountNum = parseFloat(currentAmount) || 0
+  const change = currentPaymentType === 'cash' && currentAmountNum > remaining && remaining > 0
+    ? calculateChange(remaining, currentAmountNum)
     : 0
+
+  // Atajos de teclado
+  useEffect(() => {
+    if (!show) return
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Esc: Cancelar
+      if (e.key === 'Escape') {
+        onCancel()
+        return
+      }
+
+      // Enter: Confirmar si el pago está completo, o agregar pago si hay monto
+      if (e.key === 'Enter' && document.activeElement === amountInputRef.current) {
+        e.preventDefault()
+        if (remaining <= 0 && payments.length > 0) {
+          handleComplete()
+        } else if (currentAmountNum > 0) {
+          handleAddPayment()
+        }
+        return
+      }
+
+      // Números 1-9: Montos rápidos (multiplicar por 1000)
+      if (e.key >= '1' && e.key <= '9' && currentPaymentType === 'cash' && document.activeElement === amountInputRef.current) {
+        const quickAmount = parseInt(e.key) * 1000
+        if (quickAmount <= remaining * 10) { // Solo si es razonable
+          setCurrentAmount(quickAmount.toString())
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [show, remaining, payments.length, currentAmountNum, currentPaymentType])
 
   useEffect(() => {
     if (show) {
@@ -31,6 +68,10 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
       setCurrentAmount('')
       setReference('')
       setCurrentPaymentType('cash')
+      // Focus en el input después de un pequeño delay
+      setTimeout(() => {
+        amountInputRef.current?.focus()
+      }, 100)
     }
   }, [show])
 
@@ -68,6 +109,24 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
   const handleQuickCash = (amount: number) => {
     if (remaining > 0) {
       setPayments([...payments, { type: 'cash', amount: Math.min(amount, remaining) }])
+      setCurrentAmount('')
+    }
+  }
+
+  // Pago exacto (sin cambio)
+  const handleExactPayment = () => {
+    if (remaining > 0) {
+      setPayments([...payments, { type: 'cash', amount: remaining }])
+      setCurrentAmount('')
+    }
+  }
+
+  // Auto-completar con total al seleccionar efectivo
+  const handleSelectCash = () => {
+    setCurrentPaymentType('cash')
+    if (remaining > 0) {
+      setCurrentAmount(remaining.toString())
+      setTimeout(() => amountInputRef.current?.select(), 50)
     }
   }
 
@@ -138,7 +197,7 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
                 <Button
                   variant={currentPaymentType === 'cash' ? 'success' : 'outline-success'}
                   className="w-100"
-                  onClick={() => setCurrentPaymentType('cash')}
+                  onClick={handleSelectCash}
                 >
                   <LuDollarSign className="me-1" />
                   Efectivo
@@ -148,7 +207,10 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
                 <Button
                   variant={currentPaymentType === 'card' ? 'primary' : 'outline-primary'}
                   className="w-100"
-                  onClick={() => setCurrentPaymentType('card')}
+                  onClick={() => {
+                    setCurrentPaymentType('card')
+                    setCurrentAmount('')
+                  }}
                 >
                   <LuCreditCard className="me-1" />
                   Tarjeta
@@ -158,7 +220,10 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
                 <Button
                   variant={currentPaymentType === 'transfer' ? 'info' : 'outline-info'}
                   className="w-100"
-                  onClick={() => setCurrentPaymentType('transfer')}
+                  onClick={() => {
+                    setCurrentPaymentType('transfer')
+                    setCurrentAmount('')
+                  }}
                 >
                   <LuArrowRightLeft className="me-1" />
                   Transferencia
@@ -169,6 +234,7 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
             <InputGroup className="mb-2">
               <InputGroup.Text>$</InputGroup.Text>
               <Form.Control
+                ref={amountInputRef}
                 type="number"
                 placeholder="Monto"
                 value={currentAmount}
@@ -176,12 +242,21 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    handleAddPayment()
+                    if (remaining <= 0 && payments.length > 0) {
+                      handleComplete()
+                    } else {
+                      handleAddPayment()
+                    }
                   }
                 }}
-                autoFocus
+                step="100"
+                min="0"
               />
-              <Button variant="primary" onClick={handleAddPayment}>
+              <Button 
+                variant="primary" 
+                onClick={handleAddPayment}
+                disabled={!currentAmountNum || currentAmountNum <= 0}
+              >
                 Agregar
               </Button>
             </InputGroup>
@@ -198,8 +273,19 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
 
             {currentPaymentType === 'cash' && (
               <div className="mt-2">
-                <small className="text-muted">Efectivo rápido:</small>
-                <div className="d-flex gap-2 mt-1">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <small className="text-muted">Efectivo rápido:</small>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={handleExactPayment}
+                    disabled={remaining <= 0}
+                  >
+                    <LuCheck className="me-1" />
+                    Pago Exacto (${formatCurrencyNumber(remaining)})
+                  </Button>
+                </div>
+                <div className="d-flex gap-2 flex-wrap">
                   {[remaining, remaining * 1.1, remaining * 1.2, remaining * 1.5].map((amount) => (
                     <Button
                       key={amount}
@@ -211,12 +297,29 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
                     </Button>
                   ))}
                 </div>
+                <div className="mt-2">
+                  <small className="text-muted">
+                    <strong>Atajos:</strong> Presiona 1-9 para montos rápidos (ej: 1 = $1.000)
+                  </small>
+                </div>
               </div>
             )}
 
             {change > 0 && (
               <Alert variant="info" className="mt-2 mb-0">
-                <strong>Cambio:</strong> ${formatCurrencyNumber(change)}
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>Cambio a entregar:</strong>
+                    <div className="h4 mb-0 mt-1">${formatCurrencyNumber(change)}</div>
+                  </div>
+                  <LuDollarSign size={32} className="text-success" />
+                </div>
+              </Alert>
+            )}
+
+            {currentAmountNum > 0 && currentPaymentType === 'cash' && currentAmountNum < remaining && (
+              <Alert variant="warning" className="mt-2 mb-0">
+                <small>El monto ingresado es menor al pendiente. Se usará el monto pendiente (${formatCurrencyNumber(remaining)})</small>
               </Alert>
             )}
           </div>
@@ -224,20 +327,28 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
 
         {remaining <= 0 && (
           <Alert variant="success" className="mb-0">
-            <strong>✓ Pago completo</strong>
+            <div className="d-flex align-items-center">
+              <LuCheck className="me-2" size={20} />
+              <div>
+                <strong>✓ Pago completo</strong>
+                <div className="small">Presiona Enter o haz clic en "Confirmar Pago"</div>
+              </div>
+            </div>
           </Alert>
         )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancelar
+          Cancelar (Esc)
         </Button>
         <Button
           variant="primary"
           onClick={handleComplete}
           disabled={remaining > 0 || payments.length === 0}
+          size="lg"
         >
-          Confirmar Pago
+          <LuCheck className="me-2" />
+          Confirmar Pago (Enter)
         </Button>
       </Modal.Footer>
     </Modal>
