@@ -245,7 +245,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
       ),
     }),
     columnHelper.accessor('description', {
-      header: 'Description',
+      header: 'Descripción',
       cell: ({ row }) => (
         <p className="text-muted mb-0 small">
           {row.original.description || 'Sin descripción'}
@@ -253,24 +253,24 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
       ),
     }),
     columnHelper.accessor('products', {
-      header: 'Products',
+      header: 'Productos',
       cell: ({ row }) => (
         <span className="badge badge-soft-info">{row.original.products}</span>
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: 'Estado',
       filterFn: 'equalsString',
       enableColumnFilter: true,
       cell: ({ row }) => (
         <span
           className={`badge ${row.original.status === 'active' ? 'badge-soft-success' : 'badge-soft-danger'} fs-xxs`}>
-          {toPascalCase(row.original.status)}
+          {row.original.status === 'active' ? 'Activo' : 'Inactivo'}
         </span>
       ),
     }),
     columnHelper.accessor('date', {
-      header: 'Date',
+      header: 'Fecha',
       cell: ({ row }) => (
         <>
           {row.original.date} <small className="text-muted">{row.original.time}</small>
@@ -278,7 +278,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
       ),
     }),
     {
-      header: 'Actions',
+      header: 'Acciones',
       cell: ({ row }: { row: TableRow<CategoryType> }) => (
         <div className="d-flex gap-1">
           <Link href={row.original.url}>
@@ -431,7 +431,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Search category name..."
+                  placeholder="Buscar nombre de categoría..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
@@ -440,22 +440,22 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
 
               {Object.keys(selectedRowIds).length > 0 && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
-                  Delete
+                  Eliminar
                 </Button>
               )}
             </div>
 
             <div className="d-flex align-items-center gap-2">
-              <span className="me-2 fw-semibold">Filter By:</span>
+              <span className="me-2 fw-semibold">Filtrar por:</span>
 
               <div className="app-search">
                 <select
                   className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('status')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('status')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="All">Estado</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
                 </select>
                 <LuBox className="app-search-icon text-muted" />
               </div>
@@ -485,13 +485,13 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
               </Button>
               <Link href="/products/categorias/agregar" passHref>
                 <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Add Category
+                  <TbPlus className="fs-sm me-2" /> Agregar Categoría
                 </Button>
               </Link>
             </div>
           </CardHeader>
 
-          <DataTable<CategoryType> table={table} emptyMessage="No records found" />
+          <DataTable<CategoryType> table={table} emptyMessage="No se encontraron registros" />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
@@ -499,7 +499,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
                 totalItems={totalItems}
                 start={start}
                 end={end}
-                itemsName="categories"
+                itemsName="categorías"
                 showInfo
                 previousPage={table.previousPage}
                 canPreviousPage={table.getCanPreviousPage()}

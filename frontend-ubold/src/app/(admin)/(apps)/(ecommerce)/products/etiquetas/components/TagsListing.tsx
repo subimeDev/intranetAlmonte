@@ -148,7 +148,7 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
       },
     }),
     columnHelper.accessor('description', {
-      header: 'Description',
+      header: 'Descripción',
       cell: ({ row }) => (
         <p className="text-muted mb-0 small">
           {row.original.description || 'Sin descripción'}
@@ -156,24 +156,24 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
       ),
     }),
     columnHelper.accessor('products', {
-      header: 'Products',
+      header: 'Productos',
       cell: ({ row }) => (
         <span className="badge badge-soft-info">{row.original.products}</span>
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: 'Estado',
       filterFn: 'equalsString',
       enableColumnFilter: true,
       cell: ({ row }) => (
         <span
           className={`badge ${row.original.status === 'active' ? 'badge-soft-success' : 'badge-soft-danger'} fs-xxs`}>
-          {row.original.status === 'active' ? 'Active' : 'Inactive'}
+          {row.original.status === 'active' ? 'Activo' : 'Inactivo'}
         </span>
       ),
     }),
     columnHelper.accessor('date', {
-      header: 'Date',
+      header: 'Fecha',
       cell: ({ row }) => (
         <>
           {row.original.date} <small className="text-muted">{row.original.time}</small>
@@ -181,7 +181,7 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
       ),
     }),
     {
-      header: 'Actions',
+      header: 'Acciones',
       cell: ({ row }: { row: TableRow<TagType> }) => (
         <div className="d-flex gap-1">
           <Link href={`/products/etiquetas/${row.original.id}`}>
@@ -328,7 +328,7 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Search tag name..."
+                  placeholder="Buscar nombre de etiqueta..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
@@ -337,22 +337,22 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
 
               {Object.keys(selectedRowIds).length > 0 && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
-                  Delete
+                  Eliminar
                 </Button>
               )}
             </div>
 
             <div className="d-flex align-items-center gap-2">
-              <span className="me-2 fw-semibold">Filter By:</span>
+              <span className="me-2 fw-semibold">Filtrar por:</span>
 
               <div className="app-search">
                 <select
                   className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('status')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('status')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="All">Estado</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
                 </select>
                 <LuBox className="app-search-icon text-muted" />
               </div>
@@ -382,13 +382,13 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
               </Button>
               <Link href="/products/etiquetas/agregar" passHref>
                 <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Add Tag
+                  <TbPlus className="fs-sm me-2" /> Agregar Etiqueta
                 </Button>
               </Link>
             </div>
           </CardHeader>
 
-          <DataTable<TagType> table={table} emptyMessage="No records found" />
+          <DataTable<TagType> table={table} emptyMessage="No se encontraron registros" />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
@@ -396,7 +396,7 @@ const TagsListing = ({ etiquetas, error }: TagsListingProps = {}) => {
                 totalItems={totalItems}
                 start={start}
                 end={end}
-                itemsName="tags"
+                itemsName="etiquetas"
                 showInfo
                 previousPage={table.previousPage}
                 canPreviousPage={table.getCanPreviousPage()}

@@ -1,8 +1,6 @@
 'use client'
 import Logo from '@/components/Logo'
 import { useLayoutContext } from '@/context/useLayoutContext'
-import MegaMenu from '@/layouts/components/topbar/components/MegaMenu'
-import ThemeToggler from '@/layouts/components/topbar/components/ThemeToggler'
 import UserProfile from '@/layouts/components/topbar/components/UserProfile'
 import { Container } from 'react-bootstrap'
 import { TbMenu4 } from 'react-icons/tb'
@@ -55,14 +53,10 @@ const Topbar = () => {
           <button onClick={toggleSideNav} className="sidenav-toggle-button btn btn-default btn-icon">
             <TbMenu4 className="fs-22" />
           </button>
-
-          <MegaMenu />
         </div>
 
         <div className="d-flex align-items-center gap-2">
           <ApplicationMenu />
-
-          <ThemeToggler />
 
           <FullscreenToggle />
 

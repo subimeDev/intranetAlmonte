@@ -245,13 +245,13 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
     }),
     columnHelper.accessor('code', { header: 'SKU' }),
     columnHelper.accessor('category', {
-      header: 'Category',
+      header: 'Categoría',
       filterFn: 'equalsString',
       enableColumnFilter: true,
     }),
     columnHelper.accessor('stock', { header: 'Stock' }),
     columnHelper.accessor('price', {
-      header: 'Price',
+      header: 'Precio',
       filterFn: priceRangeFilterFn,
       enableColumnFilter: true,
       cell: ({ row }) => (
@@ -261,9 +261,9 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
         </>
       ),
     }),
-    columnHelper.accessor('sold', { header: 'Sold' }),
+    columnHelper.accessor('sold', { header: 'Vendidos' }),
     columnHelper.accessor('rating', {
-      header: 'Rating',
+      header: 'Calificación',
       cell: ({ row }) => (
         <>
           <Rating rating={row.original.rating} />
@@ -276,18 +276,22 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: 'Estado',
       filterFn: 'equalsString',
       enableColumnFilter: true,
-      cell: ({ row }) => (
-        <span
-          className={`badge ${row.original.status === 'published' ? 'badge-soft-success' : row.original.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-danger'} fs-xxs`}>
-          {toPascalCase(row.original.status)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const statusText = row.original.status === 'published' ? 'Publicado' : 
+                          row.original.status === 'pending' ? 'Pendiente' : 'Rechazado'
+        return (
+          <span
+            className={`badge ${row.original.status === 'published' ? 'badge-soft-success' : row.original.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-danger'} fs-xxs`}>
+            {statusText}
+          </span>
+        )
+      },
     }),
     columnHelper.accessor('date', {
-      header: 'Date',
+      header: 'Fecha',
       cell: ({ row }) => (
         <>
           {row.original.date} <small className="text-muted">{row.original.time}</small>
@@ -295,7 +299,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
       ),
     }),
     {
-      header: 'Actions',
+      header: 'Acciones',
       cell: ({ row }: { row: TableRow<ProductTypeExtended> }) => (
         <div className="d-flex  gap-1">
           <Link href={row.original.url}>
@@ -424,7 +428,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Search product name..."
+                  placeholder="Buscar nombre de producto..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
@@ -433,25 +437,25 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
 
               {Object.keys(selectedRowIds).length > 0 && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
-                  Delete
+                  Eliminar
                 </Button>
               )}
             </div>
 
             <div className="d-flex align-items-center gap-2">
-              <span className="me-2 fw-semibold">Filter By:</span>
+              <span className="me-2 fw-semibold">Filtrar por:</span>
 
               <div className="app-search">
                 <select
                   className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('category')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('category')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Category</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="Home">Home</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Beauty">Beauty</option>
+                  <option value="All">Categoría</option>
+                  <option value="Electronics">Electrónica</option>
+                  <option value="Fashion">Moda</option>
+                  <option value="Home">Hogar</option>
+                  <option value="Sports">Deportes</option>
+                  <option value="Beauty">Belleza</option>
                 </select>
                 <LuTag className="app-search-icon text-muted" />
               </div>
@@ -461,10 +465,10 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                   className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('status')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('status')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Status</option>
-                  <option value="published">Published</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="All">Estado</option>
+                  <option value="published">Publicado</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="rejected">Rechazado</option>
                 </select>
                 <LuBox className="app-search-icon text-muted" />
               </div>
@@ -474,7 +478,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                   className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('price')?.getFilterValue() as string) ?? ''}
                   onChange={(e) => table.getColumn('price')?.setFilterValue(e.target.value || undefined)}>
-                  <option value="">Price Range</option>
+                  <option value="">Rango de Precio</option>
                   <option value="0-50">$0 - $50</option>
                   <option value="51-150">$51 - $150</option>
                   <option value="151-500">$151 - $500</option>
@@ -508,13 +512,13 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
               </Button>
               <Link href="/add-product" passHref>
                 <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Add Product
+                  <TbPlus className="fs-sm me-2" /> Agregar Producto
                 </Button>
               </Link>
             </div>
           </CardHeader>
 
-          <DataTable<ProductTypeExtended> table={table} emptyMessage="No records found" />
+          <DataTable<ProductTypeExtended> table={table} emptyMessage="No se encontraron registros" />
 
           {table.getRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
@@ -522,7 +526,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                 totalItems={totalItems}
                 start={start}
                 end={end}
-                itemsName="products"
+                itemsName="productos"
                 showInfo
                 previousPage={table.previousPage}
                 canPreviousPage={table.getCanPreviousPage()}
