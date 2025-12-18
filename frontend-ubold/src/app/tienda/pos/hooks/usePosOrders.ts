@@ -142,7 +142,8 @@ export function usePosOrders() {
         ...(addressMetaData.length > 0 && { meta_data: addressMetaData }),
       }
 
-      const response = await fetch('/api/woocommerce/orders', {
+      // Usar el endpoint de tienda/pedidos que sincroniza con WooCommerce y Strapi
+      const response = await fetch('/api/tienda/pedidos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
