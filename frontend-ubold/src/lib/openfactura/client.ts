@@ -3,7 +3,9 @@
  * Documentación: https://espacio.haulmer.com/
  */
 
-const HAULMER_API_URL = process.env.HAULMER_API_URL || 'https://espacio.haulmer.com'
+// URL base de la API de Haulmer/OpenFactura
+// Puede ser espacio.haulmer.com (portal web) o api.haulmer.com/dev-api.haulmer.com (API)
+const HAULMER_API_URL = process.env.HAULMER_API_URL || process.env.OPENFACTURA_API_URL || 'https://dev-api.haulmer.com'
 const HAULMER_API_KEY = process.env.HAULMER_API_KEY || process.env.OPENFACTURA_API_KEY || ''
 
 interface OpenFacturaResponse<T = any> {

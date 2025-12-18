@@ -187,16 +187,17 @@ export async function POST(request: NextRequest) {
     let lastError: any = null
     
     // Lista de endpoints posibles a probar
-    // Nota: Haulmer puede usar OpenFactura como servicio, verificar documentación oficial
+    // Según documentación de OpenFactura: https://dev-api.haulmer.com/v2/dte/document
     const possibleEndpoints = [
+      '/v2/dte/document', // Endpoint oficial de OpenFactura según documentación
+      '/v1/dte/document',
+      '/api/v2/dte/document',
+      '/api/v1/dte/document',
       '/api/dte/emitir',
       '/api/v1/dte/emitir',
       '/dte/emitir',
       '/api/documentos/emitir',
       '/api/emitir',
-      '/openfactura/api/dte/emitir',
-      '/openfactura/dte/emitir',
-      '/v1/dte/emitir',
     ]
     
     for (const endpoint of possibleEndpoints) {

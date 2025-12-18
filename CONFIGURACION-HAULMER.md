@@ -12,9 +12,14 @@ OPENFACTURA_API_KEY=be794bb58cc048548e3483daa42995ef
 ```
 
 ### URL Base de la API (Opcional)
-Por defecto usa: `https://espacio.haulmer.com`
+Por defecto usa: `https://dev-api.haulmer.com` (API de OpenFactura)
+También puedes usar: `https://api.haulmer.com` o `https://espacio.haulmer.com`
 ```
-HAULMER_API_URL=https://espacio.haulmer.com
+HAULMER_API_URL=https://dev-api.haulmer.com
+```
+O también:
+```
+OPENFACTURA_API_URL=https://dev-api.haulmer.com
 ```
 
 ### Datos del Emisor (Requeridos)
@@ -76,10 +81,12 @@ Los precios se convierten automáticamente a centavos (sin decimales) como requi
    - Ve a Configuración → API
    - Revisa la documentación de endpoints disponible
 
-2. **Endpoints comunes (pueden variar):**
-   - `POST /api/dte/emitir` - Emitir un documento tributario electrónico
-   - `POST /api/v1/dte/emitir` - Versión alternativa
-   - `GET /api/dte/consultar` - Consultar estado de un documento
+2. **Endpoints oficiales de OpenFactura:**
+   - `POST /v2/dte/document` - Emitir un documento tributario electrónico (endpoint principal)
+   - `POST /v1/dte/document` - Versión alternativa
+   - `GET /v2/dte/document/{id}` - Consultar estado de un documento
+   
+   **URL Base:** `https://dev-api.haulmer.com` o `https://api.haulmer.com`
 
 3. **Si usas OpenFactura (servicio de Haulmer):**
    - El endpoint puede ser diferente
