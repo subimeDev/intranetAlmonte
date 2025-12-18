@@ -5,7 +5,10 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ToastContainer, Toast } from 'react-bootstrap'
+import ToastContainer from 'react-bootstrap/ToastContainer'
+import Toast from 'react-bootstrap/Toast'
+import ToastHeader from 'react-bootstrap/ToastHeader'
+import ToastBody from 'react-bootstrap/ToastBody'
 
 export type ToastVariant = 'success' | 'danger' | 'warning' | 'info' | 'primary'
 
@@ -58,23 +61,25 @@ export function usePosToast() {
     showToast(message, 'info', title)
   }, [showToast])
 
-  const ToastComponent = () => (
-    <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999 }}>
-      <Toast
-        onClose={hideToast}
-        show={toast.show}
-        delay={3000}
-        autohide
-        bg={toast.variant}
-        className="text-white"
-      >
-        <Toast.Header className={`bg-${toast.variant} text-white`}>
-          <strong className="me-auto">{toast.title}</strong>
-        </Toast.Header>
-        <Toast.Body>{toast.message}</Toast.Body>
-      </Toast>
-    </ToastContainer>
-  )
+  const ToastComponent = () => {
+    return (
+      <ToastContainer className="p-3 position-fixed" position="top-end" style={{ zIndex: 9999 }}>
+        <Toast
+          onClose={hideToast}
+          show={toast.show}
+          delay={3000}
+          autohide
+          bg={toast.variant}
+          className="text-white"
+        >
+          <ToastHeader className={`bg-${toast.variant} text-white`}>
+            <strong className="me-auto">{toast.title}</strong>
+          </ToastHeader>
+          <ToastBody>{toast.message}</ToastBody>
+        </Toast>
+      </ToastContainer>
+    )
+  }
 
   return {
     showToast,
