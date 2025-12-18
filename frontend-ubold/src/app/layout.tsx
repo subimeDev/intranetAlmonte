@@ -36,10 +36,12 @@ export const metadata: Metadata = {
         template: '%s | ' + appTitle,
     },
     description: appDescription,
+    // Next.js 16 detecta automáticamente icon.svg o favicon.ico en app/
+    // pero también podemos especificarlo explícitamente
     icons: {
-        icon: '/favicon.ico',
-        shortcut: '/favicon.ico',
-        apple: '/favicon.ico',
+        icon: '/icon.svg',
+        shortcut: '/icon.svg',
+        apple: '/icon.svg',
     },
 }
 
