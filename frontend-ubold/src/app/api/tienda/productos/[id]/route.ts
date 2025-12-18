@@ -276,13 +276,39 @@ export async function PUT(
     // Preparar actualización
     const updateData: any = { data: {} }
     
-    if (body.nombre_libro !== undefined) updateData.data.nombre_libro = body.nombre_libro
+    // Nombre del libro
+    if (body.nombre_libro !== undefined) {
+      updateData.data.nombre_libro = body.nombre_libro
+      updateData.data.NOMBRE_LIBRO = body.nombre_libro
+    }
+    
+    // ISBN
+    if (body.isbn_libro !== undefined) {
+      updateData.data.isbn_libro = body.isbn_libro
+      updateData.data.ISBN_LIBRO = body.isbn_libro
+    }
+    
+    // Subtítulo
+    if (body.subtitulo_libro !== undefined) {
+      updateData.data.subtitulo_libro = body.subtitulo_libro
+      updateData.data.SUBTITULO_LIBRO = body.subtitulo_libro
+    }
     
     // Descripción - Rich text blocks requiere formato especial
     if (body.descripcion !== undefined) {
-      if (typeof body.descripcion === 'string') {
-        // Si viene como string, convertir a formato blocks
-        updateData.data.descripcion = [
+      console.log('[API PUT] Procesando descripción:', {
+        tipo: typeof body.descripcion,
+        valor: body.descripcion,
+        esArray: Array.isArray(body.descripcion)
+      })
+      
+      if (Array.isArray(body.descripcion)) {
+        // Ya viene en formato blocks
+        updateData.data.descripcion = body.descripcion
+        updateData.data.DESCRIPCION = body.descripcion
+      } else if (typeof body.descripcion === 'string') {
+        // Convertir string a formato blocks
+        const descripcionBlocks = [
           {
             type: 'paragraph',
             children: [
@@ -293,20 +319,52 @@ export async function PUT(
             ]
           }
         ]
+        updateData.data.descripcion = descripcionBlocks
+        updateData.data.DESCRIPCION = descripcionBlocks
       } else {
-        // Si ya viene en formato blocks, usar directamente
+        // Otro formato, usar tal cual
         updateData.data.descripcion = body.descripcion
+        updateData.data.DESCRIPCION = body.descripcion
       }
       
-      console.log('[API PUT] Descripción a enviar:', {
-        tipoOriginal: typeof body.descripcion,
-        valorOriginal: body.descripcion,
-        tipoFinal: typeof updateData.data.descripcion,
-        valorFinal: JSON.stringify(updateData.data.descripcion)
-      })
+      console.log('[API PUT] Descripción formateada:', JSON.stringify(updateData.data.descripcion))
     }
     
-    if (body.portada_libro !== undefined) updateData.data.portada_libro = body.portada_libro
+    // Número de edición
+    if (body.numero_edicion !== undefined) {
+      updateData.data.numero_edicion = body.numero_edicion
+      updateData.data.NUMERO_EDICION = body.numero_edicion
+    }
+    
+    // Año de edición
+    if (body.agno_edicion !== undefined) {
+      updateData.data.agno_edicion = body.agno_edicion
+      updateData.data.AGNO_EDICION = body.agno_edicion
+    }
+    
+    // Idioma
+    if (body.idioma !== undefined) {
+      updateData.data.idioma = body.idioma
+      updateData.data.IDIOMA = body.idioma
+    }
+    
+    // Tipo de libro
+    if (body.tipo_libro !== undefined) {
+      updateData.data.tipo_libro = body.tipo_libro
+      updateData.data.TIPO_LIBRO = body.tipo_libro
+    }
+    
+    // Estado de edición
+    if (body.estado_edicion !== undefined) {
+      updateData.data.estado_edicion = body.estado_edicion
+      updateData.data.ESTADO_EDICION = body.estado_edicion
+    }
+    
+    // Imagen
+    if (body.portada_libro !== undefined) {
+      updateData.data.portada_libro = body.portada_libro
+      updateData.data.PORTADA_LIBRO = body.portada_libro
+    }
     
     // NOTA: precio_base NO existe en la colección "libros"
     // Los precios se manejan en la colección separada "Precio" (relación oneToMany)
