@@ -6,6 +6,7 @@
  * Pruebas unitarias para el componente RelationSelector
  */
 
+import '@testing-library/jest-dom'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RelationSelector } from '../RelationSelector'

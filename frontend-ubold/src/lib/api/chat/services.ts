@@ -106,8 +106,8 @@ export function combineAndSortMessages(messages1: ChatMensaje[], messages2: Chat
   const allMessages = [...messages1, ...messages2]
   
   return allMessages.sort((a, b) => {
-    const fechaA = new Date(a.fecha || a.createdAt || 0).getTime()
-    const fechaB = new Date(b.fecha || b.createdAt || 0).getTime()
+    const fechaA = new Date(a.fecha || 0).getTime()
+    const fechaB = new Date(b.fecha || 0).getTime()
     return fechaA - fechaB
   })
 }

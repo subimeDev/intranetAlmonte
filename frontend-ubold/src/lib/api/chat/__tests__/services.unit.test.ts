@@ -95,7 +95,7 @@ describe('Chat Services', () => {
 
     it('debe retornar array vacío cuando no hay datos', () => {
       const response: StrapiResponse<StrapiEntity<ChatMensajeAttributes>> = {
-        data: null,
+        data: [],
       }
 
       const messages = extractChatMessages(response)

@@ -12,7 +12,7 @@ export function createSuccessResponse<T>(data: T, meta?: unknown, status = 200) 
     {
       success: true,
       data,
-      ...(meta && { meta }),
+      ...(meta && typeof meta === 'object' && meta !== null ? { meta } : {}),
     },
     { status }
   )
@@ -30,7 +30,7 @@ export function createErrorResponse(
     {
       success: false,
       error,
-      ...(details && { details }),
+      ...(details && typeof details === 'object' && details !== null ? { details } : {}),
     },
     { status }
   )
