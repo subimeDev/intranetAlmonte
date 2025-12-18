@@ -101,43 +101,117 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    console.log('[API Precios POST] Creando precio:', body)
+    console.log('[API Precios POST] 📦 Body recibido:', body)
+    console.log('[API Precios POST] 🔑 Keys originales:', Object.keys(body))
+
+    // Validaciones
+    if (!body.monto || parseFloat(body.monto) <= 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Monto es requerido y debe ser mayor a 0'
+      }, { status: 400 })
+    }
+
+    if (!body.libroId) {
+      return NextResponse.json({
+        success: false,
+        error: 'ID de libro es requerido'
+      }, { status: 400 })
+    }
+
+    // Obtener el libro para obtener su documentId
+    console.log('[API Precios POST] Obteniendo libro:', body.libroId)
     
-    // Estructura básica - ajustar según estructura real de Strapi
-    // Por ahora usamos campos comunes, se ajustará después de ver la estructura real
+    const libroResponse = await strapiClient.get<any>(
+      `/api/libros?filters[id][$eq]=${body.libroId}`
+    )
+    
+    let libro: any
+    if (Array.isArray(libroResponse)) {
+      libro = libroResponse[0]
+    } else if (libroResponse.data && Array.isArray(libroResponse.data)) {
+      libro = libroResponse.data[0]
+    } else if (libroResponse.data) {
+      libro = libroResponse.data
+    } else {
+      libro = libroResponse
+    }
+    
+    if (!libro || !libro.documentId) {
+      throw new Error('Libro no encontrado')
+    }
+    
+    console.log('[API Precios POST] ✅ Libro encontrado:', {
+      id: libro.id,
+      documentId: libro.documentId
+    })
+    
+    // CRÍTICO: Preparar datos en minúsculas SOLO
     const precioData: any = {
       data: {
-        precio: body.monto || body.precio,
-        PRECIO: body.monto || body.precio,
+        precio: parseFloat(body.monto),  // minúsculas
+        libro: libro.documentId,          // minúsculas
       }
     }
     
-    // Si hay relación con libro, agregarla
-    if (body.libroId) {
-      precioData.data.libro = body.libroId
-      precioData.data.LIBRO = body.libroId
-    }
-    
-    // Agregar otros campos si vienen en el body
+    // Agregar otros campos si vienen en el body (solo minúsculas)
     if (body.canal) precioData.data.canal = body.canal
     if (body.moneda) precioData.data.moneda = body.moneda
     if (body.fechaInicio) precioData.data.fecha_inicio = body.fechaInicio
     if (body.fechaFin) precioData.data.fecha_fin = body.fechaFin
+    if (body.tipo) precioData.data.tipo = body.tipo
     
-    const response = await strapiClient.post<any>('/api/precios', precioData)
+    // VERIFICACIÓN: Asegurar que NO hay mayúsculas
+    const keys = Object.keys(precioData.data)
+    const hasUppercase = keys.some(k => k !== k.toLowerCase())
     
-    console.log('[API Precios POST] ✅ Precio creado:', response)
+    if (hasUppercase) {
+      console.error('[API Precios POST] 🚨 ERROR: Hay mayúsculas en keys!')
+      console.error('[API Precios POST] Keys:', keys)
+      
+      // Normalizar forzadamente
+      const normalized: any = {}
+      for (const [key, value] of Object.entries(precioData.data)) {
+        normalized[key.toLowerCase()] = value
+      }
+      precioData.data = normalized
+      console.log('[API Precios POST] ✅ Normalizado:', Object.keys(precioData.data))
+    }
     
-    return NextResponse.json({
-      success: true,
-      data: response.data || response
-    })
+    console.log('[API Precios POST] 📤 Datos finales:', JSON.stringify(precioData, null, 2))
+    
+    // Intentar crear en Strapi
+    try {
+      const response = await strapiClient.post<any>('/api/precios', precioData)
+      
+      console.log('[API Precios POST] ✅ Precio creado')
+      
+      return NextResponse.json({
+        success: true,
+        data: response.data || response
+      })
+      
+    } catch (strapiError: any) {
+      console.error('[API Precios POST] ❌ Error de Strapi:', strapiError)
+      
+      // Si es 405, explicar el problema
+      if (strapiError.status === 405) {
+        return NextResponse.json({
+          success: false,
+          error: 'La colección "precios" no acepta creación directa. Necesitas configurar los permisos en Strapi o usar otro método.',
+          ayuda: 'Ve a Strapi → Settings → Users & Permissions → Roles → Public/Authenticated → Permissions → Precio → Marca "create"'
+        }, { status: 400 })
+      }
+      
+      throw strapiError
+    }
     
   } catch (error: any) {
-    console.error('[API Precios POST] ❌ Error:', error)
+    console.error('[API Precios POST] ❌ ERROR:', error)
+    
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error.message || 'Error al crear precio',
       details: error.details
     }, { status: 500 })
   }

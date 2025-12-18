@@ -128,14 +128,11 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         throw new Error('No se pudo obtener el ID del producto')
       }
 
-      console.log('[ProductDetails] Guardando todos los cambios:', formData)
-
-      // Preparar datos para enviar - SOLO minúsculas
+      // Preparar datos (optimizado - hacer todo en el frontend)
       const dataToSend: any = {
-        nombre_libro: formData.nombre_libro.trim(),
+        nombre_libro: formData.nombre_libro.trim()
       }
 
-      // Agregar campos opcionales solo si tienen valor - SOLO minúsculas
       if (formData.isbn_libro?.trim()) {
         dataToSend.isbn_libro = formData.isbn_libro.trim()
       }
@@ -144,9 +141,14 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         dataToSend.subtitulo_libro = formData.subtitulo_libro.trim()
       }
 
-      // Descripción - convertir a formato blocks para Rich Text
+      // Descripción - Ya preparar en formato blocks aquí (optimización)
       if (formData.descripcion?.trim()) {
-        dataToSend.descripcion = formData.descripcion.trim()
+        dataToSend.descripcion = [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text: formData.descripcion.trim() }]
+          }
+        ]
       }
 
       if (formData.numero_edicion) {
@@ -163,21 +165,13 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         }
       }
 
-      if (formData.idioma) {
-        dataToSend.idioma = formData.idioma
-      }
+      if (formData.idioma) dataToSend.idioma = formData.idioma
+      if (formData.tipo_libro) dataToSend.tipo_libro = formData.tipo_libro
+      if (formData.estado_edicion) dataToSend.estado_edicion = formData.estado_edicion
 
-      if (formData.tipo_libro) {
-        dataToSend.tipo_libro = formData.tipo_libro
-      }
+      console.log('[ProductDetails] 📤 Enviando:', dataToSend)
 
-      if (formData.estado_edicion) {
-        dataToSend.estado_edicion = formData.estado_edicion
-      }
-
-      console.log('[ProductDetails] Datos a enviar:', dataToSend)
-
-      // Enviar actualización
+      // UNA SOLA llamada al API
       const response = await fetch(`/api/tienda/productos/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -187,21 +181,21 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
       const data = await response.json()
 
       if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar producto')
+        throw new Error(data.error || 'Error al actualizar')
       }
 
-      console.log('[ProductDetails] ✅ Producto actualizado exitosamente')
+      console.log('[ProductDetails] ✅ Guardado exitoso')
 
       setSuccess(true)
       setIsEditing(false)
       
-      // Refrescar datos del producto
+      // Refrescar después de un momento (reducido de 2000 a 1500ms)
       setTimeout(() => {
         if (onUpdate) {
           onUpdate()
         }
         setSuccess(false)
-      }, 2000)
+      }, 1500)
 
     } catch (err: any) {
       console.error('[ProductDetails] Error:', err)
@@ -278,6 +272,15 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         {success && (
           <Alert variant="success">
             ✅ Producto actualizado exitosamente
+          </Alert>
+        )}
+
+        {saving && (
+          <Alert variant="info" className="mt-3">
+            <div className="d-flex align-items-center">
+              <Spinner animation="border" size="sm" className="me-2" />
+              <div>Guardando cambios...</div>
+            </div>
           </Alert>
         )}
 

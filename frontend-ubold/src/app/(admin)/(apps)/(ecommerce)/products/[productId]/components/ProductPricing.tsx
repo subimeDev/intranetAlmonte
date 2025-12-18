@@ -58,14 +58,18 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       setError(null)
       setSaving(true)
       
+      const payload = {
+        monto: precioNumero,
+        libroId: productId
+      }
+      
+      console.log('[ProductPricing] Enviando:', payload)
+      console.log('[ProductPricing] Keys:', Object.keys(payload))
+      
       const response = await fetch('/api/tienda/precios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          monto: precioNumero,
-          precio: precioNumero,
-          libroId: productId
-        })
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
@@ -78,7 +82,12 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
           onUpdate()
         }
       } else {
-        setError(data.error || 'Error al agregar precio')
+        // Mostrar ayuda si es problema de permisos
+        if (data.ayuda) {
+          setError(`${data.error}\n\n${data.ayuda}`)
+        } else {
+          setError(data.error || 'Error al agregar precio')
+        }
       }
     } catch (err: any) {
       console.error('Error adding price:', err)
