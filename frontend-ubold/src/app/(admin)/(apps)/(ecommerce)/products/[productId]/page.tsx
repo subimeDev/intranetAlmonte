@@ -94,7 +94,7 @@ export default async function Page({ params }: PageProps) {
           <Card>
             <CardBody>
               <Row>
-                <ProductDisplay producto={producto} />
+                <ProductDisplay producto={producto} onUpdate={() => window.location.reload()} />
 
                 <Col xl={8}>
                   <div className="p-4">

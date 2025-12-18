@@ -279,6 +279,16 @@ export async function PUT(
     if (body.nombre_libro !== undefined) updateData.data.nombre_libro = body.nombre_libro
     if (body.descripcion !== undefined) updateData.data.descripcion = body.descripcion
     if (body.portada_libro !== undefined) updateData.data.portada_libro = body.portada_libro
+    
+    // Precio
+    if (body.precio_base !== undefined) {
+      updateData.data.precio_base = parseFloat(body.precio_base)
+    }
+    
+    // Imagen (ID de Strapi)
+    if (body.portada_libro !== undefined) {
+      updateData.data.portada_libro = body.portada_libro
+    }
 
     console.log('[API PUT] 📤 PUT a documentId:', producto.documentId)
     console.log('[API PUT] 📤 Datos:', updateData)
