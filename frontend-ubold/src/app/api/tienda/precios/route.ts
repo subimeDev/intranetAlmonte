@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Crear precio (probando múltiples endpoints)
+// POST - Crear precio usando endpoint personalizado
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -105,114 +105,41 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Obtener libro
-    console.log('[API Precios POST] Obteniendo libro:', body.libroId)
-    
-    const libroResponse = await strapiClient.get<any>(
-      `/api/libros?filters[id][$eq]=${body.libroId}`
-    )
-    
-    let libro: any
-    if (Array.isArray(libroResponse)) {
-      libro = libroResponse[0]
-    } else if (libroResponse.data && Array.isArray(libroResponse.data)) {
-      libro = libroResponse.data[0]
-    } else if (libroResponse.data) {
-      libro = libroResponse.data
-    } else {
-      libro = libroResponse
-    }
-    
-    if (!libro || !libro.id) {
-      throw new Error('Libro no encontrado')
-    }
-    
-    console.log('[API Precios POST] ✅ Libro encontrado:', {
-      id: libro.id,
-      documentId: libro.documentId,
-      nombre: libro.attributes?.nombre_libro || libro.nombre_libro
-    })
-    
-    // Preparar datos del precio según la estructura confirmada
+    // Preparar datos para el endpoint personalizado
     const precioData = {
-      data: {
-        precio_venta: parseFloat(body.precio_venta),
-        libro: libro.id,  // ID numérico para la relación manyToOne
-        fecha_inicio: body.fecha_inicio,
-        activo: true,
-        precio_costo: body.precio_costo ? parseFloat(body.precio_costo) : null,
-        fecha_fin: body.fecha_fin || null
-      }
+      precio_venta: parseFloat(body.precio_venta),
+      libroId: body.libroId,
+      fecha_inicio: body.fecha_inicio,
+      activo: body.activo !== undefined ? body.activo : true,
+      precio_costo: body.precio_costo ? parseFloat(body.precio_costo) : null,
+      fecha_fin: body.fecha_fin || null
     }
     
-    // Verificar minúsculas
-    const keys = Object.keys(precioData.data)
-    const hasUppercase = keys.some(k => k !== k.toLowerCase())
+    console.log('[API Precios POST] 📤 Enviando a endpoint personalizado:', JSON.stringify(precioData, null, 2))
     
-    if (hasUppercase) {
-      console.error('[API Precios POST] 🚨 Hay mayúsculas:', keys)
-      throw new Error('Error interno: campos en mayúsculas')
+    // Usar el endpoint personalizado creado en Strapi
+    try {
+      const response = await strapiClient.post<any>('/api/precios/crear', precioData)
+      
+      console.log('[API Precios POST] ✅ Precio creado exitosamente')
+      
+      return NextResponse.json({
+        success: true,
+        data: response.data || response,
+        message: 'Precio creado exitosamente',
+        endpoint_usado: '/api/precios/crear'
+      })
+      
+    } catch (error: any) {
+      console.error('[API Precios POST] ❌ Error al crear precio:', error)
+      
+      return NextResponse.json({
+        success: false,
+        error: error.message || 'Error al crear precio',
+        detalles: error.details || error,
+        endpoint_usado: '/api/precios/crear'
+      }, { status: error.status || 500 })
     }
-    
-    console.log('[API Precios POST] 📤 Datos preparados:', JSON.stringify(precioData, null, 2))
-    
-    // PROBAR MÚLTIPLES ENDPOINTS HASTA ENCONTRAR EL CORRECTO
-    let ultimoError: any = null
-    let endpointCorrecto: string | null = null
-    
-    for (const endpoint of POSIBLES_ENDPOINTS) {
-      try {
-        console.log(`[API Precios POST] 🔍 Probando endpoint: ${endpoint}`)
-        
-        const response = await strapiClient.post<any>(endpoint, precioData)
-        
-        // Si llegamos aquí, funcionó!
-        console.log(`[API Precios POST] ✅ ÉXITO con endpoint: ${endpoint}`)
-        endpointCorrecto = endpoint
-        
-        return NextResponse.json({
-          success: true,
-          data: response.data || response,
-          message: `Precio creado exitosamente usando ${endpoint}`,
-          endpoint_usado: endpoint
-        })
-        
-      } catch (error: any) {
-        console.log(`[API Precios POST] ❌ Falló ${endpoint}:`, error.status || error.message)
-        ultimoError = error
-        
-        // Si no es 404 ni 405, probablemente es otro error (datos incorrectos)
-        if (error.status && error.status !== 404 && error.status !== 405) {
-          throw error
-        }
-        
-        // Continuar probando el siguiente endpoint
-        continue
-      }
-    }
-    
-    // Si llegamos aquí, ningún endpoint funcionó con POST directo
-    console.error('[API Precios POST] ❌ NINGÚN ENDPOINT ACEPTA POST DIRECTAMENTE')
-    console.error('[API Precios POST] Último error:', ultimoError)
-    
-    // Devolver error claro al usuario
-    return NextResponse.json({
-      success: false,
-      error: 'No se puede crear precios desde la API - Strapi no lo permite',
-      mensaje: 'SOLUCIÓN: Necesitas crear un endpoint personalizado en Strapi',
-      detalles: {
-        endpoints_probados: POSIBLES_ENDPOINTS,
-        todos_devolvieron_405: true,
-        que_hacer: [
-          '1. Ve al panel de administración de Strapi',
-          '2. Busca la colección "Product · Precio"',
-          '3. Verifica el API ID exacto de la colección',
-          '4. Opción A: Habilita permisos de CREATE para la colección',
-          '5. Opción B: Crea un endpoint personalizado en Strapi que permita crear precios',
-          '6. Opción C: Crea los precios manualmente desde el panel de Strapi'
-        ]
-      }
-    }, { status: 405 })
     
     /* CÓDIGO DE MÉTODOS ALTERNATIVOS COMENTADO - NO FUNCIONAN
     console.log('[API Precios POST] 🔄 Intentando método alternativo: crear precio actualizando libro...')
