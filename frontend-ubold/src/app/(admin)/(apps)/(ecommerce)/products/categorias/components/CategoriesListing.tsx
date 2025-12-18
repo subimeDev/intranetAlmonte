@@ -286,14 +286,15 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
               <TbEye className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => router.push(`/products/categorias/${row.original.id}/editar`)}
-          >
-            <TbEdit className="fs-lg" />
-          </Button>
+          <Link href={row.original.url}>
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+            >
+              <TbEdit className="fs-lg" />
+            </Button>
+          </Link>
           <Button
             variant="default"
             size="sm"
