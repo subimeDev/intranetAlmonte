@@ -130,21 +130,18 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
 
       console.log('[ProductDetails] Guardando todos los cambios:', formData)
 
-      // Preparar datos para enviar
+      // Preparar datos para enviar - SOLO minúsculas
       const dataToSend: any = {
         nombre_libro: formData.nombre_libro.trim(),
-        NOMBRE_LIBRO: formData.nombre_libro.trim(),
       }
 
-      // Agregar campos opcionales solo si tienen valor
+      // Agregar campos opcionales solo si tienen valor - SOLO minúsculas
       if (formData.isbn_libro?.trim()) {
         dataToSend.isbn_libro = formData.isbn_libro.trim()
-        dataToSend.ISBN_LIBRO = formData.isbn_libro.trim()
       }
 
       if (formData.subtitulo_libro?.trim()) {
         dataToSend.subtitulo_libro = formData.subtitulo_libro.trim()
-        dataToSend.SUBTITULO_LIBRO = formData.subtitulo_libro.trim()
       }
 
       // Descripción - convertir a formato blocks para Rich Text
@@ -156,7 +153,6 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         const numEdicion = parseInt(formData.numero_edicion)
         if (!isNaN(numEdicion)) {
           dataToSend.numero_edicion = numEdicion
-          dataToSend.NUMERO_EDICION = numEdicion
         }
       }
 
@@ -164,23 +160,19 @@ export function ProductDetails({ producto, onUpdate }: ProductDetailsProps) {
         const agnoEdicion = parseInt(formData.agno_edicion)
         if (!isNaN(agnoEdicion)) {
           dataToSend.agno_edicion = agnoEdicion
-          dataToSend.AGNO_EDICION = agnoEdicion
         }
       }
 
       if (formData.idioma) {
         dataToSend.idioma = formData.idioma
-        dataToSend.IDIOMA = formData.idioma
       }
 
       if (formData.tipo_libro) {
         dataToSend.tipo_libro = formData.tipo_libro
-        dataToSend.TIPO_LIBRO = formData.tipo_libro
       }
 
       if (formData.estado_edicion) {
         dataToSend.estado_edicion = formData.estado_edicion
-        dataToSend.ESTADO_EDICION = formData.estado_edicion
       }
 
       console.log('[ProductDetails] Datos a enviar:', dataToSend)
