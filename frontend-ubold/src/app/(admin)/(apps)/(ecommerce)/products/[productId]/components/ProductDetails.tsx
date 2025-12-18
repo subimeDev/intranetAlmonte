@@ -2,9 +2,8 @@
 
 import { Badge, Col, Row, Alert } from 'react-bootstrap'
 import { format } from 'date-fns'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { TbPencil, TbCheck, TbX } from 'react-icons/tb'
 
 import EditableField from './EditableField'
 
@@ -26,8 +25,6 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [savingField, setSavingField] = useState<string | null>(null)
-  const [precio, setPrecio] = useState('')
-  const [isEditingPrecio, setIsEditingPrecio] = useState(false)
 
   const attrs = producto.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
@@ -46,19 +43,12 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
     return total + (typeof cantidad === 'number' ? cantidad : 0)
   }, 0)
 
-  // Obtener precio mínimo
+  // Obtener precio mínimo (solo para mostrar, no para editar)
   const precios = data.precios?.data || data.PRECIOS?.data || []
   const preciosNumeros = precios
     .map((p: any) => p.attributes?.precio || p.attributes?.PRECIO)
     .filter((p: any): p is number => typeof p === 'number' && p > 0)
   const precioMinimo = preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
-  
-  // Inicializar precio cuando se carga el componente
-  useEffect(() => {
-    if (!precio && precioMinimo > 0) {
-      setPrecio(precioMinimo.toFixed(2))
-    }
-  }, [precioMinimo])
 
   const isPublished = !!(attrs.publishedAt || producto.publishedAt)
   const createdAt = attrs.createdAt || producto.createdAt || new Date().toISOString()
@@ -333,61 +323,6 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
     }
   }
 
-  const handleSavePrecio = async () => {
-    if (!productId || productId === 'unknown') {
-      throw new Error('No se pudo obtener el ID del producto')
-    }
-
-    setSavingField('precio')
-    setError(null)
-
-    try {
-      const precioNumero = parseFloat(precio)
-      if (isNaN(precioNumero) || precioNumero < 0) {
-        throw new Error('Por favor ingresa un precio válido')
-      }
-
-      const url = `/api/tienda/productos/${productId}`
-      const body = JSON.stringify({
-        precio_base: precioNumero
-      })
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Error HTTP: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error al guardar precio')
-      }
-
-      console.log('[ProductDetails] ✅ Precio guardado exitosamente')
-      setIsEditingPrecio(false)
-      router.refresh()
-    } catch (err: any) {
-      const errorMessage = err.message || 'Error al guardar precio'
-      setError(errorMessage)
-      console.error('[ProductDetails] Error al guardar precio:', {
-        productId,
-        error: errorMessage,
-        err,
-      })
-      throw err
-    } finally {
-      setSavingField(null)
-    }
-  }
-
   return (
     <>
       {error && (
@@ -451,72 +386,12 @@ const ProductDetails = ({ producto }: ProductDetailsProps) => {
         </Col>
       </Row>
 
-      {/* Precio Base */}
-      <div className="mb-4">
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h6 className="text-muted text-uppercase mb-0">Precio Base:</h6>
-          {!isEditingPrecio && (
-            <button
-              type="button"
-              className="btn btn-sm btn-link p-0"
-              onClick={() => setIsEditingPrecio(true)}
-              disabled={savingField !== null}
-            >
-              <TbPencil />
-            </button>
-          )}
-        </div>
-        
-        {isEditingPrecio ? (
-          <div className="input-group">
-            <span className="input-group-text">$</span>
-            <input
-              type="number"
-              className="form-control"
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              placeholder="Precio"
-              step="0.01"
-              min="0"
-            />
-            <button
-              type="button"
-              className="btn btn-success"
-              onClick={async () => {
-                try {
-                  await handleSavePrecio()
-                } catch (err) {
-                  // Error ya manejado en handleSavePrecio
-                }
-              }}
-              disabled={savingField === 'precio'}
-            >
-              {savingField === 'precio' ? (
-                <span className="spinner-border spinner-border-sm"></span>
-              ) : (
-                <TbCheck />
-              )}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                setPrecio(precioMinimo > 0 ? precioMinimo.toFixed(2) : '')
-                setIsEditingPrecio(false)
-              }}
-              disabled={savingField === 'precio'}
-            >
-              <TbX />
-            </button>
-          </div>
-        ) : (
-          <h3 className="text-muted d-flex align-items-center gap-2 mb-0">
-            <span className="fw-bold text-danger">
-              ${precioMinimo > 0 ? precioMinimo.toFixed(2) : 'Sin precio'}
-            </span>
-          </h3>
-        )}
-      </div>
+      {/* Precio - Solo lectura (los precios se manejan en la colección separada "Precio") */}
+      {precioMinimo > 0 && (
+        <h3 className="text-muted d-flex align-items-center gap-2 mb-4">
+          <span className="fw-bold text-danger">${precioMinimo.toFixed(2)}</span>
+        </h3>
+      )}
 
       <h5 className="text-uppercase text-muted fs-xs mb-2">Descripción:</h5>
       <EditableField

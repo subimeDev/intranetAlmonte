@@ -12,6 +12,68 @@ interface ProductDisplayProps {
   onUpdate?: () => void
 }
 
+// Función para comprimir imágenes antes de subir
+const compressImage = (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      const img = new window.Image()
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        
+        // Redimensionar si es muy grande (max 1920px)
+        const maxSize = 1920
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height * maxSize) / width
+            width = maxSize
+          } else {
+            width = (width * maxSize) / height
+            height = maxSize
+          }
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('No se pudo obtener contexto del canvas'))
+          return
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Comprimir a JPEG calidad 0.85
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const originalSizeMB = (file.size / 1024 / 1024).toFixed(2)
+              const compressedSizeMB = (blob.size / 1024 / 1024).toFixed(2)
+              console.log(`[Compress] ${originalSizeMB}MB → ${compressedSizeMB}MB`)
+              resolve(blob)
+            } else {
+              reject(new Error('Error al comprimir'))
+            }
+          },
+          'image/jpeg',
+          0.85
+        )
+      }
+      
+      img.onerror = () => reject(new Error('Error al cargar imagen'))
+      img.src = e.target?.result as string
+    }
+    
+    reader.onerror = () => reject(new Error('Error al leer archivo'))
+    reader.readAsDataURL(file)
+  })
+}
+
 const ProductDisplay = ({ producto, onUpdate }: ProductDisplayProps) => {
   const router = useRouter()
   const [isEditingImage, setIsEditingImage] = useState(false)
@@ -132,14 +194,34 @@ const ProductDisplay = ({ producto, onUpdate }: ProductDisplayProps) => {
         imageId = data.data.id
 
       } else {
-        // Subir desde PC
+        // Subir desde PC CON COMPRESIÓN
         if (!selectedFile) {
           throw new Error('Por favor selecciona un archivo')
         }
 
-        const formData = new FormData()
-        formData.append('file', selectedFile)
+        console.log('[Upload] Comprimiendo imagen...')
+        
+        // Comprimir solo si es imagen y mayor a 500KB
+        let fileToUpload: File | Blob = selectedFile
+        if (selectedFile.type.startsWith('image/') && selectedFile.size > 500000) {
+          try {
+            const compressedBlob = await compressImage(selectedFile)
+            fileToUpload = compressedBlob
+          } catch (compressError) {
+            console.warn('[Upload] No se pudo comprimir, usando original:', compressError)
+            fileToUpload = selectedFile
+          }
+        }
 
+        const formData = new FormData()
+        // Si es Blob, crear un File con el nombre original
+        if (fileToUpload instanceof Blob && !(fileToUpload instanceof File)) {
+          formData.append('file', fileToUpload, selectedFile.name)
+        } else {
+          formData.append('file', fileToUpload)
+        }
+
+        console.log('[Upload] Subiendo archivo...')
         const response = await fetch('/api/tienda/upload', {
           method: 'POST',
           body: formData

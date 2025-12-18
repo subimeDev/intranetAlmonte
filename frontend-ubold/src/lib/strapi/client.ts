@@ -149,9 +149,9 @@ const strapiClient = {
   async post<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout (25 segundos para operaciones de lectura)
+    // Crear un AbortController para timeout (60 segundos para operaciones de escritura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 segundos
     
     try {
       const response = await fetch(url, {
@@ -167,7 +167,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 25 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 60 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
@@ -184,9 +184,9 @@ const strapiClient = {
   async put<T>(path: string, data?: unknown, options?: RequestInit): Promise<T> {
     const url = getStrapiUrl(path)
     
-    // Crear un AbortController para timeout (20 segundos para operaciones de escritura)
+    // Crear un AbortController para timeout (60 segundos para operaciones de escritura)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 segundos
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 segundos
     
     try {
       const response = await fetch(url, {
@@ -212,7 +212,7 @@ const strapiClient = {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 20 segundos') as Error & { status?: number }
+        const timeoutError = new Error('Timeout: La petición a Strapi tardó más de 60 segundos') as Error & { status?: number }
         timeoutError.status = 504
         throw timeoutError
       }
