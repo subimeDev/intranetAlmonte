@@ -6,7 +6,7 @@ import { TbPencil, TbCheck, TbX } from 'react-icons/tb'
 
 interface ProductDetailsProps {
   producto: any
-  onUpdate?: () => void
+  onUpdate?: () => Promise<void> | void
   onProductoUpdate?: (updates: any) => void
 }
 
