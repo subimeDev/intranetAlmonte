@@ -67,23 +67,29 @@ export function ProductPricing({ producto, onUpdate }: ProductPricingProps) {
       setError(null)
       setSaving(true)
       
-      // Preparar fecha_inicio en formato ISO
+      // Preparar fecha_inicio en formato ISO (requerido)
       const fechaInicioISO = fechaInicio ? new Date(fechaInicio).toISOString() : new Date().toISOString()
-      const fechaFinISO = fechaFin ? new Date(fechaFin).toISOString() : null
       
+      // Payload mínimo: solo precio_venta, fecha_inicio y activo
+      // Los demás campos se envían como null o no se envían
       const payload: any = {
         precio_venta: precioVentaNumero,
         libroId: productId,
         fecha_inicio: fechaInicioISO,
-        activo: activo
+        activo: activo,
+        // Campos opcionales: solo si tienen valor válido, sino null
+        precio_costo: null,
+        fecha_fin: null
       }
       
-      // Agregar campos opcionales solo si tienen valor
-      if (precioCosto && !isNaN(parseFloat(precioCosto)) && parseFloat(precioCosto) > 0) {
+      // Solo agregar precio_costo si tiene valor válido
+      if (precioCosto && precioCosto.trim() !== '' && !isNaN(parseFloat(precioCosto)) && parseFloat(precioCosto) > 0) {
         payload.precio_costo = parseFloat(precioCosto)
       }
-      if (fechaFinISO) {
-        payload.fecha_fin = fechaFinISO
+      
+      // Solo agregar fecha_fin si tiene valor válido
+      if (fechaFin && fechaFin.trim() !== '') {
+        payload.fecha_fin = new Date(fechaFin).toISOString()
       }
       
       console.log('[ProductPricing] Enviando:', payload)

@@ -154,28 +154,27 @@ export async function POST(request: NextRequest) {
     })
     
     // CRÍTICO: Preparar datos según estructura real de Strapi (todos en minúsculas)
-    // Para relaciones manyToOne en Strapi v5, podemos usar el ID numérico o documentId
-    // Intentemos primero con el ID numérico que es más común
+    // Solo enviar campos requeridos y activo, los demás como null o no enviarlos
     const precioData: any = {
       data: {
-        precio_venta: parseFloat(body.precio_venta),  // REQUERIDO
+        precio_venta: parseFloat(body.precio_venta),  // REQUERIDO - precio final
         libro: libro.id,                               // Relación manyToOne - usar ID numérico
         fecha_inicio: body.fecha_inicio,               // REQUERIDO (formato ISO)
+        activo: body.activo !== undefined ? Boolean(body.activo) : true,  // Por defecto activo
+        // Campos opcionales como null si no se proporcionan
+        precio_costo: null,
+        fecha_fin: null
       }
     }
     
-    // Campos opcionales
-    if (body.precio_costo !== undefined && body.precio_costo !== null && body.precio_costo !== '') {
+    // Solo agregar precio_costo si tiene valor válido
+    if (body.precio_costo !== undefined && body.precio_costo !== null && body.precio_costo !== '' && !isNaN(parseFloat(body.precio_costo))) {
       precioData.data.precio_costo = parseFloat(body.precio_costo)
     }
-    if (body.fecha_fin) {
+    
+    // Solo agregar fecha_fin si tiene valor válido
+    if (body.fecha_fin && body.fecha_fin.trim() !== '') {
       precioData.data.fecha_fin = body.fecha_fin
-    }
-    if (body.activo !== undefined) {
-      precioData.data.activo = Boolean(body.activo)
-    } else {
-      // Por defecto activo si no se especifica
-      precioData.data.activo = true
     }
     
     // VERIFICACIÓN: Asegurar que NO hay mayúsculas
