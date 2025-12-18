@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('[API Categorias POST] 📝 Creando categoría:', body)
 
-    // Validar nombre obligatorio
-    if (!body.data?.nombre && !body.data?.name) {
+    // Validar nombre obligatorio (el schema usa 'name')
+    if (!body.data?.name && !body.data?.nombre) {
       return NextResponse.json({
         success: false,
         error: 'El nombre de la categoría es obligatorio'
@@ -88,17 +88,16 @@ export async function POST(request: NextRequest) {
     const categoriaEndpoint = await findCategoriaEndpoint()
     console.log('[API Categorias POST] Usando endpoint:', categoriaEndpoint)
 
-    // Preparar datos para Strapi
+    // Preparar datos para Strapi (usar nombres del schema real: name, descripcion, imagen)
     const categoriaData: any = {
       data: {
-        nombre: body.data.nombre || body.data.name,
-        slug: body.data.slug || null,
+        name: body.data.name || body.data.nombre, // El schema usa 'name'
         descripcion: body.data.descripcion || body.data.description || null,
-        activo: body.data.activo !== undefined ? body.data.activo : (body.data.isActive !== undefined ? body.data.isActive : true),
+        // Nota: El schema no tiene 'slug' ni 'activo', se manejan automáticamente con draftAndPublish
       }
     }
 
-    // Agregar imagen si existe
+    // Agregar imagen si existe (el schema tiene campo 'imagen' de tipo media)
     if (body.data.imagen) {
       categoriaData.data.imagen = body.data.imagen
     }

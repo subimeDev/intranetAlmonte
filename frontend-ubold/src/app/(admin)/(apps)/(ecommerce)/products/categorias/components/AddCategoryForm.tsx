@@ -63,37 +63,36 @@ const AddCategoryForm = () => {
       // Primero subir la imagen si existe
       let imagenId = null
       if (formData.imagen) {
-        const formDataImage = new FormData()
-        formDataImage.append('files', formData.imagen)
+        console.log('[AddCategory] Subiendo imagen...')
+        const uploadFormData = new FormData()
+        uploadFormData.append('file', formData.imagen)
 
         const uploadResponse = await fetch('/api/tienda/upload', {
           method: 'POST',
-          body: formDataImage,
+          body: uploadFormData,
         })
 
-        if (!uploadResponse.ok) {
-          throw new Error('Error al subir la imagen')
-        }
+        const uploadResult = await uploadResponse.json()
 
-        const uploadData = await uploadResponse.json()
-        if (uploadData.success && uploadData.data) {
-          // El upload puede devolver un objeto o un array
-          const uploadedFile = Array.isArray(uploadData.data) ? uploadData.data[0] : uploadData.data
-          imagenId = uploadedFile.id || uploadData.id
+        if (uploadResult.success && uploadResult.id) {
+          imagenId = uploadResult.id
+          console.log('[AddCategory] Imagen subida con ID:', imagenId)
+        } else {
+          console.warn('[AddCategory] No se pudo subir la imagen:', uploadResult.error)
+          throw new Error(uploadResult.error || 'Error al subir la imagen')
         }
       }
 
-      // Preparar datos para Strapi
+      // Preparar datos para Strapi (usar nombres del schema real)
       const categoriaData: any = {
         data: {
-          nombre: formData.nombre,
-          slug: formData.slug || generateSlug(formData.nombre),
+          name: formData.nombre, // El schema usa 'name', no 'nombre'
           descripcion: formData.descripcion || null,
-          activo: formData.activo,
+          // Nota: El schema no tiene 'slug' ni 'activo', se manejan automáticamente
         },
       }
 
-      // Agregar imagen si existe
+      // Agregar imagen si existe (el schema tiene campo 'imagen' de tipo media)
       if (imagenId) {
         categoriaData.data.imagen = imagenId
       }
