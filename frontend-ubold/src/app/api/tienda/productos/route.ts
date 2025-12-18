@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       }]
     }
 
-    // Crear en WooCommerce
+    // Crear en WooCommerce primero
     const wooCommerceProduct = await wooCommerceClient.post<any>('products', wooCommerceProductData)
     console.log('[API POST] ✅ Producto creado en WooCommerce:', {
       id: wooCommerceProduct.id,
@@ -154,10 +154,45 @@ export async function POST(request: NextRequest) {
       name: wooCommerceProduct.name
     })
 
+    // Crear en Strapi después
+    let strapiProduct = null
+    try {
+      console.log('[API POST] 📚 Creando producto en Strapi...')
+      
+      const strapiProductData: any = {
+        data: {
+          nombre_libro: body.nombre_libro.trim(),
+          isbn_libro: isbn,
+          descripcion: body.descripcion?.trim() || '',
+          subtitulo_libro: body.subtitulo_libro?.trim() || '',
+          precio: body.precio || 0,
+          stock_quantity: body.stock_quantity || 0,
+          woocommerce_id: wooCommerceProduct.id.toString(), // Guardar ID de WooCommerce
+        }
+      }
+
+      // Agregar imagen si existe
+      if (body.portada_libro) {
+        strapiProductData.data.portada_libro = body.portada_libro
+      }
+
+      strapiProduct = await strapiClient.post<any>('/api/libros', strapiProductData)
+      console.log('[API POST] ✅ Producto creado en Strapi:', {
+        id: strapiProduct.data?.id,
+        documentId: strapiProduct.data?.documentId
+      })
+    } catch (strapiError: any) {
+      console.error('[API POST] ⚠️ Error al crear producto en Strapi (no crítico):', strapiError.message)
+      // No fallar si Strapi falla, el producto ya está en WooCommerce
+    }
+
     return NextResponse.json({
       success: true,
-      data: wooCommerceProduct,
-      message: 'Producto creado exitosamente en WooCommerce'
+      data: {
+        woocommerce: wooCommerceProduct,
+        strapi: strapiProduct?.data || null,
+      },
+      message: 'Producto creado exitosamente en WooCommerce' + (strapiProduct ? ' y Strapi' : ' (Strapi falló)')
     })
 
   } catch (error: any) {
@@ -208,10 +243,43 @@ export async function POST(request: NextRequest) {
           sku: retryResponse.sku,
           name: retryResponse.name
         })
+
+        // Crear en Strapi después
+        let strapiProduct = null
+        try {
+          console.log('[API POST] 📚 Creando producto en Strapi con ISBN regenerado...')
+          
+          const strapiProductData: any = {
+            data: {
+              nombre_libro: body.nombre_libro.trim(),
+              isbn_libro: newIsbn,
+              descripcion: body.descripcion?.trim() || '',
+              subtitulo_libro: body.subtitulo_libro?.trim() || '',
+              precio: body.precio || 0,
+              stock_quantity: body.stock_quantity || 0,
+              woocommerce_id: retryResponse.id.toString(),
+            }
+          }
+
+          if (body.portada_libro) {
+            strapiProductData.data.portada_libro = body.portada_libro
+          }
+
+          strapiProduct = await strapiClient.post<any>('/api/libros', strapiProductData)
+          console.log('[API POST] ✅ Producto creado en Strapi:', {
+            id: strapiProduct.data?.id,
+            documentId: strapiProduct.data?.documentId
+          })
+        } catch (strapiError: any) {
+          console.error('[API POST] ⚠️ Error al crear producto en Strapi (no crítico):', strapiError.message)
+        }
         
         return NextResponse.json({
           success: true,
-          data: retryResponse,
+          data: {
+            woocommerce: retryResponse,
+            strapi: strapiProduct?.data || null,
+          },
           message: `Producto creado exitosamente. El ISBN "${originalIsbn}" ya existía en WooCommerce, se generó uno nuevo automáticamente: "${newIsbn}"`,
           isbnRegenerado: true,
           isbnOriginal: originalIsbn,

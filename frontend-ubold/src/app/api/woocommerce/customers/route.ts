@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import wooCommerceClient from '@/lib/woocommerce/client'
+import strapiClient from '@/lib/strapi/client'
 import { buildWooCommerceAddress, createAddressMetaData, type DetailedAddress } from '@/lib/woocommerce/address-utils'
 
 export const dynamic = 'force-dynamic'
@@ -141,17 +142,56 @@ export async function POST(request: NextRequest) {
       ...(metaData.length > 0 && { meta_data: metaData }),
     }
 
-    // Crear cliente en WooCommerce
+    // Crear cliente en WooCommerce primero
     const customer = await wooCommerceClient.post<any>('customers', customerData)
     console.log('[API POST] ✅ Cliente creado en WooCommerce:', {
       id: customer.id,
       email: customer.email
     })
 
+    // Crear en Strapi después
+    let strapiClientData = null
+    try {
+      console.log('[API POST] 📚 Creando cliente en Strapi...')
+      
+      const strapiCustomerData: any = {
+        data: {
+          nombre: `${body.first_name} ${body.last_name || ''}`.trim(),
+          correo_electronico: body.email,
+          woocommerce_id: customer.id.toString(), // Guardar ID de WooCommerce
+        }
+      }
+
+      // Agregar teléfono si existe
+      if (billingData.phone) {
+        strapiCustomerData.data.telefono = billingData.phone
+      }
+
+      // Agregar dirección si existe
+      if (billingData.address_1) {
+        strapiCustomerData.data.direccion = billingData.address_1
+        if (billingData.address_2) {
+          strapiCustomerData.data.direccion += `, ${billingData.address_2}`
+        }
+      }
+
+      strapiClientData = await strapiClient.post<any>('/api/wo-clientes', strapiCustomerData)
+      console.log('[API POST] ✅ Cliente creado en Strapi:', {
+        id: strapiClientData.data?.id,
+        documentId: strapiClientData.data?.documentId
+      })
+    } catch (strapiError: any) {
+      console.error('[API POST] ⚠️ Error al crear cliente en Strapi (no crítico):', strapiError.message)
+      // No fallar si Strapi falla, el cliente ya está en WooCommerce
+    }
+
     return NextResponse.json({
       success: true,
-      data: customer,
-      message: 'Cliente creado exitosamente en WooCommerce'
+      data: {
+        woocommerce: customer,
+        strapi: strapiClientData?.data || null,
+      },
+      message: 'Cliente creado exitosamente en WooCommerce' + (strapiClientData ? ' y Strapi' : ' (Strapi falló)')
     })
   } catch (error: any) {
     console.error('Error al crear cliente en WooCommerce:', error)
