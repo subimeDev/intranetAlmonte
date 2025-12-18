@@ -4,7 +4,7 @@
  */
 
 // Tipos de DTE según SII
-export type TipoDTE = 33 | 34 | 39 | 56 | 61 | 52 | 46 | 110 | 111 | 112
+export type TipoDTE = 33 | 34 | 39 | 41 | 56 | 61 | 52 | 46 | 110 | 111 | 112
 
 // Estructura de documento según API de Haulmer
 export interface HaulmerDTE {
