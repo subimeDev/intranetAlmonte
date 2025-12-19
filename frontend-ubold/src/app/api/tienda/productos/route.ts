@@ -129,15 +129,49 @@ export async function POST(request: NextRequest) {
     
     const wooCommerceProductData: any = {
       name: body.nombre_libro.trim(),
-      type: 'simple',
+      type: body.type || 'simple',
       status: 'publish',
       sku: isbn, // Usar ISBN como SKU
       regular_price: body.precio?.toString() || '0',
       description: body.descripcion?.trim() || '',
       short_description: body.subtitulo_libro?.trim() || '',
       manage_stock: body.manage_stock !== undefined ? body.manage_stock : true,
-      stock_quantity: body.stock_quantity || 0,
-      stock_status: body.stock_quantity > 0 ? 'instock' : 'outofstock',
+      stock_quantity: body.stock_quantity !== undefined ? parseInt(body.stock_quantity) || 0 : 0,
+      stock_status: body.stock_status || (body.stock_quantity > 0 ? 'instock' : 'outofstock'),
+      backorders: body.backorders || 'no',
+      virtual: body.virtual || false,
+      downloadable: body.downloadable || false,
+      featured: body.featured || false,
+      sold_individually: body.sold_individually || false,
+      reviews_allowed: body.reviews_allowed !== undefined ? body.reviews_allowed : true,
+      catalog_visibility: body.catalog_visibility || 'visible',
+    }
+    
+    // Agregar precio de oferta si existe
+    if (body.precio_oferta && parseFloat(body.precio_oferta) > 0) {
+      wooCommerceProductData.sale_price = body.precio_oferta.toString()
+    }
+    
+    // Agregar peso y dimensiones si existen
+    if (body.weight && body.weight.trim() !== '') {
+      wooCommerceProductData.weight = body.weight.trim()
+    }
+    if (body.length || body.width || body.height) {
+      wooCommerceProductData.dimensions = {
+        length: body.length?.trim() || '',
+        width: body.width?.trim() || '',
+        height: body.height?.trim() || '',
+      }
+    }
+    
+    // Agregar categorías de WooCommerce si existen
+    if (body.woocommerce_categories && Array.isArray(body.woocommerce_categories) && body.woocommerce_categories.length > 0) {
+      wooCommerceProductData.categories = body.woocommerce_categories.map((catId: number) => ({ id: catId }))
+    }
+    
+    // Agregar tags de WooCommerce si existen
+    if (body.woocommerce_tags && Array.isArray(body.woocommerce_tags) && body.woocommerce_tags.length > 0) {
+      wooCommerceProductData.tags = body.woocommerce_tags.map((tagId: number) => ({ id: tagId }))
     }
 
     // Agregar imagen si existe
@@ -256,15 +290,49 @@ export async function POST(request: NextRequest) {
       try {
         const retryWooCommerceData: any = {
           name: body.nombre_libro.trim(),
-          type: 'simple',
+          type: body.type || 'simple',
           status: 'publish',
           sku: newIsbn,
           regular_price: body.precio?.toString() || '0',
           description: body.descripcion?.trim() || '',
           short_description: body.subtitulo_libro?.trim() || '',
           manage_stock: body.manage_stock !== undefined ? body.manage_stock : true,
-          stock_quantity: body.stock_quantity || 0,
-          stock_status: body.stock_quantity > 0 ? 'instock' : 'outofstock',
+          stock_quantity: body.stock_quantity !== undefined ? parseInt(body.stock_quantity) || 0 : 0,
+          stock_status: body.stock_status || (body.stock_quantity > 0 ? 'instock' : 'outofstock'),
+          backorders: body.backorders || 'no',
+          virtual: body.virtual || false,
+          downloadable: body.downloadable || false,
+          featured: body.featured || false,
+          sold_individually: body.sold_individually || false,
+          reviews_allowed: body.reviews_allowed !== undefined ? body.reviews_allowed : true,
+          catalog_visibility: body.catalog_visibility || 'visible',
+        }
+        
+        // Agregar precio de oferta si existe
+        if (body.precio_oferta && parseFloat(body.precio_oferta) > 0) {
+          retryWooCommerceData.sale_price = body.precio_oferta.toString()
+        }
+        
+        // Agregar peso y dimensiones si existen
+        if (body.weight && body.weight.trim() !== '') {
+          retryWooCommerceData.weight = body.weight.trim()
+        }
+        if (body.length || body.width || body.height) {
+          retryWooCommerceData.dimensions = {
+            length: body.length?.trim() || '',
+            width: body.width?.trim() || '',
+            height: body.height?.trim() || '',
+          }
+        }
+        
+        // Agregar categorías de WooCommerce si existen
+        if (body.woocommerce_categories && Array.isArray(body.woocommerce_categories) && body.woocommerce_categories.length > 0) {
+          retryWooCommerceData.categories = body.woocommerce_categories.map((catId: number) => ({ id: catId }))
+        }
+        
+        // Agregar tags de WooCommerce si existen
+        if (body.woocommerce_tags && Array.isArray(body.woocommerce_tags) && body.woocommerce_tags.length > 0) {
+          retryWooCommerceData.tags = body.woocommerce_tags.map((tagId: number) => ({ id: tagId }))
         }
 
         // Agregar imagen si existe (misma lógica simplificada que arriba)
