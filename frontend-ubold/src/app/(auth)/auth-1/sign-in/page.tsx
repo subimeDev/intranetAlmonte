@@ -15,6 +15,19 @@ const Page = () => {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Obtener la URL de redirección si existe
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const redirect = urlParams.get('redirect')
+    // Si ya está autenticado y hay redirect, redirigir automáticamente
+    if (redirect && typeof window !== 'undefined') {
+      const token = document.cookie.split(';').some(c => c.trim().startsWith('auth_token='))
+      if (token) {
+        router.push(redirect)
+      }
+    }
+  }, [router])
+
   useEffect(() => {
     // Asegurar que el título y favicon estén actualizados
     document.title = 'Iniciar Sesión - Intranet Almonte'
@@ -43,8 +56,13 @@ const Page = () => {
 
     try {
       await login(email, password)
-      // Redirigir al dashboard o página principal después del login
-      router.push('/')
+      
+      // Obtener la URL de redirección si existe
+      const urlParams = new URLSearchParams(window.location.search)
+      const redirect = urlParams.get('redirect')
+      
+      // Redirigir a la página original o al dashboard
+      router.push(redirect || '/')
       router.refresh()
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
