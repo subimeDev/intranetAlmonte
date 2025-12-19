@@ -347,13 +347,25 @@ export async function PUT(
     
     if (body.data.acronimo !== undefined) selloData.data.acronimo = body.data.acronimo?.trim() || null
     if (body.data.website !== undefined) selloData.data.website = body.data.website?.trim() || null
-    if (body.data.editorial !== undefined) selloData.data.editorial = body.data.editorial || null
-    if (body.data.logo !== undefined) selloData.data.logo = body.data.logo || null
-    if (body.data.libros !== undefined) {
-      selloData.data.libros = body.data.libros && body.data.libros.length > 0 ? body.data.libros : null
+    
+    // Manejar relaciones según tipo
+    // manyToOne: solo el ID o documentId (o null para desconectar)
+    if (body.data.editorial !== undefined) {
+      selloData.data.editorial = body.data.editorial || null
     }
+
+    // oneToMany: array de IDs o documentIds (o [] para limpiar todas)
+    if (body.data.libros !== undefined) {
+      selloData.data.libros = body.data.libros && body.data.libros.length > 0 ? body.data.libros : []
+    }
+    
     if (body.data.colecciones !== undefined) {
-      selloData.data.colecciones = body.data.colecciones && body.data.colecciones.length > 0 ? body.data.colecciones : null
+      selloData.data.colecciones = body.data.colecciones && body.data.colecciones.length > 0 ? body.data.colecciones : []
+    }
+
+    // Media: solo el ID (o null para eliminar)
+    if (body.data.logo !== undefined) {
+      selloData.data.logo = body.data.logo || null
     }
 
     // No guardamos woocommerce_id en Strapi porque no existe en el schema

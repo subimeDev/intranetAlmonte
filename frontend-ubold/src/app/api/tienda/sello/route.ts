@@ -103,11 +103,27 @@ export async function POST(request: NextRequest) {
         nombre_sello: nombreSello.trim(),
         acronimo: body.data.acronimo || null,
         website: body.data.website || null,
-        editorial: body.data.editorial || null,
-        libros: body.data.libros && body.data.libros.length > 0 ? body.data.libros : null,
-        colecciones: body.data.colecciones && body.data.colecciones.length > 0 ? body.data.colecciones : null,
-        logo: body.data.logo || null,
       }
+    }
+
+    // Manejar relaciones según tipo
+    // manyToOne: solo el ID o documentId
+    if (body.data.editorial) {
+      selloData.data.editorial = body.data.editorial
+    }
+
+    // oneToMany: array de IDs o documentIds
+    if (body.data.libros && body.data.libros.length > 0) {
+      selloData.data.libros = body.data.libros
+    }
+
+    if (body.data.colecciones && body.data.colecciones.length > 0) {
+      selloData.data.colecciones = body.data.colecciones
+    }
+
+    // Media: solo el ID
+    if (body.data.logo) {
+      selloData.data.logo = body.data.logo
     }
 
     const strapiSello = await strapiClient.post<any>(selloEndpoint, selloData)
