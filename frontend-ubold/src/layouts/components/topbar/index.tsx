@@ -10,7 +10,7 @@ import FullscreenToggle from '@/layouts/components/topbar/components/FullscreenT
 import MonochromeThemeModeToggler from '@/layouts/components/topbar/components/MonochromeThemeModeToggler'
 
 const Topbar = () => {
-  const { sidenavSize, updateSettings, showBackdrop } = useLayoutContext()
+  const { sidenavSize, updateSettings, showBackdrop, hideBackdrop } = useLayoutContext()
 
   const toggleSideNav = () => {
     const html = document.documentElement
