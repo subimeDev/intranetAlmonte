@@ -138,8 +138,14 @@ export const menuItems: MenuItemType[] = [
           { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
           { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
           { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
-          { key: 'all-obras', label: 'Todas las Obras', url: '/products/obras' },
-          { key: 'add-obra', label: 'Agregar Obra', url: '/products/obras/agregar' },
+          {
+            key: 'atributos',
+            label: 'Atributos',
+            children: [
+              { key: 'all-obras', label: 'Todas las Obras', url: '/products/atributos/obras' },
+              { key: 'add-obra', label: 'Agregar Obra', url: '/products/atributos/obras/agregar' },
+            ],
+          },
           { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
         ],
       },
@@ -253,8 +259,14 @@ export const horizontalMenuItems: MenuItemType[] = [
               { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
               { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
               { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
-              { key: 'all-obras', label: 'Todas las Obras', url: '/products/obras' },
-              { key: 'add-obra', label: 'Agregar Obra', url: '/products/obras/agregar' },
+              {
+                key: 'atributos',
+                label: 'Atributos',
+                children: [
+                  { key: 'all-obras', label: 'Todas las Obras', url: '/products/atributos/obras' },
+                  { key: 'add-obra', label: 'Agregar Obra', url: '/products/atributos/obras/agregar' },
+                ],
+              },
               { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
             ],
           },
