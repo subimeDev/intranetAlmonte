@@ -144,6 +144,7 @@ export const menuItems: MenuItemType[] = [
             children: [
               { key: 'all-autores', label: 'Todos los Autores', url: '/products/atributos/autores' },
               { key: 'add-autor', label: 'Agregar Autor', url: '/products/atributos/autores/agregar' },
+              { key: 'autor-requests', label: 'Solicitudes de Autores', url: '/products/atributos/autores/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
               { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
               { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
               { key: 'all-sellos', label: 'Todos los Sellos', url: '/atributos/sello' },
@@ -269,6 +270,7 @@ export const horizontalMenuItems: MenuItemType[] = [
                 children: [
                   { key: 'all-autores', label: 'Todos los Autores', url: '/products/atributos/autores' },
                   { key: 'add-autor', label: 'Agregar Autor', url: '/products/atributos/autores/agregar' },
+                  { key: 'autor-requests', label: 'Solicitudes de Autores', url: '/products/atributos/autores/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
                   { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
                   { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
                   { key: 'all-tipo-libro', label: 'Todos los Tipos de Libro', url: '/atributos/tipo-libro' },

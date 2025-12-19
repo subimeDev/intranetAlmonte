@@ -4,7 +4,6 @@ import {
   ColumnDef,
   ColumnFiltersState,
   createColumnHelper,
-  FilterFn,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -19,17 +18,18 @@ import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuBox, LuSearch, LuTag } from 'react-icons/lu'
-import { TbEdit, TbEye, TbLayoutGrid, TbList, TbPlus, TbTrash } from 'react-icons/tb'
+import { TbEdit, TbEye, TbList, TbTrash, TbCheck } from 'react-icons/tb'
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
+import ChangeStatusModal from '@/components/table/ChangeStatusModal'
 import TablePagination from '@/components/table/TablePagination'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
-// Tipo para la tabla
-type AutorType = {
+// Tipo extendido para autores con estado_publicacion
+type AutorTypeExtended = {
   id: number
   name: string
   idAutor: number | null
@@ -40,7 +40,9 @@ type AutorType = {
   date: string
   time: string
   url: string
+  strapiId?: number
   estadoPublicacion?: 'Publicado' | 'Pendiente' | 'Borrador'
+  autorOriginal?: any
 }
 
 // Helper para obtener campo con múltiples variaciones
@@ -53,9 +55,8 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear autores de Strapi al formato AutorType
-const mapStrapiAutorToAutorType = (autor: any): AutorType => {
-  // Los datos pueden venir en attributes o directamente
+// Función para mapear autores de Strapi al formato AutorTypeExtended
+const mapStrapiAutorToAutorType = (autor: any): AutorTypeExtended => {
   const attrs = autor.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (autor as any)
 
@@ -63,7 +64,6 @@ const mapStrapiAutorToAutorType = (autor: any): AutorType => {
   const getFotoUrl = (): string | null => {
     let foto = data.foto || data.FOTO || data.photo || data.PHOTO
     
-    // Si foto tiene .data, acceder a eso
     if (foto?.data) {
       foto = Array.isArray(foto.data) ? foto.data[0] : foto.data
     }
@@ -72,44 +72,32 @@ const mapStrapiAutorToAutorType = (autor: any): AutorType => {
       return null
     }
 
-    // Obtener la URL - puede estar en attributes o directamente
     const url = foto.attributes?.url || foto.attributes?.URL || foto.url || foto.URL
     if (!url) {
       return null
     }
     
-    // Si la URL ya es completa, retornarla tal cual
     if (url.startsWith('http')) {
       return url
     }
     
-    // Si no, construir la URL completa con la base de Strapi
     const baseUrl = STRAPI_API_URL.replace(/\/$/, '')
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
   }
 
-  // Obtener nombre completo
   const nombreCompleto = getField(data, 'nombre_completo_autor', 'nombreCompletoAutor', 'NOMBRE_COMPLETO_AUTOR', 'nombre', 'name') || 'Sin nombre'
-  
-  // Obtener ID autor
   const idAutor = getField(data, 'id_autor', 'idAutor', 'ID_AUTOR') || null
-  
-  // Obtener tipo autor
   const tipoAutor = getField(data, 'tipo_autor', 'tipoAutor', 'TIPO_AUTOR') || 'Persona'
   
-  // Contar libros
   const libros = data.libros?.data || data.books || []
   const librosCount = Array.isArray(libros) ? libros.length : 0
   
-  // Obtener estado (publishedAt indica si está publicado)
   const isPublished = !!(attrs.publishedAt || autor.publishedAt)
-  
-  // Obtener estado_publicacion
-  const estadoPublicacion = getField(data, 'estado_publicacion', 'ESTADO_PUBLICACION', 'estadoPublicacion') || 'Pendiente'
-  
-  // Obtener fechas
   const createdAt = attrs.createdAt || (autor as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
+
+  // Obtener estado_publicacion
+  const estadoPublicacion = getField(data, 'estado_publicacion', 'ESTADO_PUBLICACION', 'estadoPublicacion') || 'Pendiente'
 
   const fotoUrl = getFotoUrl()
   
@@ -124,38 +112,42 @@ const mapStrapiAutorToAutorType = (autor: any): AutorType => {
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
     url: `/products/atributos/autores/${autor.id || autor.documentId || autor.id}`,
+    strapiId: autor.id,
     estadoPublicacion: estadoPublicacion as 'Publicado' | 'Pendiente' | 'Borrador',
+    autorOriginal: autor,
   }
 }
 
-interface AutoresListingProps {
+interface AutorRequestsListingProps {
   autores?: any[]
   error?: string | null
 }
 
-const columnHelper = createColumnHelper<AutorType>()
+const columnHelper = createColumnHelper<AutorTypeExtended>()
 
-const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
+const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}) => {
   const router = useRouter()
   
-  // Mapear autores de Strapi al formato AutorType si están disponibles
   const mappedAutores = useMemo(() => {
     if (autores && autores.length > 0) {
-      console.log('[AutoresListing] Autores recibidos:', autores.length)
+      console.log('[AutorRequestsListing] Autores recibidos:', autores.length)
       const mapped = autores.map(mapStrapiAutorToAutorType)
-      console.log('[AutoresListing] Autores mapeados:', mapped.length)
+      console.log('[AutorRequestsListing] Autores mapeados:', mapped.length)
       return mapped
     }
-    console.log('[AutoresListing] No hay autores de Strapi')
     return []
   }, [autores])
 
-  const columns: ColumnDef<AutorType, any>[] = [
+  // Estado para el modal de cambio de estado
+  const [showChangeStatusModal, setShowChangeStatusModal] = useState(false)
+  const [selectedAutor, setSelectedAutor] = useState<AutorTypeExtended | null>(null)
+
+  const columns: ColumnDef<AutorTypeExtended, any>[] = [
     {
       id: 'select',
       maxSize: 45,
       size: 45,
-      header: ({ table }: { table: TableType<AutorType> }) => (
+      header: ({ table }: { table: TableType<AutorTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -163,7 +155,7 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: { row: TableRow<AutorType> }) => (
+      cell: ({ row }: { row: TableRow<AutorTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -179,7 +171,6 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
       cell: ({ row }) => {
         const fotoSrc = row.original.foto
         
-        // Si no hay foto, mostrar placeholder
         if (!fotoSrc) {
           return (
             <div className="d-flex">
@@ -208,9 +199,6 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
                 width={36} 
                 className="img-fluid rounded"
                 unoptimized={fotoSrc.startsWith('http')}
-                onError={(e) => {
-                  console.error('[AutoresListing] Error al cargar foto:', fotoSrc, e)
-                }}
               />
             </div>
             <div>
@@ -261,17 +249,6 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
         )
       },
     }),
-    columnHelper.accessor('status', {
-      header: 'Estado',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => (
-        <span
-          className={`badge ${row.original.status === 'active' ? 'badge-soft-success' : 'badge-soft-danger'} fs-xxs`}>
-          {row.original.status === 'active' ? 'Activo' : 'Inactivo'}
-        </span>
-      ),
-    }),
     columnHelper.accessor('date', {
       header: 'Fecha',
       cell: ({ row }) => (
@@ -282,19 +259,15 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
     }),
     {
       header: 'Acciones',
-      cell: ({ row }: { row: TableRow<AutorType> }) => (
+      cell: ({ row }: { row: TableRow<AutorTypeExtended> }) => (
         <div className="d-flex gap-1">
           <Link href={row.original.url}>
-            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Ver">
               <TbEye className="fs-lg" />
             </Button>
           </Link>
           <Link href={row.original.url}>
-            <Button
-              variant="default"
-              size="sm"
-              className="btn-icon rounded-circle"
-            >
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Editar">
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
@@ -302,6 +275,18 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
             variant="default"
             size="sm"
             className="btn-icon rounded-circle"
+            title="Cambiar Estado"
+            onClick={() => {
+              setSelectedAutor(row.original)
+              setShowChangeStatusModal(true)
+            }}>
+            <TbCheck className="fs-lg" />
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="btn-icon rounded-circle"
+            title="Eliminar"
             onClick={() => {
               toggleDeleteModal()
               setSelectedRowIds({ [row.id]: true })
@@ -313,18 +298,17 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
     },
   ]
 
-  const [data, setData] = useState<AutorType[]>([])
+  const [data, setData] = useState<AutorTypeExtended[]>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 8 })
-
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
   // Estado para el orden de columnas
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('autores-column-order')
+      const saved = localStorage.getItem('autor-requests-column-order')
       if (saved) {
         try {
           return JSON.parse(saved)
@@ -340,18 +324,15 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
   const handleColumnOrderChange = (newOrder: string[]) => {
     setColumnOrder(newOrder)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('autores-column-order', JSON.stringify(newOrder))
+      localStorage.setItem('autor-requests-column-order', JSON.stringify(newOrder))
     }
   }
 
-  // Actualizar datos cuando cambien los autores de Strapi
   useEffect(() => {
-    console.log('[AutoresListing] useEffect - autores:', autores?.length, 'mappedAutores:', mappedAutores.length)
     setData(mappedAutores)
-    console.log('[AutoresListing] Datos actualizados. Total:', mappedAutores.length)
-  }, [mappedAutores, autores])
+  }, [mappedAutores])
 
-  const table = useReactTable<AutorType>({
+  const table = useReactTable<AutorTypeExtended>({
     data,
     columns,
     state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds, columnOrder },
@@ -373,7 +354,6 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
   const pageIndex = table.getState().pagination.pageIndex
   const pageSize = table.getState().pagination.pageSize
   const totalItems = table.getFilteredRowModel().rows.length
-
   const start = pageIndex * pageSize + 1
   const end = Math.min(start + pageSize - 1, totalItems)
 
@@ -388,7 +368,6 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
     const idsToDelete = selectedIds.map(id => data[parseInt(id)]?.id).filter(Boolean)
     
     try {
-      // Eliminar cada autor seleccionado
       for (const autorId of idsToDelete) {
         const response = await fetch(`/api/tienda/autores/${autorId}`, {
           method: 'DELETE',
@@ -398,13 +377,11 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
         }
       }
       
-      // Actualizar datos localmente
       setData((old) => old.filter((_, idx) => !selectedIds.includes(idx.toString())))
       setSelectedRowIds({})
       setPagination({ ...pagination, pageIndex: 0 })
       setShowDeleteModal(false)
       
-      // Recargar la página para reflejar cambios
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar autores:', error)
@@ -412,7 +389,36 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
     }
   }
 
-  // Mostrar error si existe
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedAutor?.strapiId) return
+
+    try {
+      const response = await fetch(`/api/tienda/autores/${selectedAutor.strapiId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: { estado_publicacion: newStatus } }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al actualizar el estado del autor')
+      }
+
+      // Actualizar el estado local del autor
+      setData((prevData) =>
+        prevData.map((a) =>
+          a.strapiId === selectedAutor.strapiId ? { ...a, estadoPublicacion: newStatus as any } : a
+        )
+      )
+      console.log(`[AutorRequestsListing] Estado de autor ${selectedAutor.strapiId} actualizado a ${newStatus}`)
+    } catch (err: any) {
+      console.error('[AutorRequestsListing] Error al cambiar estado:', err)
+      alert(`Error al cambiar estado: ${err.message}`)
+    }
+  }
+
   const hasError = !!error
   const hasData = mappedAutores.length > 0
   
@@ -422,24 +428,10 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
         <Col xs={12}>
           <Alert variant="warning">
             <strong>Error al cargar autores desde Strapi:</strong> {error}
-            <br />
-            <small className="text-muted">
-              Verifica que:
-              <ul className="mt-2 mb-0">
-                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
-                <li>El servidor de Strapi esté disponible</li>
-                <li>Las variables de entorno estén correctas</li>
-              </ul>
-            </small>
           </Alert>
         </Col>
       </Row>
     )
-  }
-  
-  // Si hay error pero también hay datos, mostrar advertencia pero continuar
-  if (hasError && hasData) {
-    console.warn('[AutoresListing] Error al cargar desde Strapi, usando datos disponibles:', error)
   }
 
   return (
@@ -509,23 +501,13 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
             </div>
 
             <div className="d-flex gap-1">
-              <Link passHref href="/products/atributos/autores">
-                <Button variant="outline-primary" className="btn-icon btn-soft-primary">
-                  <TbLayoutGrid className="fs-lg" />
-                </Button>
-              </Link>
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
-              <Link href="/products/atributos/autores/agregar" passHref>
-                <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Agregar Autor
-                </Button>
-              </Link>
             </div>
           </CardHeader>
 
-          <DataTable<AutorType>
+          <DataTable<AutorTypeExtended>
             table={table}
             emptyMessage="No se encontraron registros"
             enableColumnReordering={true}
@@ -558,11 +540,26 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
             selectedCount={Object.keys(selectedRowIds).length}
             itemName="author"
           />
+
+          {selectedAutor && (
+            <ChangeStatusModal
+              show={showChangeStatusModal}
+              onHide={() => setShowChangeStatusModal(false)}
+              onConfirm={handleStatusChange}
+              currentItemName={selectedAutor.name || 'Autor'}
+              currentStatus={selectedAutor.estadoPublicacion || 'Pendiente'}
+              availableStatuses={[
+                { value: 'Publicado', label: 'Publicado' },
+                { value: 'Pendiente', label: 'Pendiente' },
+                { value: 'Borrador', label: 'Borrador' },
+              ]}
+            />
+          )}
         </Card>
       </Col>
     </Row>
   )
 }
 
-export default AutoresListing
+export default AutorRequestsListing
 

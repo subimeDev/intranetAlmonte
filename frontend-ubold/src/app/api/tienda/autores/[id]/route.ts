@@ -159,6 +159,9 @@ export async function PUT(
     if (body.data.foto !== undefined) {
       updateData.data.foto = body.data.foto
     }
+    if (body.data.estado_publicacion !== undefined) {
+      updateData.data.estado_publicacion = body.data.estado_publicacion
+    }
 
     const response = await strapiClient.put(`/api/autores/${autorDocumentId}`, updateData)
     
