@@ -87,14 +87,12 @@ const LayoutProvider = ({ children }: ChildrenType) => {
   useEffect(() => {
     // CRÍTICO: Asegurar que la sidebar siempre esté visible
     // Si el tamaño es 'offcanvas', cambiarlo automáticamente a un modo visible
-    let effectiveSidenavSize = settings.sidenavSize
-    if (effectiveSidenavSize === 'offcanvas') {
+    let effectiveSidenavSize: 'default' | 'compact' | 'condensed' | 'on-hover' | 'on-hover-active' = settings.sidenavSize
+    if (settings.sidenavSize === 'offcanvas') {
       const width = window.innerWidth
       effectiveSidenavSize = width <= 1140 ? 'condensed' : 'default'
       // Actualizar el estado si era offcanvas
-      if (settings.sidenavSize === 'offcanvas') {
-        updateSettings({ sidenavSize: effectiveSidenavSize })
-      }
+      updateSettings({ sidenavSize: effectiveSidenavSize })
     }
     
     toggleAttribute('data-skin', settings.skin)
@@ -109,8 +107,9 @@ const LayoutProvider = ({ children }: ChildrenType) => {
     toggleAttribute('class', settings.monochrome ? 'monochrome' : '')
     
     // Asegurar que la clase sidebar-enable esté presente para mantener la sidebar visible
+    // effectiveSidenavSize nunca será 'offcanvas' en este punto, así que siempre agregamos la clase
     const html = document.documentElement
-    if (effectiveSidenavSize !== 'offcanvas' && !html.classList.contains('sidebar-enable')) {
+    if (!html.classList.contains('sidebar-enable')) {
       html.classList.add('sidebar-enable')
     }
   }, [settings, updateSettings])
