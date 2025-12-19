@@ -23,9 +23,16 @@ export async function GET() {
     nodeEnv: process.env.NODE_ENV,
     railwayEnv: process.env.RAILWAY_ENVIRONMENT,
     
-    // Todas las variables que empiezan con STRAPI o WOOCOMMERCE
+    // Variables de Shipit
+    hasShipitToken: !!process.env.SHIPIT_API_TOKEN,
+    shipitTokenLength: process.env.SHIPIT_API_TOKEN?.length || 0,
+    hasShipitEmail: !!process.env.SHIPIT_API_EMAIL,
+    shipitUrl: process.env.SHIPIT_API_URL || 'https://api.shipit.cl/v4',
+    
+    // Todas las variables que empiezan con STRAPI, WOOCOMMERCE o SHIPIT
     allStrapiVars: Object.keys(process.env).filter(key => key.includes('STRAPI')),
     allWooCommerceVars: Object.keys(process.env).filter(key => key.includes('WOOCOMMERCE')),
+    allShipitVars: Object.keys(process.env).filter(key => key.includes('SHIPIT')),
   }, {
     headers: {
       'Content-Type': 'application/json',

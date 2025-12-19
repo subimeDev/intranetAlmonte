@@ -7,6 +7,7 @@ import CustomerDetails from '@/app/(admin)/(apps)/(ecommerce)/orders/[orderId]/c
 import OrderSummary from '@/app/(admin)/(apps)/(ecommerce)/orders/[orderId]/components/OrderSummary'
 import ShippingActivity from '@/app/(admin)/(apps)/(ecommerce)/orders/[orderId]/components/ShippingActivity'
 import ShippingAddress from '@/app/(admin)/(apps)/(ecommerce)/orders/[orderId]/components/ShippingAddress'
+import ShipitInfo from '@/app/(admin)/(apps)/(ecommerce)/orders/[orderId]/components/ShipitInfo'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 
 // Forzar renderizado dinámico
@@ -87,6 +88,8 @@ export default async function Page({ params }: PageProps) {
             </Col>
             <Col xl={3}>
               <CustomerDetails pedido={pedido} />
+
+              <ShipitInfo pedido={pedido} />
 
               <ShippingAddress pedido={pedido} />
 

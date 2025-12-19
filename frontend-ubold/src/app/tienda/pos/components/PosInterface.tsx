@@ -448,12 +448,25 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
   }
 
   // Procesar pedido con método de pago
-  const handleProcessOrder = async (payments: PaymentMethod[]) => {
+  const handleProcessOrder = async (payments: PaymentMethod[], deliveryType: 'shipping' | 'pickup' = 'pickup') => {
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
     
     if (totalPaid < totals.total) {
       clearError()
       return
+    }
+
+    // Validar que si es envío, el cliente tenga dirección completa
+    if (deliveryType === 'shipping' && selectedCustomer) {
+      const hasShippingAddress = selectedCustomer.shipping?.address_1 || 
+                                 selectedCustomer.shipping?.city ||
+                                 selectedCustomer.billing?.address_1 ||
+                                 selectedCustomer.billing?.city
+      
+      if (!hasShippingAddress) {
+        showWarning('Para envío a domicilio, el cliente debe tener dirección de envío completa. Por favor, edita los datos del cliente.')
+        return
+      }
     }
 
     // Pasar datos completos del cliente al processOrder
@@ -466,7 +479,8 @@ export default function PosInterfaceNew({}: PosInterfaceProps) {
       cart,
       selectedCustomer?.id,
       paymentMethodWithCustomer as any, // Pasar método de pago con datos del cliente
-      `Pago: ${payments.map(p => `${p.type} $${p.amount}`).join(', ')}`
+      `Pago: ${payments.map(p => `${p.type} $${p.amount}`).join(', ')}`,
+      deliveryType
     )
 
     if (order) {

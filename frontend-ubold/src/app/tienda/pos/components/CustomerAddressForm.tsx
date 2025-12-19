@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Form, Button, Row, Col, Alert, Spinner, Card, CardBody, CardHeader, CardTitle } from 'react-bootstrap'
 import { LuSave, LuMapPin } from 'react-icons/lu'
 import { buildWooCommerceAddress, createAddressMetaData, type DetailedAddress } from '@/lib/woocommerce/address-utils'
+import CommuneAutocomplete from './CommuneAutocomplete'
 
 interface Customer {
   id: number
@@ -303,13 +304,12 @@ export default function CustomerAddressForm({ customer, onSave, onCancel }: Cust
       <Row>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label>Ciudad *</Form.Label>
-            <Form.Control
-              type="text"
+            <CommuneAutocomplete
               value={address.city || ''}
-              onChange={(e) => setAddress({ ...address, city: e.target.value })}
-              placeholder="Ej: Santiago"
+              onChange={(value) => setAddress({ ...address, city: value })}
+              placeholder="Ej: Las Condes, Santiago, Providencia..."
               required
+              label="Ciudad/Comuna *"
             />
           </Form.Group>
         </Col>

@@ -38,7 +38,8 @@ export function usePosOrders() {
     cart: CartItem[],
     customerId?: number,
     paymentMethod: PaymentMethod = { type: 'cash', amount: 0 },
-    customerNote?: string
+    customerNote?: string,
+    deliveryType: 'shipping' | 'pickup' = 'pickup'
   ) => {
     if (cart.length === 0) {
       setError('El carrito está vacío')
@@ -121,6 +122,21 @@ export function usePosOrders() {
         ...createAddressMetaData('shipping', shippingDetailed),
       ]
 
+      // Si es retiro en tienda, limpiar dirección de envío
+      const finalShippingData = deliveryType === 'pickup' 
+        ? {
+            first_name: '',
+            last_name: '',
+            company: '',
+            address_1: '',
+            address_2: '',
+            city: '',
+            state: '',
+            postcode: '',
+            country: 'CL',
+          }
+        : shippingData
+
       const orderData: any = {
         payment_method: paymentMethod.type,
         payment_method_title: 
@@ -132,14 +148,20 @@ export function usePosOrders() {
         status: 'completed',
         customer_id: customerId || 0,
         billing: billingData,
-        shipping: shippingData,
+        shipping: finalShippingData,
         line_items: cart.map((item) => ({
           product_id: item.product.id,
           quantity: item.quantity,
         })),
         ...(customerNote && { customer_note: customerNote }),
-        // Agregar meta_data con direcciones detalladas
-        ...(addressMetaData.length > 0 && { meta_data: addressMetaData }),
+        // Agregar meta_data con direcciones detalladas y tipo de entrega
+        meta_data: [
+          ...(addressMetaData.length > 0 ? addressMetaData : []),
+          {
+            key: '_delivery_type',
+            value: deliveryType,
+          },
+        ],
       }
 
       // Usar el endpoint de tienda/pedidos que sincroniza con WooCommerce y Strapi

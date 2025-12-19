@@ -136,19 +136,25 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+  
   try {
-    const { id } = await params
+    // Validar que el ID sea numérico
     const orderId = parseInt(id)
-
-    if (isNaN(orderId)) {
+    if (isNaN(orderId) || orderId <= 0) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ID de pedido inválido',
+          error: `ID de pedido inválido: "${id}". El ID debe ser un número válido.`,
         },
         { status: 400 }
       )
     }
+
+    console.log('[API GET /woocommerce/orders/[id]] Obteniendo pedido:', {
+      id: id,
+      orderId: orderId,
+    })
 
     const order = await wooCommerceClient.get<WooCommerceOrder>(
       `orders/${orderId}`
@@ -159,12 +165,31 @@ export async function GET(
       data: order,
     })
   } catch (error: any) {
-    console.error('Error al obtener pedido de WooCommerce:', error)
+    console.error('Error al obtener pedido de WooCommerce:', {
+      id: id,
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      details: error.details,
+    })
+    
+    // Mensaje de error más descriptivo según el tipo de error
+    let errorMessage = error.message || 'Error al obtener pedido'
+    
+    // Si el error es 404, el pedido no existe
+    if (error.status === 404 || error.code === 'woocommerce_rest_shop_order_invalid_id') {
+      errorMessage = `Pedido con ID "${id}" no encontrado en WooCommerce. Verifica que el ID sea correcto.`
+    } else if (error.status === 400) {
+      errorMessage = `ID de pedido inválido: "${id}". ${error.message || ''}`
+    }
+    
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Error al obtener pedido',
+        error: errorMessage,
         status: error.status || 500,
+        code: error.code,
+        details: error.details,
       },
       { status: error.status || 500 }
     )

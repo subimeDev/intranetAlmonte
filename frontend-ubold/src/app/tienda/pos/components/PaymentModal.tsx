@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Modal, Button, Form, InputGroup, Row, Col, Alert, Badge } from 'react-bootstrap'
-import { LuDollarSign, LuCreditCard, LuArrowRightLeft, LuX, LuCheck } from 'react-icons/lu'
+import { LuDollarSign, LuCreditCard, LuArrowRightLeft, LuX, LuCheck, LuTruck, LuStore } from 'react-icons/lu'
 import type { PaymentMethod } from '../hooks/usePosOrders'
 import { calculateChange, formatCurrencyNumber } from '../utils/calculations'
+
+export type DeliveryType = 'shipping' | 'pickup' // 'shipping' = envío a domicilio, 'pickup' = retiro en tienda
 
 interface PaymentModalProps {
   show: boolean
   total: number
-  onComplete: (payments: PaymentMethod[]) => void
+  onComplete: (payments: PaymentMethod[], deliveryType: DeliveryType) => void
   onCancel: () => void
 }
 
@@ -18,6 +20,7 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
   const [currentPaymentType, setCurrentPaymentType] = useState<PaymentMethod['type']>('cash')
   const [currentAmount, setCurrentAmount] = useState('')
   const [reference, setReference] = useState('')
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('pickup') // Por defecto retiro en tienda
   const amountInputRef = useRef<HTMLInputElement>(null)
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
@@ -68,6 +71,7 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
       setCurrentAmount('')
       setReference('')
       setCurrentPaymentType('cash')
+      setDeliveryType('pickup') // Resetear a retiro en tienda por defecto
       // Focus en el input después de un pequeño delay
       setTimeout(() => {
         amountInputRef.current?.focus()
@@ -102,7 +106,7 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
 
   const handleComplete = () => {
     if (remaining <= 0) {
-      onComplete(payments)
+      onComplete(payments, deliveryType)
     }
   }
 
@@ -136,6 +140,43 @@ export default function PaymentModal({ show, total, onComplete, onCancel }: Paym
         <Modal.Title>Métodos de Pago</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {/* Tipo de Entrega */}
+        <div className="mb-4 p-3 bg-light rounded">
+          <h6 className="mb-3">Tipo de Entrega:</h6>
+          <Row className="g-2">
+            <Col>
+              <Button
+                variant={deliveryType === 'pickup' ? 'primary' : 'outline-primary'}
+                className="w-100"
+                onClick={() => setDeliveryType('pickup')}
+                size="lg"
+              >
+                <LuStore className="me-2" size={20} />
+                Retiro en Tienda
+              </Button>
+            </Col>
+            <Col>
+              <Button
+                variant={deliveryType === 'shipping' ? 'success' : 'outline-success'}
+                className="w-100"
+                onClick={() => setDeliveryType('shipping')}
+                size="lg"
+              >
+                <LuTruck className="me-2" size={20} />
+                Envío a Domicilio
+              </Button>
+            </Col>
+          </Row>
+          {deliveryType === 'shipping' && (
+            <Alert variant="info" className="mt-3 mb-0">
+              <small>
+                <strong>⚠️ Importante:</strong> Se creará un envío automático en Shipit. 
+                Asegúrate de que el cliente tenga dirección de envío completa y válida.
+              </small>
+            </Alert>
+          )}
+        </div>
+
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h5 className="mb-0">Total a Pagar:</h5>

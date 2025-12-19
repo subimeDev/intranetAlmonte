@@ -8,6 +8,10 @@ import strapiClient from '@/lib/strapi/client'
 import wooCommerceClient from '@/lib/woocommerce/client'
 import type { StrapiResponse, StrapiEntity } from '@/lib/strapi/types'
 import type { WooCommerceOrder } from '@/lib/woocommerce/types'
+import { mapWooCommerceOrderToShipit, validateOrderForShipment } from '@/lib/shipit/utils'
+import { getCommuneId } from '@/lib/shipit/communes'
+import shipitClient from '@/lib/shipit/client'
+import type { ShipitShipmentResponse } from '@/lib/shipit/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -158,13 +162,131 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Intentar crear envío en Shipit solo si es envío (no retiro en tienda)
+    let shipitShipment = null
+    let shipitError = null
+
+    // Verificar tipo de entrega desde meta_data
+    const deliveryTypeMeta = wooCommerceOrder.meta_data?.find(
+      (meta) => meta.key === '_delivery_type'
+    )
+    const deliveryType = deliveryTypeMeta?.value || 'pickup'
+
+    // Solo crear envío si es tipo "shipping" (envío a domicilio)
+    if (deliveryType === 'shipping') {
+      try {
+        // Validar que el pedido tenga información de envío
+        const validation = validateOrderForShipment(wooCommerceOrder)
+      
+      if (validation.valid) {
+        // Verificar si ya tiene un envío de Shipit
+        const existingShipitId = wooCommerceOrder.meta_data?.find(
+          (meta) => meta.key === '_shipit_id' || meta.key === 'shipit_id'
+        )
+
+        if (!existingShipitId) {
+          // Verificar cobertura antes de crear envío (opcional, puede ser lento)
+          // Comentado por defecto para no ralentizar la creación del pedido
+          // Se puede activar si es necesario:
+          /*
+          try {
+            const communeId = getCommuneId(wooCommerceOrder.shipping.city)
+            if (communeId) {
+              const coverageResponse = await shipitClient.get('coverage', { commune_id: communeId })
+              if (!coverageResponse.available) {
+                console.warn('[API Pedidos POST] ⚠️  No hay cobertura de Shipit para esta comuna')
+                // Continuar de todas formas, pero registrar la advertencia
+              }
+            }
+          } catch (coverageError) {
+            // No fallar si la verificación de cobertura falla
+            console.warn('[API Pedidos POST] No se pudo verificar cobertura:', coverageError)
+          }
+          */
+
+          // Mapear pedido a formato Shipit
+          const shipmentData = mapWooCommerceOrderToShipit(wooCommerceOrder, {
+            // communeId se obtendrá automáticamente desde la ciudad
+            courier: process.env.SHIPIT_DEFAULT_COURIER || 'shippify', // Courier desde env o por defecto
+            kind: 0, // Envío normal
+            testMode: process.env.NODE_ENV === 'development', // Modo prueba en desarrollo
+          })
+
+          // Crear envío en Shipit
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[API Pedidos POST] 📦 Creando envío en Shipit...')
+          }
+
+          shipitShipment = await shipitClient.post<ShipitShipmentResponse>(
+            'shipments',
+            shipmentData
+          )
+
+          // Guardar ID de Shipit en el pedido de WooCommerce
+          const currentMetaData = wooCommerceOrder.meta_data || []
+          const updatedMetaData = [
+            ...currentMetaData.filter(
+              (meta) => meta.key !== '_shipit_id' && meta.key !== 'shipit_id'
+            ),
+            {
+              key: '_shipit_id',
+              value: String(shipitShipment.id),
+            },
+          ]
+
+          if (shipitShipment.tracking_number) {
+            updatedMetaData.push({
+              key: '_shipit_tracking',
+              value: shipitShipment.tracking_number,
+            })
+          }
+
+          // Actualizar pedido en WooCommerce con el ID de Shipit
+          await wooCommerceClient.put(`orders/${wooCommerceOrder.id}`, {
+            meta_data: updatedMetaData,
+          })
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[API Pedidos POST] ✅ Envío creado en Shipit:', {
+              shipitId: shipitShipment.id,
+              tracking: shipitShipment.tracking_number,
+            })
+          }
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[API Pedidos POST] ⚠️  Pedido ya tiene envío de Shipit:', existingShipitId.value)
+          }
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[API Pedidos POST] ⚠️  Pedido no tiene información suficiente para crear envío:', validation.errors)
+        }
+      }
+      } catch (error: any) {
+        // No fallar el pedido si Shipit falla, solo loguear el error
+        shipitError = error.message || 'Error al crear envío en Shipit'
+        console.error('[API Pedidos POST] ❌ Error al crear envío en Shipit (no crítico):', {
+          orderId: wooCommerceOrder.id,
+          error: shipitError,
+          details: error.details,
+        })
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[API Pedidos POST] ℹ️  Pedido es retiro en tienda, no se creará envío en Shipit')
+      }
+    }
+
     // Responder inmediatamente - Strapi se sincronizará vía webhook de WooCommerce
     return NextResponse.json({
       success: true,
       data: {
         woocommerce: wooCommerceOrder,
+        shipit: shipitShipment,
       },
-      message: 'Pedido creado exitosamente en WooCommerce. Sincronización con Strapi se procesará automáticamente.'
+      message: 'Pedido creado exitosamente en WooCommerce. Sincronización con Strapi se procesará automáticamente.' + 
+        (shipitShipment ? ' Envío creado en Shipit.' : shipitError ? ' No se pudo crear envío en Shipit (no crítico).' : ''),
+      ...(shipitError && { shipitWarning: shipitError }),
     }, { status: 200 })
 
   } catch (error: any) {
