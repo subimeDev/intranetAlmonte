@@ -4,7 +4,8 @@ import { Badge, Col, Row, Alert, Card, CardHeader, CardBody, Form, Button, FormG
 import { format } from 'date-fns'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { LuSave, LuX } from 'react-icons/lu'
+import { LuSave, LuX, LuUpload } from 'react-icons/lu'
+import { RelationSelector } from '@/app/(admin)/(apps)/(ecommerce)/add-product/components/RelationSelector'
 
 interface SelloDetailsProps {
   sello: any
@@ -48,13 +49,32 @@ const SelloDetails = ({ sello: initialSello, selloId, error: initialError }: Sel
   const attrs = sello.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (sello as any)
 
+  // Obtener relaciones existentes
+  const getRelationIds = (relation: any): string[] => {
+    if (!relation) return []
+    if (Array.isArray(relation.data)) {
+      return relation.data.map((item: any) => item.documentId || item.id).filter(Boolean)
+    }
+    if (relation.data) {
+      return [relation.data.documentId || relation.data.id].filter(Boolean)
+    }
+    if (Array.isArray(relation)) {
+      return relation.map((item: any) => item.documentId || item.id).filter(Boolean)
+    }
+    return []
+  }
+
   // Inicializar formData con los valores del sello según schema real
   const [formData, setFormData] = useState({
     id_sello: getField(data, 'id_sello', 'idSello', 'ID_SELLO')?.toString() || '',
     nombre_sello: getField(data, 'nombre_sello', 'nombreSello', 'nombre', 'NOMBRE_SELLO', 'NAME') || '',
     acronimo: getField(data, 'acronimo', 'acronimo', 'ACRONIMO') || '',
     website: getField(data, 'website', 'website', 'WEBSITE') || '',
-    editorial: data.editorial?.data?.id || data.editorial?.id || '',
+    editorial: data.editorial?.data?.documentId || data.editorial?.data?.id || data.editorial?.documentId || data.editorial?.id || '',
+    libros: getRelationIds(data.libros),
+    colecciones: getRelationIds(data.colecciones),
+    logo: null as File | null,
+    logoUrl: data.logo?.data?.attributes?.url || data.logo?.url || null,
   })
 
   // Actualizar formData cuando cambie el sello
@@ -68,7 +88,11 @@ const SelloDetails = ({ sello: initialSello, selloId, error: initialError }: Sel
         nombre_sello: getField(data, 'nombre_sello', 'nombreSello', 'nombre', 'NOMBRE_SELLO', 'NAME') || '',
         acronimo: getField(data, 'acronimo', 'acronimo', 'ACRONIMO') || '',
         website: getField(data, 'website', 'website', 'WEBSITE') || '',
-        editorial: data.editorial?.data?.id || data.editorial?.id || '',
+        editorial: data.editorial?.data?.documentId || data.editorial?.data?.id || data.editorial?.documentId || data.editorial?.id || '',
+        libros: getRelationIds(data.libros),
+        colecciones: getRelationIds(data.colecciones),
+        logo: null,
+        logoUrl: data.logo?.data?.attributes?.url || data.logo?.url || null,
       })
     }
   }, [sello])
@@ -119,6 +143,30 @@ const SelloDetails = ({ sello: initialSello, selloId, error: initialError }: Sel
     setSuccess(false)
 
     try {
+      // Si hay logo nuevo, primero subirlo
+      let logoId = null
+      if (formData.logo) {
+        try {
+          const formDataLogo = new FormData()
+          formDataLogo.append('file', formData.logo)
+          
+          const uploadResponse = await fetch('/api/tienda/upload', {
+            method: 'POST',
+            body: formDataLogo,
+          })
+          
+          const uploadResult = await uploadResponse.json()
+          if (uploadResult.success && uploadResult.data && uploadResult.data.length > 0) {
+            logoId = uploadResult.data[0].id
+          } else if (uploadResult.success && uploadResult.data?.id) {
+            logoId = uploadResult.data.id
+          }
+        } catch (uploadError: any) {
+          console.warn('[SelloDetails] Error al subir logo:', uploadError.message)
+          // Continuar sin logo si falla la subida
+        }
+      }
+
       const url = `/api/tienda/sello/${sId}`
       const body = JSON.stringify({
         data: {
@@ -127,6 +175,9 @@ const SelloDetails = ({ sello: initialSello, selloId, error: initialError }: Sel
           acronimo: formData.acronimo.trim() || null,
           website: formData.website.trim() || null,
           editorial: formData.editorial || null,
+          libros: formData.libros.length > 0 ? formData.libros : null,
+          colecciones: formData.colecciones.length > 0 ? formData.colecciones : null,
+          logo: logoId || null,
         },
       })
       
@@ -264,6 +315,204 @@ const SelloDetails = ({ sello: initialSello, selloId, error: initialError }: Sel
                   />
                   <small className="text-muted">
                     URL del sitio web del sello (opcional).
+                  </small>
+                </FormGroup>
+              </Col>
+
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>Editorial</FormLabel>
+                  <RelationSelector
+                    label=""
+                    value={formData.editorial}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, editorial: value as string }))}
+                    endpoint="/api/tienda/editoriales"
+                    displayField="nombre_editorial"
+                  />
+                  {formData.editorial && (
+                    <div className="mt-2">
+                      <Badge bg="success" className="me-2">Published</Badge>
+                      <span className="text-muted small">{formData.editorial}</span>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="ms-2 p-0"
+                        onClick={() => setFormData((prev) => ({ ...prev, editorial: '' }))}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  )}
+                </FormGroup>
+              </Col>
+
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>Libros ({formData.libros.length})</FormLabel>
+                  <RelationSelector
+                    label=""
+                    value={formData.libros}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, libros: value as string[] }))}
+                    endpoint="/api/tienda/productos"
+                    multiple={true}
+                    displayField="titulo"
+                  />
+                  {formData.libros.length > 0 && (
+                    <div className="mt-2">
+                      {formData.libros.map((libroId, idx) => (
+                        <Badge key={idx} bg="info" className="me-2 mb-1">
+                          {libroId}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="ms-1 p-0 text-white"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                libros: prev.libros.filter((id) => id !== libroId),
+                              }))
+                            }}
+                          >
+                            ✕
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </FormGroup>
+              </Col>
+
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>Colecciones ({formData.colecciones.length})</FormLabel>
+                  <RelationSelector
+                    label=""
+                    value={formData.colecciones}
+                    onChange={(value) => setFormData((prev) => ({ ...prev, colecciones: value as string[] }))}
+                    endpoint="/api/tienda/colecciones"
+                    multiple={true}
+                    displayField="nombre"
+                  />
+                  {formData.colecciones.length > 0 && (
+                    <div className="mt-2">
+                      {formData.colecciones.map((coleccionId, idx) => (
+                        <Badge key={idx} bg="success" className="me-2 mb-1">
+                          {coleccionId}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="ms-1 p-0 text-white"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                colecciones: prev.colecciones.filter((id) => id !== coleccionId),
+                              }))
+                            }}
+                          >
+                            ✕
+                          </Button>
+                        </Badge>
+                      ))}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-1 p-0"
+                        onClick={() => {
+                          alert('Funcionalidad "Crear nueva relación" próximamente')
+                        }}
+                      >
+                        + Create a relation
+                      </Button>
+                    </div>
+                  )}
+                </FormGroup>
+              </Col>
+
+              <Col md={12}>
+                <FormGroup>
+                  <FormLabel>Logo</FormLabel>
+                  <div className="border rounded p-3 text-center" style={{ minHeight: '150px', backgroundColor: '#f8f9fa' }}>
+                    {formData.logo ? (
+                      <div>
+                        <img 
+                          src={URL.createObjectURL(formData.logo)} 
+                          alt="Preview" 
+                          style={{ maxHeight: '120px', maxWidth: '100%' }}
+                          className="mb-2"
+                        />
+                        <div>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => setFormData((prev) => ({ ...prev, logo: null }))}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : formData.logoUrl ? (
+                      <div>
+                        <img 
+                          src={formData.logoUrl.startsWith('http') ? formData.logoUrl : `${process.env.NEXT_PUBLIC_STRAPI_URL || 'https://strapi.moraleja.cl'}${formData.logoUrl}`}
+                          alt="Logo actual" 
+                          style={{ maxHeight: '120px', maxWidth: '100%' }}
+                          className="mb-2"
+                        />
+                        <div>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, logoUrl: null }))
+                            }}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <LuUpload className="fs-1 text-muted mb-2" />
+                        <div className="text-muted small">
+                          Click para agregar un archivo o arrastra y suelta uno en esta área
+                        </div>
+                        <FormControl
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              setFormData((prev) => ({ ...prev, logo: file }))
+                            }
+                          }}
+                          className="mt-2"
+                          style={{ display: 'none' }}
+                          id="logo-upload-edit"
+                        />
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => document.getElementById('logo-upload-edit')?.click()}
+                          className="mt-2"
+                        >
+                          Seleccionar archivo
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <FormControl
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setFormData((prev) => ({ ...prev, logo: file, logoUrl: null }))
+                      }
+                    }}
+                    className="mt-2"
+                  />
+                  <small className="text-muted">
+                    Logo del sello (opcional). Formatos: JPG, PNG, GIF.
                   </small>
                 </FormGroup>
               </Col>

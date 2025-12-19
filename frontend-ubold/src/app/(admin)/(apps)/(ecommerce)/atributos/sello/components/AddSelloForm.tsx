@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert } from 'react-bootstrap'
-import { LuSave, LuX } from 'react-icons/lu'
+import { LuSave, LuX, LuUpload } from 'react-icons/lu'
+import { RelationSelector } from '@/app/(admin)/(apps)/(ecommerce)/add-product/components/RelationSelector'
 
 const AddSelloForm = () => {
   const router = useRouter()
@@ -16,6 +17,9 @@ const AddSelloForm = () => {
     acronimo: '',
     website: '',
     editorial: '',
+    libros: [] as string[],
+    colecciones: [] as string[],
+    logo: null as File | null,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,10 +51,38 @@ const AddSelloForm = () => {
           acronimo: formData.acronimo.trim() || null,
           website: formData.website.trim() || null,
           editorial: formData.editorial || null,
+          libros: formData.libros.length > 0 ? formData.libros : null,
+          colecciones: formData.colecciones.length > 0 ? formData.colecciones : null,
         },
       }
 
       console.log('[AddSelloForm] Enviando datos:', selloData)
+
+      // Si hay logo, primero subirlo
+      let logoId = null
+      if (formData.logo) {
+        try {
+          const formDataLogo = new FormData()
+          formDataLogo.append('file', formData.logo)
+          
+          const uploadResponse = await fetch('/api/tienda/upload', {
+            method: 'POST',
+            body: formDataLogo,
+          })
+          
+          const uploadResult = await uploadResponse.json()
+          if (uploadResult.success && uploadResult.data && uploadResult.data.length > 0) {
+            logoId = uploadResult.data[0].id
+            selloData.data.logo = logoId
+          } else if (uploadResult.success && uploadResult.data?.id) {
+            logoId = uploadResult.data.id
+            selloData.data.logo = logoId
+          }
+        } catch (uploadError: any) {
+          console.warn('[AddSelloForm] Error al subir logo:', uploadError.message)
+          // Continuar sin logo si falla la subida
+        }
+      }
 
       // Crear el sello
       const response = await fetch('/api/tienda/sello', {
@@ -177,6 +209,116 @@ const AddSelloForm = () => {
                 />
                 <small className="text-muted">
                   URL del sitio web del sello (opcional).
+                </small>
+              </FormGroup>
+            </Col>
+
+            <Col md={12}>
+              <FormGroup>
+                <FormLabel>Editorial</FormLabel>
+                <RelationSelector
+                  label=""
+                  value={formData.editorial}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, editorial: value as string }))}
+                  endpoint="/api/tienda/editoriales"
+                  displayField="nombre_editorial"
+                />
+              </FormGroup>
+            </Col>
+
+            <Col md={12}>
+              <FormGroup>
+                <FormLabel>Libros</FormLabel>
+                <RelationSelector
+                  label=""
+                  value={formData.libros}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, libros: value as string[] }))}
+                  endpoint="/api/tienda/productos"
+                  multiple={true}
+                  displayField="titulo"
+                />
+              </FormGroup>
+            </Col>
+
+            <Col md={12}>
+              <FormGroup>
+                <FormLabel>Colecciones</FormLabel>
+                <RelationSelector
+                  label=""
+                  value={formData.colecciones}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, colecciones: value as string[] }))}
+                  endpoint="/api/tienda/colecciones"
+                  multiple={true}
+                  displayField="nombre"
+                />
+              </FormGroup>
+            </Col>
+
+            <Col md={12}>
+              <FormGroup>
+                <FormLabel>Logo</FormLabel>
+                <div className="border rounded p-3 text-center" style={{ minHeight: '150px', backgroundColor: '#f8f9fa' }}>
+                  {formData.logo ? (
+                    <div>
+                      <img 
+                        src={URL.createObjectURL(formData.logo)} 
+                        alt="Preview" 
+                        style={{ maxHeight: '120px', maxWidth: '100%' }}
+                        className="mb-2"
+                      />
+                      <div>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => setFormData((prev) => ({ ...prev, logo: null }))}
+                        >
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <LuUpload className="fs-1 text-muted mb-2" />
+                      <div className="text-muted small">
+                        Click para agregar un archivo o arrastra y suelta uno en esta área
+                      </div>
+                      <FormControl
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setFormData((prev) => ({ ...prev, logo: file }))
+                          }
+                        }}
+                        className="mt-2"
+                        style={{ display: 'none' }}
+                        id="logo-upload"
+                      />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => document.getElementById('logo-upload')?.click()}
+                        className="mt-2"
+                      >
+                        Seleccionar archivo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <FormControl
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setFormData((prev) => ({ ...prev, logo: file }))
+                    }
+                  }}
+                  className="mt-2"
+                />
+                <small className="text-muted">
+                  Logo del sello (opcional). Formatos: JPG, PNG, GIF.
                 </small>
               </FormGroup>
             </Col>

@@ -349,6 +349,12 @@ export async function PUT(
     if (body.data.website !== undefined) selloData.data.website = body.data.website?.trim() || null
     if (body.data.editorial !== undefined) selloData.data.editorial = body.data.editorial || null
     if (body.data.logo !== undefined) selloData.data.logo = body.data.logo || null
+    if (body.data.libros !== undefined) {
+      selloData.data.libros = body.data.libros && body.data.libros.length > 0 ? body.data.libros : null
+    }
+    if (body.data.colecciones !== undefined) {
+      selloData.data.colecciones = body.data.colecciones && body.data.colecciones.length > 0 ? body.data.colecciones : null
+    }
 
     // No guardamos woocommerce_id en Strapi porque no existe en el schema
     // El match se hace usando documentId como slug en WooCommerce

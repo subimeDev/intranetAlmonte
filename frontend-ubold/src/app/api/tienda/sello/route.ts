@@ -101,9 +101,12 @@ export async function POST(request: NextRequest) {
       data: {
         id_sello: typeof idSello === 'string' ? parseInt(idSello) : idSello,
         nombre_sello: nombreSello.trim(),
-        acronimo: body.data.acronimo || body.data.acronimo || null,
-        website: body.data.website || body.data.website || null,
+        acronimo: body.data.acronimo || null,
+        website: body.data.website || null,
         editorial: body.data.editorial || null,
+        libros: body.data.libros && body.data.libros.length > 0 ? body.data.libros : null,
+        colecciones: body.data.colecciones && body.data.colecciones.length > 0 ? body.data.colecciones : null,
+        logo: body.data.logo || null,
       }
     }
 
