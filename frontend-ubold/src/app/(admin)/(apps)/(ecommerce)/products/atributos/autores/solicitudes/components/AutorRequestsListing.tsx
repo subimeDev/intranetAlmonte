@@ -544,15 +544,13 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
           {selectedAutor && (
             <ChangeStatusModal
               show={showChangeStatusModal}
-              onHide={() => setShowChangeStatusModal(false)}
+              onHide={() => {
+                setShowChangeStatusModal(false)
+                setSelectedAutor(null)
+              }}
               onConfirm={handleStatusChange}
-              currentItemName={selectedAutor.name || 'Autor'}
               currentStatus={selectedAutor.estadoPublicacion || 'Pendiente'}
-              availableStatuses={[
-                { value: 'Publicado', label: 'Publicado' },
-                { value: 'Pendiente', label: 'Pendiente' },
-                { value: 'Borrador', label: 'Borrador' },
-              ]}
+              productName={selectedAutor.name || 'Autor'}
             />
           )}
         </Card>
