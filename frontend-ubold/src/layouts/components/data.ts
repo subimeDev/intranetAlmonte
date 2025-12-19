@@ -142,8 +142,8 @@ export const menuItems: MenuItemType[] = [
             key: 'atributos',
             label: 'Atributos',
             children: [
-              { key: 'all-obras', label: 'Todas las Obras', url: '/products/atributos/obras' },
-              { key: 'add-obra', label: 'Agregar Obra', url: '/products/atributos/obras/agregar' },
+              { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
+              { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
             ],
           },
           { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
@@ -263,8 +263,8 @@ export const horizontalMenuItems: MenuItemType[] = [
                 key: 'atributos',
                 label: 'Atributos',
                 children: [
-                  { key: 'all-obras', label: 'Todas las Obras', url: '/products/atributos/obras' },
-                  { key: 'add-obra', label: 'Agregar Obra', url: '/products/atributos/obras/agregar' },
+                  { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
+                  { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
                 ],
               },
               { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },

@@ -87,9 +87,13 @@ export async function POST(request: NextRequest) {
     // Crear en Strapi PRIMERO para obtener el documentId
     console.log('[API Obras POST] 📚 Creando obra en Strapi primero...')
     
+    // Usar el slug del formulario si viene, sino generar uno desde el nombre
+    const slug = body.data.slug || nombreObra.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 27)
+    
     const obraData: any = {
       data: {
         name: nombreObra.trim(),
+        slug: slug,
         descripcion: body.data.descripcion || body.data.description || null,
       }
     }
@@ -125,10 +129,13 @@ export async function POST(request: NextRequest) {
     // Crear término del atributo en WooCommerce usando el documentId como slug
     console.log('[API Obras POST] 🛒 Creando término en WooCommerce con slug=documentId...')
     
+    // Usar el slug del formulario para WooCommerce también
+    const wooSlug = slug || documentId.toString()
+    
     const wooCommerceTermData: any = {
       name: nombreObra.trim(),
       description: body.data.descripcion || body.data.description || '',
-      slug: documentId.toString(), // Usar documentId como slug para el match
+      slug: wooSlug, // Usar slug del formulario o documentId como fallback
     }
 
     // Crear término en WooCommerce
