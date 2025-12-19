@@ -111,11 +111,17 @@ const LayoutProvider = ({ children }: ChildrenType) => {
     toggleAttribute('data-layout', settings.orientation === 'horizontal' ? 'topnav' : '')
     toggleAttribute('class', settings.monochrome ? 'monochrome' : '')
     
-    // Asegurar que la clase sidebar-enable esté presente para mantener la sidebar visible
-    // effectiveSidenavSize nunca será 'offcanvas' en este punto, así que siempre agregamos la clase
+    // CRÍTICO: Asegurar que la clase sidebar-enable esté SIEMPRE presente
+    // Esto es necesario porque el CSS de 'offcanvas' oculta la sidebar a menos que tenga esta clase
+    // Como nunca usamos 'offcanvas', siempre debemos tener esta clase
     const html = document.documentElement
-    if (!html.classList.contains('sidebar-enable')) {
-      html.classList.add('sidebar-enable')
+    // Forzar la clase sidebar-enable para que la sidebar esté visible en todas las páginas
+    html.classList.add('sidebar-enable')
+    
+    // Asegurar que el atributo data-sidenav-size nunca sea 'offcanvas' en el DOM
+    const currentSize = html.getAttribute('data-sidenav-size')
+    if (currentSize === 'offcanvas') {
+      html.setAttribute('data-sidenav-size', effectiveSidenavSize)
     }
   }, [settings, updateSettings])
 

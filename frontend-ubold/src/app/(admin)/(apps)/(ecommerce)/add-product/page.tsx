@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { RelationSelector } from './components/RelationSelector'
 import ProductImage from './components/ProductImage'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
-import { Alert, Button, Card, CardBody, CardHeader, Col, Container, FormControl, FormGroup, FormLabel, FormSelect, Row } from 'react-bootstrap'
+import { Alert, Button, Card, CardBody, CardHeader, Col, Container, FormCheck, FormControl, FormGroup, FormLabel, FormSelect, Row } from 'react-bootstrap'
 
 export default function AddProductPage() {
   const router = useRouter()
@@ -20,6 +20,37 @@ export default function AddProductPage() {
     nombre_libro: '',
     subtitulo_libro: '',
     descripcion: '',
+    
+    // === WOOCOMMERCE: PRECIO ===
+    precio: '',
+    precio_oferta: '',
+    
+    // === WOOCOMMERCE: INVENTARIO ===
+    stock_quantity: '',
+    manage_stock: true,
+    stock_status: 'instock' as 'instock' | 'outofstock' | 'onbackorder',
+    backorders: 'no' as 'no' | 'notify' | 'yes',
+    
+    // === WOOCOMMERCE: TIPO DE PRODUCTO ===
+    type: 'simple' as 'simple' | 'grouped' | 'external' | 'variable',
+    
+    // === WOOCOMMERCE: CATEGORÍAS Y TAGS ===
+    woocommerce_categories: [] as number[],
+    woocommerce_tags: [] as number[],
+    
+    // === WOOCOMMERCE: PESO Y DIMENSIONES ===
+    weight: '',
+    length: '',
+    width: '',
+    height: '',
+    
+    // === WOOCOMMERCE: OPCIONES ADICIONALES ===
+    virtual: false,
+    downloadable: false,
+    featured: false,
+    sold_individually: false,
+    reviews_allowed: true,
+    catalog_visibility: 'visible' as 'visible' | 'catalog' | 'search' | 'hidden',
     
     // === RELACIONES SIMPLES (documentId) ===
     obra: '',
@@ -104,6 +135,45 @@ export default function AddProductPage() {
       if (formData.isbn_libro?.trim()) dataToSend.isbn_libro = formData.isbn_libro.trim()
       if (formData.subtitulo_libro?.trim()) dataToSend.subtitulo_libro = formData.subtitulo_libro.trim()
       if (formData.descripcion?.trim()) dataToSend.descripcion = formData.descripcion.trim()
+      
+      // === WOOCOMMERCE: PRECIO ===
+      if (formData.precio?.trim()) dataToSend.precio = parseFloat(formData.precio) || 0
+      if (formData.precio_oferta?.trim()) dataToSend.precio_oferta = parseFloat(formData.precio_oferta) || 0
+      
+      // === WOOCOMMERCE: INVENTARIO ===
+      dataToSend.manage_stock = formData.manage_stock
+      if (formData.stock_quantity?.trim()) {
+        dataToSend.stock_quantity = parseInt(formData.stock_quantity) || 0
+      } else {
+        dataToSend.stock_quantity = 0
+      }
+      dataToSend.stock_status = formData.stock_status
+      dataToSend.backorders = formData.backorders
+      
+      // === WOOCOMMERCE: TIPO DE PRODUCTO ===
+      dataToSend.type = formData.type
+      
+      // === WOOCOMMERCE: CATEGORÍAS Y TAGS ===
+      if (formData.woocommerce_categories.length > 0) {
+        dataToSend.woocommerce_categories = formData.woocommerce_categories
+      }
+      if (formData.woocommerce_tags.length > 0) {
+        dataToSend.woocommerce_tags = formData.woocommerce_tags
+      }
+      
+      // === WOOCOMMERCE: PESO Y DIMENSIONES ===
+      if (formData.weight?.trim()) dataToSend.weight = formData.weight.trim()
+      if (formData.length?.trim()) dataToSend.length = formData.length.trim()
+      if (formData.width?.trim()) dataToSend.width = formData.width.trim()
+      if (formData.height?.trim()) dataToSend.height = formData.height.trim()
+      
+      // === WOOCOMMERCE: OPCIONES ADICIONALES ===
+      dataToSend.virtual = formData.virtual
+      dataToSend.downloadable = formData.downloadable
+      dataToSend.featured = formData.featured
+      dataToSend.sold_individually = formData.sold_individually
+      dataToSend.reviews_allowed = formData.reviews_allowed
+      dataToSend.catalog_visibility = formData.catalog_visibility
       // Enviar URL de imagen si está disponible (para WooCommerce), o ID para Strapi
       if (portadaLibroUrl) {
         dataToSend.portada_libro = portadaLibroUrl  // URL completa para WooCommerce
@@ -287,6 +357,308 @@ export default function AddProductPage() {
             <ProductImage 
               onImageChange={(file) => setFormData(prev => ({ ...prev, portada_libro: file }))}
             />
+          </CardBody>
+        </Card>
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* SECCIÓN: WOOCOMMERCE - PRECIO E INVENTARIO */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <Card className="mb-3">
+          <CardHeader>
+            <h5 className="card-title mb-0">WooCommerce - Precio e Inventario</h5>
+          </CardHeader>
+          <CardBody>
+            <Row>
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>
+                    Precio Regular <span className="text-danger">*</span>
+                  </FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    placeholder="0.00"
+                    value={formData.precio}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, precio: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Precio de Oferta</FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.precio_oferta}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, precio_oferta: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Tipo de Producto</FormLabel>
+                  <FormSelect
+                    value={formData.type}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, type: e.target.value as any}))
+                    }}
+                  >
+                    <option value="simple">Simple</option>
+                    <option value="grouped">Agrupado</option>
+                    <option value="external">Externo</option>
+                    <option value="variable">Variable</option>
+                  </FormSelect>
+                </FormGroup>
+              </Col>
+            </Row>
+            
+            <Row>
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Stock</FormLabel>
+                  <FormControl
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.stock_quantity}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, stock_quantity: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Estado de Stock</FormLabel>
+                  <FormSelect
+                    value={formData.stock_status}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, stock_status: e.target.value as any}))
+                    }}
+                  >
+                    <option value="instock">En Stock</option>
+                    <option value="outofstock">Sin Stock</option>
+                    <option value="onbackorder">Pedido Pendiente</option>
+                  </FormSelect>
+                </FormGroup>
+              </Col>
+              
+              <Col md={4}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Backorders</FormLabel>
+                  <FormSelect
+                    value={formData.backorders}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, backorders: e.target.value as any}))
+                    }}
+                  >
+                    <option value="no">No Permitir</option>
+                    <option value="notify">Permitir, Notificar Cliente</option>
+                    <option value="yes">Permitir</option>
+                  </FormSelect>
+                </FormGroup>
+              </Col>
+            </Row>
+            
+            <Row>
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.manage_stock}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, manage_stock: e.target.checked}))
+                    }}
+                    label="Gestionar Stock"
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.sold_individually}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, sold_individually: e.target.checked}))
+                    }}
+                    label="Vender Individualmente"
+                  />
+                </FormGroup>
+              </Col>
+            </Row>
+          </CardBody>
+        </Card>
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* SECCIÓN: WOOCOMMERCE - PESO Y DIMENSIONES */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <Card className="mb-3">
+          <CardHeader>
+            <h5 className="card-title mb-0">WooCommerce - Peso y Dimensiones</h5>
+          </CardHeader>
+          <CardBody>
+            <Row>
+              <Col md={3}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Peso (kg)</FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.weight}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, weight: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={3}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Largo (cm)</FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.length}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, length: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={3}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Ancho (cm)</FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.width}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, width: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={3}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Alto (cm)</FormLabel>
+                  <FormControl
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.height}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, height: e.target.value}))
+                    }}
+                  />
+                </FormGroup>
+              </Col>
+            </Row>
+          </CardBody>
+        </Card>
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* SECCIÓN: WOOCOMMERCE - OPCIONES ADICIONALES */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <Card className="mb-3">
+          <CardHeader>
+            <h5 className="card-title mb-0">WooCommerce - Opciones Adicionales</h5>
+          </CardHeader>
+          <CardBody>
+            <Row>
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.virtual}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, virtual: e.target.checked}))
+                    }}
+                    label="Producto Virtual"
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.downloadable}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, downloadable: e.target.checked}))
+                    }}
+                    label="Producto Descargable"
+                  />
+                </FormGroup>
+              </Col>
+            </Row>
+            
+            <Row>
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.featured}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, featured: e.target.checked}))
+                    }}
+                    label="Producto Destacado"
+                  />
+                </FormGroup>
+              </Col>
+              
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormCheck
+                    type="checkbox"
+                    checked={formData.reviews_allowed}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, reviews_allowed: e.target.checked}))
+                    }}
+                    label="Permitir Reseñas"
+                  />
+                </FormGroup>
+              </Col>
+            </Row>
+            
+            <Row>
+              <Col md={6}>
+                <FormGroup className="mb-3">
+                  <FormLabel>Visibilidad en Catálogo</FormLabel>
+                  <FormSelect
+                    value={formData.catalog_visibility}
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, catalog_visibility: e.target.value as any}))
+                    }}
+                  >
+                    <option value="visible">Visible</option>
+                    <option value="catalog">Solo Catálogo</option>
+                    <option value="search">Solo Búsqueda</option>
+                    <option value="hidden">Oculto</option>
+                  </FormSelect>
+                </FormGroup>
+              </Col>
+            </Row>
           </CardBody>
         </Card>
 
