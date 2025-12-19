@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
           descripcion: body.descripcion?.trim() || '',
           subtitulo_libro: body.subtitulo_libro?.trim() || '',
           // NO incluir precio aquí - Strapi no tiene campo precio directo, usa relación precios
-          stock_quantity: body.stock_quantity || 0,
+          // NO incluir stock_quantity aquí - Strapi no tiene campo stock_quantity directo, usa relación stocks
           woocommerce_id: wooCommerceProduct.id.toString(), // Guardar ID de WooCommerce
         }
       }
@@ -306,7 +306,7 @@ export async function POST(request: NextRequest) {
               descripcion: body.descripcion?.trim() || '',
               subtitulo_libro: body.subtitulo_libro?.trim() || '',
               // NO incluir precio - Strapi no tiene campo precio directo
-              stock_quantity: body.stock_quantity || 0,
+              // NO incluir stock_quantity - Strapi no tiene campo stock_quantity directo
               woocommerce_id: retryResponse.id.toString(),
             }
           }
