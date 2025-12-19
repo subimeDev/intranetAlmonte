@@ -333,16 +333,21 @@ export async function PUT(
     const strapiEndpoint = documentId ? `${obraEndpoint}/${documentId}` : `${obraEndpoint}/${id}`
     console.log('[API Obras PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
 
-    // El schema de Strapi para obras usa 'nombre', no 'name'
+    // El schema de Strapi para obras usa: codigo_obra*, nombre_obra*, descripcion
     const obraData: any = {
       data: {}
     }
 
-    // Aceptar tanto 'name' como 'nombre' del formulario, pero guardar como 'nombre' en Strapi
-    if (body.data.name) obraData.data.nombre = body.data.name
-    if (body.data.nombre) obraData.data.nombre = body.data.nombre
-    if (body.data.descripcion !== undefined) obraData.data.descripcion = body.data.descripcion
-    if (body.data.description !== undefined) obraData.data.descripcion = body.data.description
+    // Aceptar diferentes formatos del formulario pero guardar según schema real
+    if (body.data.codigo_obra) obraData.data.codigo_obra = body.data.codigo_obra.trim()
+    if (body.data.codigoObra) obraData.data.codigo_obra = body.data.codigoObra.trim()
+    
+    if (body.data.nombre_obra) obraData.data.nombre_obra = body.data.nombre_obra.trim()
+    if (body.data.nombreObra) obraData.data.nombre_obra = body.data.nombreObra.trim()
+    if (body.data.nombre) obraData.data.nombre_obra = body.data.nombre.trim()
+    
+    if (body.data.descripcion !== undefined) obraData.data.descripcion = body.data.descripcion || null
+    if (body.data.description !== undefined) obraData.data.descripcion = body.data.description || null
 
     // Si se creó en WooCommerce y no teníamos ID, guardarlo
     if (wooCommerceTerm && !woocommerceId) {

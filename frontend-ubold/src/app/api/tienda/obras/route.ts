@@ -72,15 +72,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('[API Obras POST] 📝 Creando obra:', body)
 
-    // Validar nombre obligatorio
-    if (!body.data?.name && !body.data?.nombre) {
+    // Validar campos obligatorios según schema de Strapi
+    if (!body.data?.codigo_obra && !body.data?.codigoObra) {
+      return NextResponse.json({
+        success: false,
+        error: 'El código de la obra es obligatorio'
+      }, { status: 400 })
+    }
+
+    if (!body.data?.nombre_obra && !body.data?.nombreObra && !body.data?.nombre) {
       return NextResponse.json({
         success: false,
         error: 'El nombre de la obra es obligatorio'
       }, { status: 400 })
     }
 
-    const nombreObra = body.data.name || body.data.nombre
+    const codigoObra = body.data.codigo_obra || body.data.codigoObra
+    const nombreObra = body.data.nombre_obra || body.data.nombreObra || body.data.nombre
     const obraEndpoint = '/api/obras'
     console.log('[API Obras POST] Usando endpoint Strapi:', obraEndpoint)
 
@@ -88,10 +96,11 @@ export async function POST(request: NextRequest) {
     // El documentId se usará como slug en WooCommerce para hacer el match
     console.log('[API Obras POST] 📚 Creando obra en Strapi primero...')
     
-    // El schema de Strapi para obras usa 'nombre', no 'name', y no tiene campo 'slug'
+    // El schema de Strapi para obras usa: codigo_obra*, nombre_obra*, descripcion
     const obraData: any = {
       data: {
-        nombre: nombreObra.trim(), // El schema usa 'nombre'
+        codigo_obra: codigoObra.trim(),
+        nombre_obra: nombreObra.trim(),
         descripcion: body.data.descripcion || body.data.description || null,
       }
     }
@@ -129,7 +138,7 @@ export async function POST(request: NextRequest) {
     console.log('[API Obras POST] 🛒 Creando término en WooCommerce con slug=documentId...')
     
     const wooCommerceTermData: any = {
-      name: nombreObra.trim(),
+      name: nombreObra.trim(), // Usar nombre_obra para WooCommerce
       description: body.data.descripcion || body.data.description || '',
       slug: documentId.toString(), // SIEMPRE usar documentId como slug para el match
     }

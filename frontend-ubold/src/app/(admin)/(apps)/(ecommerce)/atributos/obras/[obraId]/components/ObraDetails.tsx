@@ -48,9 +48,10 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
   const attrs = obra.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
 
-  // Inicializar formData con los valores de la obra
+  // Inicializar formData con los valores de la obra según schema real
   const [formData, setFormData] = useState({
-    nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+    codigo_obra: getField(data, 'codigo_obra', 'codigoObra', 'CODIGO_OBRA') || '',
+    nombre_obra: getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'NOMBRE_OBRA', 'NAME') || '',
     descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
   })
 
@@ -61,7 +62,8 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
       const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
       
       setFormData({
-        nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+        codigo_obra: getField(data, 'codigo_obra', 'codigoObra', 'CODIGO_OBRA') || '',
+        nombre_obra: getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'NOMBRE_OBRA', 'NAME') || '',
         descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
       })
     }
@@ -254,8 +256,18 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
                 <label className="form-label text-muted">Productos asociados</label>
                 <div>
                   <Badge bg="info" className="fs-base">
-                    {productosCount} producto{productosCount !== 1 ? 's' : ''}
+                    {totalCount} producto{totalCount !== 1 ? 's' : ''}
                   </Badge>
+                  {productosCount > 0 && (
+                    <small className="text-muted d-block mt-1">
+                      {productosCount} edición{productosCount !== 1 ? 'es' : ''}
+                    </small>
+                  )}
+                  {materialesCount > 0 && (
+                    <small className="text-muted d-block mt-1">
+                      {materialesCount} material{materialesCount !== 1 ? 'es' : ''}
+                    </small>
+                  )}
                 </div>
               </div>
             </Col>

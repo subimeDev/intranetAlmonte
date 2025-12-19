@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert, FormCheck } from 'react-bootstrap'
+import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert } from 'react-bootstrap'
 import { LuSave, LuX } from 'react-icons/lu'
 
 const AddObraForm = () => {
@@ -11,51 +11,10 @@ const AddObraForm = () => {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
-    nombre: '',
-    slug: '',
-    activarArchivo: false,
-    tipo: 'select', // 'select' es el tipo por defecto según WooCommerce
-    ordenPredeterminado: 'menu_order', // 'menu_order' es orden personalizado
+    codigo_obra: '',
+    nombre_obra: '',
+    descripcion: '',
   })
-
-  // Generar slug automáticamente desde el nombre
-  const generateSlug = (name: string): string => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Eliminar tildes
-      .replace(/[^a-z0-9]+/g, '-') // Reemplazar espacios y caracteres especiales con guiones
-      .replace(/^-+|-+$/g, '') // Eliminar guiones al inicio y final
-      .substring(0, 27) // Máximo 28 caracteres (menos de 28)
-  }
-
-  const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nombre = e.target.value
-    setFormData((prev) => ({
-      ...prev,
-      nombre,
-      // Generar slug automáticamente si está vacío o si el usuario no lo ha modificado manualmente
-      slug: prev.slug === '' || prev.slug === generateSlug(prev.nombre) ? generateSlug(nombre) : prev.slug,
-    }))
-  }
-
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let slug = e.target.value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-') // Solo permitir letras, números y guiones
-      .replace(/-+/g, '-') // Reemplazar múltiples guiones con uno solo
-      .replace(/^-+|-+$/g, '') // Eliminar guiones al inicio y final
-    
-    // Limitar a 27 caracteres (menos de 28)
-    if (slug.length > 27) {
-      slug = slug.substring(0, 27)
-    }
-    
-    setFormData((prev) => ({
-      ...prev,
-      slug,
-    }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,24 +23,27 @@ const AddObraForm = () => {
     setSuccess(false)
 
     try {
-      // Validar que el slug tenga menos de 28 caracteres
-      if (formData.slug.length >= 28) {
-        throw new Error('El slug debe tener menos de 28 caracteres')
+      // Validaciones
+      if (!formData.codigo_obra.trim()) {
+        throw new Error('El código de la obra es obligatorio')
       }
 
-      // Preparar datos para Strapi (el schema usa 'nombre', no 'name')
+      if (!formData.nombre_obra.trim()) {
+        throw new Error('El nombre de la obra es obligatorio')
+      }
+
+      // Preparar datos para Strapi según schema real
       const obraData: any = {
         data: {
-          nombre: formData.nombre.trim(), // El schema de Strapi usa 'nombre'
-          descripcion: null, // No hay campo de descripción en el formulario de atributo
-          // Los campos tipo, ordenPredeterminado y activarArchivo son solo para WooCommerce,
-          // no se guardan en Strapi
+          codigo_obra: formData.codigo_obra.trim(),
+          nombre_obra: formData.nombre_obra.trim(),
+          descripcion: formData.descripcion.trim() || null,
         },
       }
 
       console.log('[AddObraForm] Enviando datos:', obraData)
 
-      // Crear la obra (término del atributo)
+      // Crear la obra
       const response = await fetch('/api/tienda/obras', {
         method: 'POST',
         headers: {
@@ -117,10 +79,9 @@ const AddObraForm = () => {
   return (
     <Card>
       <CardHeader>
-        <h5 className="mb-0">Agregar nuevo atributo</h5>
+        <h5 className="mb-0">Agregar Nueva Obra</h5>
         <p className="text-muted mb-0 mt-2 small">
-          Los atributos te permiten definir datos adicionales del producto, como talla o color. 
-          Puedes usar atributos en la barra lateral usando los widgets de "navegación por capas".
+          Completa los campos requeridos para crear una nueva obra en el sistema.
         </p>
       </CardHeader>
       <CardBody>
@@ -140,17 +101,19 @@ const AddObraForm = () => {
             <Col md={12}>
               <FormGroup>
                 <FormLabel>
-                  Nombre <span className="text-danger">*</span>
+                  Código de la Obra <span className="text-danger">*</span>
                 </FormLabel>
                 <FormControl
                   type="text"
-                  placeholder="Ej: Obra, Edición"
-                  value={formData.nombre}
-                  onChange={handleNombreChange}
+                  placeholder="Ej: OBRA-001, ISBN-123456"
+                  value={formData.codigo_obra}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, codigo_obra: e.target.value }))
+                  }
                   required
                 />
                 <small className="text-muted">
-                  Nombre para el atributo (mostrado en la tienda).
+                  Código único identificador de la obra (requerido).
                 </small>
               </FormGroup>
             </Col>
@@ -158,81 +121,37 @@ const AddObraForm = () => {
             <Col md={12}>
               <FormGroup>
                 <FormLabel>
-                  Slug <span className="text-danger">*</span>
+                  Nombre de la Obra <span className="text-danger">*</span>
                 </FormLabel>
                 <FormControl
                   type="text"
-                  placeholder="Ej: pa_obra"
-                  value={formData.slug}
-                  onChange={handleSlugChange}
+                  placeholder="Ej: Matemáticas 1, Lenguaje y Comunicación"
+                  value={formData.nombre_obra}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, nombre_obra: e.target.value }))
+                  }
                   required
-                  maxLength={27}
                 />
                 <small className="text-muted">
-                  Slug/referencia única para el atributo; debe tener menos de 28 caracteres.
+                  Nombre completo de la obra (requerido).
                 </small>
               </FormGroup>
             </Col>
 
             <Col md={12}>
               <FormGroup>
-                <FormCheck
-                  type="checkbox"
-                  id="activarArchivo"
-                  checked={formData.activarArchivo}
+                <FormLabel>Descripción</FormLabel>
+                <FormControl
+                  as="textarea"
+                  rows={4}
+                  placeholder="Descripción detallada de la obra..."
+                  value={formData.descripcion}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, activarArchivo: e.target.checked }))
+                    setFormData((prev) => ({ ...prev, descripcion: e.target.value }))
                   }
-                  label="¿Activamos el archivo?"
                 />
-                <small className="text-muted d-block mt-1">
-                  Habilita esto si quieres que este atributo tenga páginas de archivo de producto en tu tienda.
-                </small>
-              </FormGroup>
-            </Col>
-
-            <Col md={12}>
-              <FormGroup>
-                <FormLabel>
-                  Tipo <span className="text-danger">*</span>
-                </FormLabel>
-                <FormControl
-                  as="select"
-                  value={formData.tipo}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, tipo: e.target.value }))
-                  }
-                  required
-                >
-                  <option value="select">Selección</option>
-                </FormControl>
                 <small className="text-muted">
-                  Determina cómo se muestran los valores de este atributo.
-                </small>
-              </FormGroup>
-            </Col>
-
-            <Col md={12}>
-              <FormGroup>
-                <FormLabel>
-                  Orden predeterminado <span className="text-danger">*</span>
-                </FormLabel>
-                <FormControl
-                  as="select"
-                  value={formData.ordenPredeterminado}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, ordenPredeterminado: e.target.value }))
-                  }
-                  required
-                >
-                  <option value="menu_order">Orden personalizado</option>
-                  <option value="name">Nombre</option>
-                  <option value="name_num">Nombre (numérico)</option>
-                  <option value="id">ID</option>
-                </FormControl>
-                <small className="text-muted">
-                  Determina el orden de los términos en las páginas de productos de la tienda. 
-                  Si usas un orden personalizado puedes arrastrar y soltar los términos en este atributo.
+                  Descripción opcional de la obra.
                 </small>
               </FormGroup>
             </Col>
@@ -245,7 +164,7 @@ const AddObraForm = () => {
               disabled={loading}
             >
               <LuSave className="fs-sm me-2" />
-              {loading ? 'Guardando...' : 'Agregar atributo'}
+              {loading ? 'Guardando...' : 'Guardar Obra'}
             </Button>
             <Button
               type="button"
@@ -263,4 +182,3 @@ const AddObraForm = () => {
 }
 
 export default AddObraForm
-

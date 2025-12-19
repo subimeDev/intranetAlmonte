@@ -53,8 +53,8 @@ const mapStrapiObraToObraType = (obra: any): ObraType => {
   const attrs = obra.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
 
-  // Obtener nombre
-  const nombre = getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || 'Sin nombre'
+  // Obtener nombre_obra (schema real de Strapi)
+  const nombre = getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'NOMBRE_OBRA', 'NAME') || 'Sin nombre'
   
   // Obtener descripción
   const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || ''
@@ -62,9 +62,12 @@ const mapStrapiObraToObraType = (obra: any): ObraType => {
   // Obtener estado (usa publishedAt para determinar si está publicado)
   const isPublished = !!(attrs.publishedAt || (obra as any).publishedAt)
   
-  // Contar productos (si hay relación)
-  const productos = data.productos?.data || data.products?.data || data.productos || data.products || []
-  const productosCount = Array.isArray(productos) ? productos.length : 0
+  // Contar productos (si hay relación con ediciones)
+  const ediciones = data.ediciones?.data || data.ediciones || []
+  const materiales = data.materiales?.data || data.materiales || []
+  const productosCount = Array.isArray(ediciones) ? ediciones.length : 0
+  const materialesCount = Array.isArray(materiales) ? materiales.length : 0
+  const totalCount = productosCount + materialesCount
   
   // Obtener fechas
   const createdAt = attrs.createdAt || (obra as any).createdAt || new Date().toISOString()
@@ -74,11 +77,11 @@ const mapStrapiObraToObraType = (obra: any): ObraType => {
     id: obra.id || obra.documentId || obra.id,
     name: nombre,
     description: descripcion,
-    products: productosCount,
+    products: totalCount,
     status: isPublished ? 'active' : 'inactive',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
-    url: `/atributos/obras/${obra.id || obra.documentId || obra.id}`, // URL actualizada
+    url: `/atributos/obras/${obra.id || obra.documentId || obra.id}`,
   }
 }
 
