@@ -126,7 +126,9 @@ export async function PUT(
       }, { status: 404 })
     }
 
-    const autorId = autor.id || autor.documentId || id
+    // En Strapi v4, usar documentId (string) para actualizar, no el id numérico
+    const autorDocumentId = autor.documentId || autor.data?.documentId || autor.id?.toString() || id
+    console.log('[API Autores PUT] Usando documentId para actualizar:', autorDocumentId)
 
     // Preparar datos de actualización
     const updateData: any = {
@@ -158,9 +160,9 @@ export async function PUT(
       updateData.data.foto = body.data.foto
     }
 
-    const response = await strapiClient.put(`/api/autores/${autorId}`, updateData)
+    const response = await strapiClient.put(`/api/autores/${autorDocumentId}`, updateData)
     
-    console.log('[API Autores PUT] ✅ Autor actualizado:', autorId)
+    console.log('[API Autores PUT] ✅ Autor actualizado:', autorDocumentId)
     
     return NextResponse.json({
       success: true,
@@ -221,11 +223,13 @@ export async function DELETE(
       }, { status: 404 })
     }
 
-    const autorId = autor.id || autor.documentId || id
+    // En Strapi v4, usar documentId (string) para eliminar, no el id numérico
+    const autorDocumentId = autor.documentId || autor.data?.documentId || autor.id?.toString() || id
+    console.log('[API Autores DELETE] Usando documentId para eliminar:', autorDocumentId)
 
-    await strapiClient.delete(`/api/autores/${autorId}`)
+    await strapiClient.delete(`/api/autores/${autorDocumentId}`)
     
-    console.log('[API Autores DELETE] ✅ Autor eliminado:', autorId)
+    console.log('[API Autores DELETE] ✅ Autor eliminado:', autorDocumentId)
     
     return NextResponse.json({
       success: true,
