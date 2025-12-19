@@ -71,12 +71,20 @@ const RelationSelector = memo(function RelationSelector({
 
   const getDisplayValue = (option: any): string => {
     // Intentar múltiples campos posibles para el nombre
-    return option[displayField] || 
+    const attrs = option.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : option
+    
+    return data[displayField] || 
+           option[displayField] ||
+           data.nombre || 
            option.nombre || 
+           data.titulo ||
            option.titulo || 
+           data.name ||
            option.name ||
+           data.title ||
            option.title ||
-           `Item ${option.id || option.documentId}`
+           `Item ${option.id || option.documentId || data.id || data.documentId}`
   }
 
   return (

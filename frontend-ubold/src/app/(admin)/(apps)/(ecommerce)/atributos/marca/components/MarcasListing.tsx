@@ -26,13 +26,11 @@ import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
 // Tipo para la tabla
-type SelloType = {
+type MarcaType = {
   id: number
-  id_sello: number
   name: string
-  acronimo: string
-  editorial: string
-  products: number
+  descripcion: string
+  website: string
   status: 'active' | 'inactive'
   date: string
   time: string
@@ -49,84 +47,59 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear sellos de Strapi al formato SelloType
-const mapStrapiSelloToSelloType = (sello: any): SelloType => {
-  // Los datos pueden venir en attributes o directamente
-  const attrs = sello.attributes || {}
-  const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (sello as any)
+// Función para mapear marcas de Strapi al formato MarcaType
+const mapStrapiMarcaToMarcaType = (marca: any): MarcaType => {
+  const attrs = marca.attributes || {}
+  const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (marca as any)
 
-  // Obtener id_sello (schema real de Strapi - Number)
-  const idSello = getField(data, 'id_sello', 'idSello', 'ID_SELLO') || 0
+  const nombre = getField(data, 'nombre_marca', 'nombreMarca', 'nombre', 'NOMBRE_MARCA', 'NAME') || 'Sin nombre'
+  const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION') || ''
+  const website = getField(data, 'website', 'website', 'WEBSITE') || ''
   
-  // Obtener nombre_sello (schema real de Strapi)
-  const nombre = getField(data, 'nombre_sello', 'nombreSello', 'nombre', 'NOMBRE_SELLO', 'NAME') || 'Sin nombre'
+  const isPublished = !!(attrs.publishedAt || (marca as any).publishedAt)
   
-  // Obtener acronimo
-  const acronimo = getField(data, 'acronimo', 'acronimo', 'ACRONIMO') || ''
-  
-  // Obtener editorial (relation)
-  const editorial = data.editorial?.data?.attributes?.nombre || 
-                     data.editorial?.data?.nombre ||
-                     data.editorial?.nombre ||
-                     data.editorial?.id ||
-                     '-'
-  
-  // Obtener estado (usa publishedAt para determinar si está publicado)
-  const isPublished = !!(attrs.publishedAt || (sello as any).publishedAt)
-  
-  // Contar productos asociados (libros según schema)
-  const libros = data.libros?.data || data.libros || []
-  const colecciones = data.colecciones?.data || data.colecciones || []
-  const librosCount = Array.isArray(libros) ? libros.length : 0
-  const coleccionesCount = Array.isArray(colecciones) ? colecciones.length : 0
-  const productosCount = librosCount + coleccionesCount
-  
-  // Obtener fechas
-  const createdAt = attrs.createdAt || (sello as any).createdAt || new Date().toISOString()
+  const createdAt = attrs.createdAt || (marca as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
   
   return {
-    id: sello.id || sello.documentId || sello.id,
-    id_sello: typeof idSello === 'string' ? parseInt(idSello) : idSello,
+    id: marca.id || marca.documentId || marca.id,
     name: nombre,
-    acronimo: acronimo,
-    editorial: typeof editorial === 'string' ? editorial : '-',
-    products: productosCount,
+    descripcion: descripcion,
+    website: website,
     status: isPublished ? 'active' : 'inactive',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
-    url: `/atributos/sello/${sello.id || sello.documentId || sello.id}`,
+    url: `/atributos/marca/${marca.id || marca.documentId || marca.id}`,
   }
 }
 
-interface SellosListingProps {
-  sellos?: any[]
+interface MarcasListingProps {
+  marcas?: any[]
   error?: string | null
 }
 
-const columnHelper = createColumnHelper<SelloType>()
+const columnHelper = createColumnHelper<MarcaType>()
 
-const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
+const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
   const router = useRouter()
   
-  // Mapear sellos de Strapi al formato SelloType si están disponibles
-  const mappedSellos = useMemo(() => {
-    if (sellos && sellos.length > 0) {
-      console.log('[SellosListing] Sellos recibidos:', sellos.length)
-      const mapped = sellos.map(mapStrapiSelloToSelloType)
-      console.log('[SellosListing] Sellos mapeados:', mapped.length)
+  const mappedMarcas = useMemo(() => {
+    if (marcas && marcas.length > 0) {
+      console.log('[MarcasListing] Marcas recibidas:', marcas.length)
+      const mapped = marcas.map(mapStrapiMarcaToMarcaType)
+      console.log('[MarcasListing] Marcas mapeadas:', mapped.length)
       return mapped
     }
-    console.log('[SellosListing] No hay sellos de Strapi')
+    console.log('[MarcasListing] No hay marcas de Strapi')
     return []
-  }, [sellos])
+  }, [marcas])
 
-  const columns: ColumnDef<SelloType, any>[] = [
+  const columns: ColumnDef<MarcaType, any>[] = [
     {
       id: 'select',
       maxSize: 45,
       size: 45,
-      header: ({ table }: { table: TableType<SelloType> }) => (
+      header: ({ table }: { table: TableType<MarcaType> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -134,7 +107,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: { row: TableRow<SelloType> }) => (
+      cell: ({ row }: { row: TableRow<MarcaType> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -151,14 +124,8 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
         <span className="text-muted">{row.original.id}</span>
       ),
     }),
-    columnHelper.accessor('id_sello', {
-      header: 'ID_SELLO',
-      cell: ({ row }) => (
-        <span className="fw-semibold">{row.original.id_sello?.toLocaleString() || '-'}</span>
-      ),
-    }),
     columnHelper.accessor('name', {
-      header: 'NOMBRE_SELLO',
+      header: 'NOMBRE_MARCA',
       cell: ({ row }) => {
         return (
           <div className="d-flex">
@@ -167,7 +134,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
             </div>
             <div>
               <h5 className="mb-0">
-                <Link href={`/atributos/sello/${row.original.id}`} className="link-reset">
+                <Link href={`/atributos/marca/${row.original.id}`} className="link-reset">
                   {row.original.name || 'Sin nombre'}
                 </Link>
               </h5>
@@ -176,10 +143,22 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
         )
       },
     }),
-    columnHelper.accessor('editorial', {
-      header: 'EDITORIAL',
+    columnHelper.accessor('descripcion', {
+      header: 'DESCRIPCIÓN',
       cell: ({ row }) => (
-        <span className="text-muted">{row.original.editorial || '-'}</span>
+        <span className="text-muted">{row.original.descripcion || '-'}</span>
+      ),
+    }),
+    columnHelper.accessor('website', {
+      header: 'WEBSITE',
+      cell: ({ row }) => (
+        row.original.website ? (
+          <a href={row.original.website} target="_blank" rel="noopener noreferrer" className="text-primary">
+            {row.original.website}
+          </a>
+        ) : (
+          <span className="text-muted">-</span>
+        )
       ),
     }),
     columnHelper.accessor('status', {
@@ -195,14 +174,14 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
     }),
     {
       header: 'Acciones',
-      cell: ({ row }: { row: TableRow<SelloType> }) => (
+      cell: ({ row }: { row: TableRow<MarcaType> }) => (
         <div className="d-flex gap-1">
-          <Link href={`/atributos/sello/${row.original.id}`}>
+          <Link href={`/atributos/marca/${row.original.id}`}>
             <Button variant="default" size="sm" className="btn-icon rounded-circle">
               <TbEye className="fs-lg" />
             </Button>
           </Link>
-          <Link href={`/atributos/sello/${row.original.id}`}>
+          <Link href={`/atributos/marca/${row.original.id}`}>
             <Button
               variant="default"
               size="sm"
@@ -226,7 +205,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
     },
   ]
 
-  const [data, setData] = useState<SelloType[]>([])
+  const [data, setData] = useState<MarcaType[]>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -234,10 +213,9 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
 
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
-  // Estado para el orden de columnas
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sellos-column-order')
+      const saved = localStorage.getItem('marcas-column-order')
       if (saved) {
         try {
           return JSON.parse(saved)
@@ -249,22 +227,20 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
     return []
   })
 
-  // Guardar orden de columnas en localStorage
   const handleColumnOrderChange = (newOrder: string[]) => {
     setColumnOrder(newOrder)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sellos-column-order', JSON.stringify(newOrder))
+      localStorage.setItem('marcas-column-order', JSON.stringify(newOrder))
     }
   }
 
-  // Actualizar datos cuando cambien los sellos de Strapi
   useEffect(() => {
-    console.log('[SellosListing] useEffect - sellos:', sellos?.length, 'mappedSellos:', mappedSellos.length)
-    setData(mappedSellos)
-    console.log('[SellosListing] Datos actualizados. Total:', mappedSellos.length)
-  }, [mappedSellos, sellos])
+    console.log('[MarcasListing] useEffect - marcas:', marcas?.length, 'mappedMarcas:', mappedMarcas.length)
+    setData(mappedMarcas)
+    console.log('[MarcasListing] Datos actualizados. Total:', mappedMarcas.length)
+  }, [mappedMarcas, marcas])
 
-  const table = useReactTable<SelloType>({
+  const table = useReactTable<MarcaType>({
     data,
     columns,
     state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds, columnOrder },
@@ -301,40 +277,36 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
     const idsToDelete = selectedIds.map(id => data[parseInt(id)]?.id).filter(Boolean)
     
     try {
-      // Eliminar cada sello seleccionado
-      for (const selloId of idsToDelete) {
-        const response = await fetch(`/api/tienda/sello/${selloId}`, {
+      for (const marcaId of idsToDelete) {
+        const response = await fetch(`/api/tienda/marca/${marcaId}`, {
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar sello ${selloId}`)
+          throw new Error(`Error al eliminar marca ${marcaId}`)
         }
       }
       
-      // Actualizar datos localmente
       setData((old) => old.filter((_, idx) => !selectedIds.includes(idx.toString())))
       setSelectedRowIds({})
       setPagination({ ...pagination, pageIndex: 0 })
       setShowDeleteModal(false)
       
-      // Recargar la página para reflejar cambios
       router.refresh()
     } catch (error) {
-      console.error('Error al eliminar sellos:', error)
-      alert('Error al eliminar los sellos seleccionados')
+      console.error('Error al eliminar marcas:', error)
+      alert('Error al eliminar las marcas seleccionadas')
     }
   }
 
-  // Mostrar error si existe
   const hasError = !!error
-  const hasData = mappedSellos.length > 0
+  const hasData = mappedMarcas.length > 0
   
   if (hasError && !hasData) {
     return (
       <Row>
         <Col xs={12}>
           <Alert variant="warning">
-            <strong>Error al cargar sellos desde Strapi:</strong> {error}
+            <strong>Error al cargar marcas desde Strapi:</strong> {error}
             <br />
             <small className="text-muted">
               Verifica que:
@@ -350,9 +322,8 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
     )
   }
   
-  // Si hay error pero también hay datos, mostrar advertencia pero continuar
   if (hasError && hasData) {
-    console.warn('[SellosListing] Error al cargar desde Strapi, usando datos disponibles:', error)
+    console.warn('[MarcasListing] Error al cargar desde Strapi, usando datos disponibles:', error)
   }
 
   return (
@@ -365,7 +336,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Buscar sello..."
+                  placeholder="Buscar marca..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
@@ -409,7 +380,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
             </div>
 
             <div className="d-flex gap-1">
-              <Link passHref href="/atributos/sello">
+              <Link passHref href="/atributos/marca">
                 <Button variant="outline-primary" className="btn-icon btn-soft-primary">
                   <TbLayoutGrid className="fs-lg" />
                 </Button>
@@ -417,15 +388,15 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
-              <Link href="/atributos/sello/agregar" passHref>
+              <Link href="/atributos/marca/agregar" passHref>
                 <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Agregar Sello
+                  <TbPlus className="fs-sm me-2" /> Agregar Marca
                 </Button>
               </Link>
             </div>
           </CardHeader>
 
-          <DataTable<SelloType>
+          <DataTable<MarcaType>
             table={table}
             emptyMessage="No se encontraron registros"
             enableColumnReordering={true}
@@ -438,7 +409,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
                 totalItems={totalItems}
                 start={start}
                 end={end}
-                itemsName="sellos"
+                itemsName="marcas"
                 showInfo
                 previousPage={table.previousPage}
                 canPreviousPage={table.getCanPreviousPage()}
@@ -456,7 +427,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
             onHide={toggleDeleteModal}
             onConfirm={handleDelete}
             selectedCount={Object.keys(selectedRowIds).length}
-            itemName="sello"
+            itemName="marca"
           />
         </Card>
       </Col>
@@ -464,5 +435,5 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
   )
 }
 
-export default SellosListing
+export default MarcasListing
 

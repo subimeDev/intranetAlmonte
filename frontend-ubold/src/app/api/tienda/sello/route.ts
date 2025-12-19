@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
     console.log('[API Sello POST] 📝 Creando sello:', body)
 
     // Validar campos obligatorios según schema de Strapi
-    if (!body.data?.codigo_sello && !body.data?.codigoSello && !body.data?.codigo) {
+    if (!body.data?.id_sello && body.data?.id_sello !== 0) {
       return NextResponse.json({
         success: false,
-        error: 'El código del sello es obligatorio'
+        error: 'El ID del sello es obligatorio'
       }, { status: 400 })
     }
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const codigoSello = body.data.codigo_sello || body.data.codigoSello || body.data.codigo
+    const idSello = body.data.id_sello || body.data.idSello
     const nombreSello = body.data.nombre_sello || body.data.nombreSello || body.data.nombre
     const selloEndpoint = '/api/sellos'
     console.log('[API Sello POST] Usando endpoint Strapi:', selloEndpoint)
@@ -96,13 +96,34 @@ export async function POST(request: NextRequest) {
     // El documentId se usará como slug en WooCommerce para hacer el match
     console.log('[API Sello POST] 📚 Creando sello en Strapi primero...')
     
-    // El schema de Strapi para sello usa: codigo_sello*, nombre_sello*, descripcion
+    // El schema de Strapi para sello usa: id_sello* (Number), nombre_sello* (Text), acronimo, logo, website, editorial, colecciones, libros
     const selloData: any = {
       data: {
-        codigo_sello: codigoSello.trim(),
+        id_sello: typeof idSello === 'string' ? parseInt(idSello) : idSello,
         nombre_sello: nombreSello.trim(),
-        descripcion: body.data.descripcion || body.data.description || null,
+        acronimo: body.data.acronimo || null,
+        website: body.data.website || null,
       }
+    }
+
+    // Manejar relaciones según tipo
+    // manyToOne: solo el ID o documentId
+    if (body.data.editorial) {
+      selloData.data.editorial = body.data.editorial
+    }
+
+    // oneToMany: array de IDs o documentIds
+    if (body.data.libros && body.data.libros.length > 0) {
+      selloData.data.libros = body.data.libros
+    }
+
+    if (body.data.colecciones && body.data.colecciones.length > 0) {
+      selloData.data.colecciones = body.data.colecciones
+    }
+
+    // Media: solo el ID
+    if (body.data.logo) {
+      selloData.data.logo = body.data.logo
     }
 
     const strapiSello = await strapiClient.post<any>(selloEndpoint, selloData)

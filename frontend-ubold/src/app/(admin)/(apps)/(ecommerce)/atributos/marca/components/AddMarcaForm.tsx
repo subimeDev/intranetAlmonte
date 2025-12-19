@@ -2,23 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert, Badge } from 'react-bootstrap'
+import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert } from 'react-bootstrap'
 import { LuSave, LuX, LuUpload } from 'react-icons/lu'
-import { RelationSelector } from '@/app/(admin)/(apps)/(ecommerce)/add-product/components/RelationSelector'
 
-const AddSelloForm = () => {
+const AddMarcaForm = () => {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
-    id_sello: '',
-    nombre_sello: '',
-    acronimo: '',
+    nombre_marca: '',
+    descripcion: '',
     website: '',
-    editorial: '',
-    libros: [] as string[],
-    colecciones: [] as string[],
     logo: null as File | null,
   })
 
@@ -29,36 +24,20 @@ const AddSelloForm = () => {
     setSuccess(false)
 
     try {
-      // Validaciones
-      if (!formData.id_sello || formData.id_sello.trim() === '') {
-        throw new Error('El ID del sello es obligatorio')
+      if (!formData.nombre_marca.trim()) {
+        throw new Error('El nombre de la marca es obligatorio')
       }
 
-      const idSelloNum = parseInt(formData.id_sello)
-      if (isNaN(idSelloNum)) {
-        throw new Error('El ID del sello debe ser un número válido')
-      }
-
-      if (!formData.nombre_sello.trim()) {
-        throw new Error('El nombre del sello es obligatorio')
-      }
-
-      // Preparar datos para Strapi según schema real
-      const selloData: any = {
+      const marcaData: any = {
         data: {
-          id_sello: idSelloNum,
-          nombre_sello: formData.nombre_sello.trim(),
-          acronimo: formData.acronimo.trim() || null,
+          nombre_marca: formData.nombre_marca.trim(),
+          descripcion: formData.descripcion.trim() || null,
           website: formData.website.trim() || null,
-          editorial: formData.editorial || null,
-          libros: formData.libros.length > 0 ? formData.libros : null,
-          colecciones: formData.colecciones.length > 0 ? formData.colecciones : null,
         },
       }
 
-      console.log('[AddSelloForm] Enviando datos:', selloData)
+      console.log('[AddMarcaForm] Enviando datos:', marcaData)
 
-      // Si hay logo, primero subirlo
       let logoId = null
       if (formData.logo) {
         try {
@@ -73,45 +52,43 @@ const AddSelloForm = () => {
           const uploadResult = await uploadResponse.json()
           if (uploadResult.success && uploadResult.data && uploadResult.data.length > 0) {
             logoId = uploadResult.data[0].id
-            selloData.data.logo = logoId
+            marcaData.data.logo = logoId
           } else if (uploadResult.success && uploadResult.data?.id) {
             logoId = uploadResult.data.id
-            selloData.data.logo = logoId
+            marcaData.data.logo = logoId
           }
         } catch (uploadError: any) {
-          console.warn('[AddSelloForm] Error al subir logo:', uploadError.message)
-          // Continuar sin logo si falla la subida
+          console.warn('[AddMarcaForm] Error al subir logo:', uploadError.message)
         }
       }
 
-      // Crear el sello
-      const response = await fetch('/api/tienda/sello', {
+      const response = await fetch('/api/tienda/marca', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(selloData),
+        body: JSON.stringify(marcaData),
       })
 
       const result = await response.json()
 
-      console.log('[AddSelloForm] Respuesta:', { response: response.status, result })
+      console.log('[AddMarcaForm] Respuesta:', { response: response.status, result })
 
       if (!response.ok) {
-        throw new Error(result.error || 'Error al crear el sello')
+        throw new Error(result.error || 'Error al crear la marca')
       }
 
       if (!result.success) {
-        throw new Error(result.error || 'Error al crear el sello')
+        throw new Error(result.error || 'Error al crear la marca')
       }
 
       setSuccess(true)
       setTimeout(() => {
-        router.push('/atributos/sello')
+        router.push('/atributos/marca')
       }, 1500)
     } catch (err: any) {
-      console.error('[AddSelloForm] Error al crear sello:', err)
-      setError(err.message || 'Error al crear el sello')
+      console.error('[AddMarcaForm] Error al crear marca:', err)
+      setError(err.message || 'Error al crear la marca')
     } finally {
       setLoading(false)
     }
@@ -120,9 +97,9 @@ const AddSelloForm = () => {
   return (
     <Card>
       <CardHeader>
-        <h5 className="mb-0">Agregar Nuevo Sello</h5>
+        <h5 className="mb-0">Agregar Nueva Marca</h5>
         <p className="text-muted mb-0 mt-2 small">
-          Completa los campos requeridos para crear un nuevo sello en el sistema.
+          Completa los campos requeridos para crear una nueva marca en el sistema.
         </p>
       </CardHeader>
       <CardBody>
@@ -133,70 +110,51 @@ const AddSelloForm = () => {
         )}
         {success && (
           <Alert variant="success">
-            ¡Sello creado exitosamente! Redirigiendo...
+            ¡Marca creada exitosamente! Redirigiendo...
           </Alert>
         )}
 
         <Form onSubmit={handleSubmit}>
           <Row className="g-3">
-            <Col md={6}>
+            <Col md={12}>
               <FormGroup>
                 <FormLabel>
-                  ID del Sello <span className="text-danger">*</span>
+                  Nombre de la Marca <span className="text-danger">*</span>
                 </FormLabel>
                 <FormControl
-                  type="number"
-                  placeholder="Ej: 1, 2, 1000"
-                  value={formData.id_sello}
+                  type="text"
+                  placeholder="Ej: Marca Ejemplo"
+                  value={formData.nombre_marca}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, id_sello: e.target.value }))
+                    setFormData((prev) => ({ ...prev, nombre_marca: e.target.value }))
                   }
                   required
                 />
                 <small className="text-muted">
-                  ID numérico único del sello (requerido).
+                  Nombre completo de la marca (requerido).
                 </small>
               </FormGroup>
             </Col>
 
-            <Col md={6}>
+            <Col md={12}>
               <FormGroup>
-                <FormLabel>
-                  Nombre del Sello <span className="text-danger">*</span>
-                </FormLabel>
+                <FormLabel>Descripción</FormLabel>
                 <FormControl
-                  type="text"
-                  placeholder="Ej: Sello Editorial Planeta"
-                  value={formData.nombre_sello}
+                  as="textarea"
+                  rows={3}
+                  placeholder="Descripción de la marca..."
+                  value={formData.descripcion}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, nombre_sello: e.target.value }))
-                  }
-                  required
-                />
-                <small className="text-muted">
-                  Nombre completo del sello (requerido).
-                </small>
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup>
-                <FormLabel>Acrónimo</FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Ej: SEP, SEPL"
-                  value={formData.acronimo}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, acronimo: e.target.value }))
+                    setFormData((prev) => ({ ...prev, descripcion: e.target.value }))
                   }
                 />
                 <small className="text-muted">
-                  Acrónimo opcional del sello.
+                  Descripción opcional de la marca.
                 </small>
               </FormGroup>
             </Col>
 
-            <Col md={6}>
+            <Col md={12}>
               <FormGroup>
                 <FormLabel>Website</FormLabel>
                 <FormControl
@@ -208,49 +166,8 @@ const AddSelloForm = () => {
                   }
                 />
                 <small className="text-muted">
-                  URL del sitio web del sello (opcional).
+                  URL del sitio web de la marca (opcional).
                 </small>
-              </FormGroup>
-            </Col>
-
-            <Col md={12}>
-              <FormGroup>
-                <FormLabel>Editorial</FormLabel>
-                <RelationSelector
-                  label=""
-                  value={formData.editorial}
-                  onChange={(value) => setFormData((prev) => ({ ...prev, editorial: value as string }))}
-                  endpoint="/api/tienda/editoriales"
-                  displayField="nombre_editorial"
-                />
-              </FormGroup>
-            </Col>
-
-            <Col md={12}>
-              <FormGroup>
-                <FormLabel>Libros</FormLabel>
-                <RelationSelector
-                  label=""
-                  value={formData.libros}
-                  onChange={(value) => setFormData((prev) => ({ ...prev, libros: value as string[] }))}
-                  endpoint="/api/tienda/productos"
-                  multiple={true}
-                  displayField="titulo"
-                />
-              </FormGroup>
-            </Col>
-
-            <Col md={12}>
-              <FormGroup>
-                <FormLabel>Colecciones</FormLabel>
-                <RelationSelector
-                  label=""
-                  value={formData.colecciones}
-                  onChange={(value) => setFormData((prev) => ({ ...prev, colecciones: value as string[] }))}
-                  endpoint="/api/tienda/colecciones"
-                  multiple={true}
-                  displayField="nombre"
-                />
               </FormGroup>
             </Col>
 
@@ -307,20 +224,8 @@ const AddSelloForm = () => {
                     </div>
                   )}
                 </div>
-                <FormControl
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const target = e.target as HTMLInputElement
-                    const file = target.files?.[0]
-                    if (file) {
-                      setFormData((prev) => ({ ...prev, logo: file }))
-                    }
-                  }}
-                  className="mt-2"
-                />
                 <small className="text-muted">
-                  Logo del sello (opcional). Formatos: JPG, PNG, GIF.
+                  Logo de la marca (opcional). Formatos: JPG, PNG, GIF.
                 </small>
               </FormGroup>
             </Col>
@@ -333,7 +238,7 @@ const AddSelloForm = () => {
               disabled={loading}
             >
               <LuSave className="fs-sm me-2" />
-              {loading ? 'Guardando...' : 'Guardar Sello'}
+              {loading ? 'Guardando...' : 'Guardar Marca'}
             </Button>
             <Button
               type="button"
@@ -350,4 +255,5 @@ const AddSelloForm = () => {
   )
 }
 
-export default AddSelloForm
+export default AddMarcaForm
+
