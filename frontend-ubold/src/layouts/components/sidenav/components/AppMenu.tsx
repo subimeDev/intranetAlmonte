@@ -142,6 +142,8 @@ const MenuItem = ({ item, userRole }: { item: MenuItemType; userRole?: string })
   }
 
   const toggleBackdrop = () => {
+    // Ya no necesitamos ocultar backdrop porque la sidebar siempre está visible
+    // Solo ocultar si realmente está en modo offcanvas (aunque no debería estar)
     if (sidenavSize === 'offcanvas') {
       hideBackdrop()
     }

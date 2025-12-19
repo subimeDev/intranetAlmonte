@@ -14,8 +14,17 @@ const Sidenav = () => {
   }
 
   const closeSidebar = () => {
+    // NO permitir cerrar la sidebar completamente - solo cambiar tamaño
+    // En lugar de ocultar, cambiar a modo condensed si está en default
     const html = document.documentElement
-    html.classList.toggle('sidebar-enable')
+    const currentSize = html.getAttribute('data-sidenav-size')
+    
+    // Si está en default, cambiar a condensed (más compacto pero visible)
+    // Si está en condensed, mantenerlo (ya es compacto)
+    if (currentSize === 'default') {
+      updateSettings({ sidenavSize: 'condensed' })
+    }
+    // No ocultar completamente - siempre mantener visible
     hideBackdrop()
   }
 

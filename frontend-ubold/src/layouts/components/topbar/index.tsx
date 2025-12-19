@@ -16,20 +16,23 @@ const Topbar = () => {
     const html = document.documentElement
     const currentSize = html.getAttribute('data-sidenav-size')
 
+    // CRÍTICO: Asegurar que la sidebar siempre esté visible
+    // Si está en 'offcanvas', cambiarla a 'condensed' o 'default' para mantenerla visible
     if (currentSize === 'offcanvas') {
-      // Si está en offcanvas, siempre mostrar el sidebar al hacer clic
-      // Esto asegura que el usuario pueda navegar sin usar el botón atrás
+      // Cambiar de offcanvas a condensed para mantenerla visible
+      const width = window.innerWidth
+      const newSize = width <= 1140 ? 'condensed' : 'default'
+      updateSettings({ sidenavSize: newSize })
+      // Asegurar que la clase sidebar-enable esté presente
       if (!html.classList.contains('sidebar-enable')) {
         html.classList.add('sidebar-enable')
-        showBackdrop()
-      } else {
-        html.classList.remove('sidebar-enable')
-        hideBackdrop()
       }
-    } else if (sidenavSize=== 'compact') {
-      updateSettings({sidenavSize:currentSize === 'compact' ? 'condensed' : 'compact'})
+      hideBackdrop() // Remover backdrop ya que ahora está siempre visible
+    } else if (sidenavSize === 'compact') {
+      updateSettings({ sidenavSize: currentSize === 'compact' ? 'condensed' : 'compact' })
     } else {
-      updateSettings({sidenavSize:currentSize === 'condensed' ? 'default' : 'condensed'})
+      // Toggle entre 'default' y 'condensed' - ambos mantienen la sidebar visible
+      updateSettings({ sidenavSize: currentSize === 'condensed' ? 'default' : 'condensed' })
     }
   }
 

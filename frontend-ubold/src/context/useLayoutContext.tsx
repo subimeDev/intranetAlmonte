@@ -14,7 +14,7 @@ const INIT_STATE: LayoutState = {
   monochrome: false,
   orientation: 'vertical',
   sidenavColor: 'light',
-  sidenavSize: 'default', // Cambiar a 'default' para que el sidebar esté siempre visible por defecto
+  sidenavSize: 'default', // Siempre 'default' para que el sidebar esté visible en todas las ventanas
   sidenavUser: false,
   topBarColor: 'light',
   position: 'fixed',
@@ -85,55 +85,73 @@ const LayoutProvider = ({ children }: ChildrenType) => {
   }
 
   useEffect(() => {
+    // CRÍTICO: Asegurar que la sidebar siempre esté visible
+    // Si el tamaño es 'offcanvas', cambiarlo automáticamente a un modo visible
+    let effectiveSidenavSize = settings.sidenavSize
+    if (effectiveSidenavSize === 'offcanvas') {
+      const width = window.innerWidth
+      effectiveSidenavSize = width <= 1140 ? 'condensed' : 'default'
+      // Actualizar el estado si era offcanvas
+      if (settings.sidenavSize === 'offcanvas') {
+        updateSettings({ sidenavSize: effectiveSidenavSize })
+      }
+    }
+    
     toggleAttribute('data-skin', settings.skin)
     toggleAttribute('data-bs-theme', settings.theme === 'system' ? getSystemTheme() : settings.theme)
     toggleAttribute('data-topbar-color', settings.topBarColor)
     toggleAttribute('data-menu-color', settings.sidenavColor)
-    toggleAttribute('data-sidenav-size', settings.sidenavSize)
+    toggleAttribute('data-sidenav-size', effectiveSidenavSize)
     toggleAttribute('data-sidenav-user', settings.sidenavUser.toString())
     toggleAttribute('data-layout-position', settings.position)
     toggleAttribute('data-layout-width', settings.width)
     toggleAttribute('data-layout', settings.orientation === 'horizontal' ? 'topnav' : '')
     toggleAttribute('class', settings.monochrome ? 'monochrome' : '')
-  }, [settings])
+    
+    // Asegurar que la clase sidebar-enable esté presente para mantener la sidebar visible
+    const html = document.documentElement
+    if (effectiveSidenavSize !== 'offcanvas' && !html.classList.contains('sidebar-enable')) {
+      html.classList.add('sidebar-enable')
+    }
+  }, [settings, updateSettings])
 
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth
 
+      // CRÍTICO: Asegurar que la sidebar siempre esté visible en todas las ventanas
+      // Nunca usar 'offcanvas' automáticamente - solo 'default' o 'condensed'
       if (settings.orientation === 'vertical') {
-        // En pantallas pequeñas, usar 'condensed' para mantener sidebar visible pero compacto
-        // Esto permite navegar sin tener que usar el botón atrás
         if (width <= 767.98) {
-          // Solo usar 'offcanvas' si el usuario explícitamente lo configuró
-          // De lo contrario, usar 'condensed' para mantener el sidebar visible
-          if (settings.sidenavSize !== 'offcanvas' && settings.sidenavSize !== 'default') {
+          // En pantallas pequeñas, usar 'condensed' para mantener sidebar visible pero compacto
+          // NUNCA cambiar a 'offcanvas' automáticamente
+          if (settings.sidenavSize === 'offcanvas' || settings.sidenavSize === 'on-hover') {
+            updateSettings({ sidenavSize: 'condensed' })
+          } else if (settings.sidenavSize !== 'condensed' && settings.sidenavSize !== 'default') {
             updateSettings({ sidenavSize: 'condensed' })
           }
-          // Si está en 'offcanvas', mantenerlo pero el botón siempre lo mostrará
         } else if (width <= 1140) {
-          // En pantallas medianas, usar 'condensed' para optimizar espacio
-          if (settings.sidenavSize === 'offcanvas') {
-            // Si estaba en offcanvas, cambiar a condensed para mantenerlo visible
-            updateSettings({ sidenavSize: 'condensed' })
-          } else if (settings.sidenavSize === 'on-hover') {
+          // En pantallas medianas, usar 'condensed' para optimizar espacio pero mantener visible
+          if (settings.sidenavSize === 'offcanvas' || settings.sidenavSize === 'on-hover') {
             updateSettings({ sidenavSize: 'condensed' })
           }
         } else {
-          // En pantallas grandes, mantener el tamaño configurado
-          // Si estaba en 'offcanvas', cambiar a 'default' para mantenerlo visible
-          if (settings.sidenavSize === 'offcanvas') {
+          // En pantallas grandes, usar 'default' para máxima visibilidad
+          // Si estaba en 'offcanvas' o 'on-hover', cambiar a 'default' para mantenerlo visible
+          if (settings.sidenavSize === 'offcanvas' || settings.sidenavSize === 'on-hover') {
             updateSettings({ sidenavSize: 'default' })
           }
         }
       } else if (settings.orientation === 'horizontal') {
+        // Para layout horizontal, también mantener visible
         if (width < 992) {
-          // Similar para horizontal: mantener visible en modo condensed
-          if (settings.sidenavSize !== 'offcanvas') {
+          if (settings.sidenavSize === 'offcanvas' || settings.sidenavSize === 'on-hover') {
             updateSettings({ sidenavSize: 'condensed' })
           }
         } else {
-          updateSettings({ sidenavSize: 'default' })
+          if (settings.sidenavSize === 'offcanvas' || settings.sidenavSize === 'on-hover') {
+            updateSettings({ sidenavSize: 'default' })
+          }
         }
       }
     }
