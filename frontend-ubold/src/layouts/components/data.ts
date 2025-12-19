@@ -269,6 +269,8 @@ export const horizontalMenuItems: MenuItemType[] = [
                   { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
                   { key: 'all-sellos', label: 'Todos los Sellos', url: '/atributos/sello' },
                   { key: 'add-sello', label: 'Agregar Sello', url: '/atributos/sello/agregar' },
+                  { key: 'all-marcas', label: 'Todas las Marcas', url: '/atributos/marca' },
+                  { key: 'add-marca', label: 'Agregar Marca', url: '/atributos/marca/agregar' },
                 ],
               },
               { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
