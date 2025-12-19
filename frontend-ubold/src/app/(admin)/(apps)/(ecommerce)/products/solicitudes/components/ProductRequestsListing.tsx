@@ -18,23 +18,24 @@ import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuBox, LuDollarSign, LuSearch, LuTag } from 'react-icons/lu'
-import { TbEdit, TbEye, TbLayoutGrid, TbList, TbPlus, TbTrash } from 'react-icons/tb'
+import { TbEdit, TbEye, TbList, TbTrash, TbCheck } from 'react-icons/tb'
 
 import Rating from '@/components/Rating'
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
+import ChangeStatusModal from '@/components/table/ChangeStatusModal'
 import TablePagination from '@/components/table/TablePagination'
 import { currency } from '@/helpers'
-import { toPascalCase } from '@/helpers/casing'
 import { productData, type ProductType } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 
-// Tipo extendido para productos que pueden tener imagen como URL o StaticImageData
+// Tipo extendido para productos con estado_publicacion
 type ProductTypeExtended = Omit<ProductType, 'image'> & {
   image: StaticImageData | { src: string | null }
   strapiId?: number
   estadoPublicacion?: 'Publicado' | 'Pendiente' | 'Borrador'
+  productoOriginal?: any // Guardar el producto original de Strapi
 }
 
 // Helper para obtener campo con múltiples variaciones
@@ -47,44 +48,32 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear productos de Strapi al formato ProductType (igual que ProductosGrid)
+// Función para mapear productos de Strapi al formato ProductType
 const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
-  // Los datos pueden venir en attributes o directamente (igual que ProductosGrid)
   const attrs = producto.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
 
-  // Obtener URL de imagen (manejar datos directos o en attributes - igual que Products Grid)
+  // Obtener URL de imagen
   const getImageUrl = (): string | null => {
-    // Acceder a portada_libro - puede venir como objeto directo o con .data
     let portada = data.portada_libro || data.PORTADA_LIBRO || data.portadaLibro
-    
-    // Si portada tiene .data, acceder a eso
     if (portada?.data) {
       portada = portada.data
     }
-    
-    // Si portada es null o undefined, retornar null (no usar imagen por defecto inexistente)
     if (!portada || portada === null) {
       return null
     }
-
-    // Obtener la URL - puede estar en attributes o directamente
     const url = portada.attributes?.url || portada.attributes?.URL || portada.url || portada.URL
     if (!url) {
       return null
     }
-    
-    // Si la URL ya es completa, retornarla tal cual
     if (url.startsWith('http')) {
       return url
     }
-    
-    // Si no, construir la URL completa con la base de Strapi
     const baseUrl = STRAPI_API_URL.replace(/\/$/, '')
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
   }
 
-  // Calcular stock total (igual que ProductosGrid)
+  // Calcular stock total
   const getStockTotal = (): number => {
     const stocks = data.STOCKS?.data || data.stocks?.data || []
     return stocks.reduce((total: number, stock: any) => {
@@ -93,23 +82,19 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     }, 0)
   }
 
-  // Obtener precio mínimo (igual que ProductosGrid)
+  // Obtener precio mínimo
   const getPrecioMinimo = (): number => {
     const precios = data.PRECIOS?.data || data.precios?.data || []
     if (precios.length === 0) return 0
-    
     const preciosNumeros = precios
       .map((p: any) => p.attributes?.PRECIO || p.attributes?.precio)
       .filter((p: any): p is number => typeof p === 'number' && p > 0)
-    
     return preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
   }
 
-  // Buscar nombre con múltiples variaciones (igual que ProductosGrid)
   const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
   const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
   const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
-  const editorial = data.editorial?.data?.attributes?.nombre || data.editorial?.data?.attributes?.NOMBRE || 'Sin editorial'
   const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || 'Sin categoría'
   const isPublished = !!(attrs.publishedAt || (producto as any).publishedAt)
   const createdAt = attrs.createdAt || (producto as any).createdAt || new Date().toISOString()
@@ -133,14 +118,14 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     status: isPublished ? 'published' : 'pending',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
-    // Usar el ID numérico si existe, sino documentId, sino el id tal cual
     url: `/products/${producto.id || producto.documentId || producto.id}`,
     strapiId: producto.id,
     estadoPublicacion: estadoPublicacion as 'Publicado' | 'Pendiente' | 'Borrador',
+    productoOriginal: producto, // Guardar producto original para actualizar
   }
 }
 
-interface ProductsListingProps {
+interface ProductRequestsListingProps {
   productos?: any[]
   error?: string | null
 }
@@ -155,21 +140,21 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
 
 const columnHelper = createColumnHelper<ProductTypeExtended>()
 
-const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
-  // Mapear productos de Strapi al formato ProductType si están disponibles
+const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProps = {}) => {
   const mappedProducts = useMemo(() => {
     if (productos && productos.length > 0) {
-      console.log('[ProductsListing] Productos recibidos:', productos.length)
-      console.log('[ProductsListing] Primer producto estructura completa:', JSON.stringify(productos[0], null, 2))
+      console.log('[ProductRequestsListing] Productos recibidos:', productos.length)
       const mapped = productos.map(mapStrapiProductToProductType)
-      console.log('[ProductsListing] Productos mapeados:', mapped.length)
-      console.log('[ProductsListing] Primer producto mapeado:', mapped[0])
-      console.log('[ProductsListing] Imagen del primer producto:', mapped[0]?.image)
+      console.log('[ProductRequestsListing] Productos mapeados:', mapped.length)
       return mapped
     }
-    console.log('[ProductsListing] No hay productos de Strapi, usando datos de ejemplo')
-    return productData
+    console.log('[ProductRequestsListing] No hay productos de Strapi, usando datos de ejemplo')
+    return productData.map((p) => ({ ...p, estadoPublicacion: 'Pendiente' as const }))
   }, [productos])
+
+  // Estado para el modal de cambio de estado
+  const [showChangeStatusModal, setShowChangeStatusModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<ProductTypeExtended | null>(null)
 
   const columns: ColumnDef<ProductTypeExtended, any>[] = [
     {
@@ -202,7 +187,6 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
           ? row.original.image.src
           : null
         
-        // Si no hay imagen, mostrar placeholder
         if (!imageSrc) {
           return (
             <div className="d-flex">
@@ -231,9 +215,6 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                 width={36} 
                 className="img-fluid rounded"
                 unoptimized={imageSrc.startsWith('http')}
-                onError={(e) => {
-                  console.error('[ProductsListing] Error al cargar imagen:', imageSrc, e)
-                }}
               />
             </div>
             <div>
@@ -280,21 +261,6 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
         </>
       ),
     }),
-    columnHelper.accessor('status', {
-      header: 'Estado',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => {
-        const statusText = row.original.status === 'published' ? 'Publicado' : 
-                          row.original.status === 'pending' ? 'Pendiente' : 'Rechazado'
-        return (
-          <span
-            className={`badge ${row.original.status === 'published' ? 'badge-soft-success' : row.original.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-danger'} fs-xxs`}>
-            {statusText}
-          </span>
-        )
-      },
-    }),
     columnHelper.accessor('estadoPublicacion', {
       header: 'Estado Publicación',
       filterFn: 'equalsString',
@@ -311,6 +277,21 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
         )
       },
     }),
+    columnHelper.accessor('status', {
+      header: 'Estado',
+      filterFn: 'equalsString',
+      enableColumnFilter: true,
+      cell: ({ row }) => {
+        const statusText = row.original.status === 'published' ? 'Publicado' : 
+                          row.original.status === 'pending' ? 'Pendiente' : 'Rechazado'
+        return (
+          <span
+            className={`badge ${row.original.status === 'published' ? 'badge-soft-success' : row.original.status === 'pending' ? 'badge-soft-warning' : 'badge-soft-danger'} fs-xxs`}>
+            {statusText}
+          </span>
+        )
+      },
+    }),
     columnHelper.accessor('date', {
       header: 'Fecha',
       cell: ({ row }) => (
@@ -322,14 +303,14 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
     {
       header: 'Acciones',
       cell: ({ row }: { row: TableRow<ProductTypeExtended> }) => (
-        <div className="d-flex  gap-1">
+        <div className="d-flex gap-1">
           <Link href={row.original.url}>
-            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Ver">
               <TbEye className="fs-lg" />
             </Button>
           </Link>
           <Link href={`/products/${row.original.strapiId || row.original.code}`}>
-            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Editar">
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
@@ -337,6 +318,18 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
             variant="default"
             size="sm"
             className="btn-icon rounded-circle"
+            title="Cambiar Estado"
+            onClick={() => {
+              setSelectedProduct(row.original)
+              setShowChangeStatusModal(true)
+            }}>
+            <TbCheck className="fs-lg" />
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="btn-icon rounded-circle"
+            title="Eliminar"
             onClick={() => {
               toggleDeleteModal()
               setSelectedRowIds({ [row.id]: true })
@@ -359,7 +352,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
   // Estado para el orden de columnas
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('products-column-order')
+      const saved = localStorage.getItem('product-requests-column-order')
       if (saved) {
         try {
           return JSON.parse(saved)
@@ -375,15 +368,13 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
   const handleColumnOrderChange = (newOrder: string[]) => {
     setColumnOrder(newOrder)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('products-column-order', JSON.stringify(newOrder))
+      localStorage.setItem('product-requests-column-order', JSON.stringify(newOrder))
     }
   }
 
   // Actualizar datos cuando cambien los productos de Strapi
   useEffect(() => {
-    console.log('[ProductsListing] useEffect - productos:', productos?.length, 'mappedProducts:', mappedProducts.length)
     setData(mappedProducts)
-    console.log('[ProductsListing] Datos actualizados. Total:', mappedProducts.length)
   }, [mappedProducts])
 
   const table = useReactTable<ProductTypeExtended>({
@@ -429,8 +420,44 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
     setShowDeleteModal(false)
   }
 
-  // Mostrar error si existe, pero continuar mostrando los datos de ejemplo si hay
-  // Esto permite que la aplicación siga funcionando aunque Strapi falle
+  // Manejar cambio de estado
+  const handleChangeStatus = async (newStatus: string) => {
+    if (!selectedProduct || !selectedProduct.strapiId) {
+      throw new Error('Producto no válido')
+    }
+
+    try {
+      const response = await fetch(`/api/tienda/productos/${selectedProduct.strapiId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          estado_publicacion: newStatus,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al actualizar el estado')
+      }
+
+      // Actualizar el estado local
+      setData((old) => old.map((p) => {
+        if (p.strapiId === selectedProduct.strapiId) {
+          return { ...p, estadoPublicacion: newStatus as 'Publicado' | 'Pendiente' | 'Borrador' }
+        }
+        return p
+      }))
+
+      // Recargar la página para obtener datos actualizados desde Strapi
+      window.location.reload()
+    } catch (error: any) {
+      console.error('[ProductRequestsListing] Error al cambiar estado:', error)
+      throw error
+    }
+  }
+
   const hasError = !!error
   const hasData = mappedProducts.length > 0
   
@@ -440,28 +467,11 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
         <Col xs={12}>
           <Alert variant="warning">
             <strong>Error al cargar productos desde Strapi:</strong> {error}
-            <br />
-            <small className="text-muted">
-              Verifica que:
-              <ul className="mt-2 mb-0">
-                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
-                <li>El servidor de Strapi esté disponible</li>
-                <li>Las variables de entorno estén correctas</li>
-              </ul>
-            </small>
           </Alert>
         </Col>
       </Row>
     )
   }
-  
-  // Si hay error pero también hay datos, mostrar advertencia pero continuar
-  if (hasError && hasData) {
-    console.warn('[ProductsListing] Error al cargar desde Strapi, usando datos disponibles:', error)
-  }
-
-  // Debug: mostrar información sobre los datos
-  console.log('[ProductsListing] Render - data.length:', data.length, 'mappedProducts.length:', mappedProducts.length, 'productos:', productos?.length)
 
   return (
     <Row>
@@ -496,26 +506,12 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                   value={(table.getColumn('category')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('category')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
                   <option value="All">Categoría</option>
-                  <option value="Electronics">Electrónica</option>
-                  <option value="Fashion">Moda</option>
-                  <option value="Home">Hogar</option>
-                  <option value="Sports">Deportes</option>
-                  <option value="Beauty">Belleza</option>
+                  <option value="Plan Lector">Plan Lector</option>
+                  <option value="Texto Curricular">Texto Curricular</option>
+                  <option value="Texto PAES">Texto PAES</option>
+                  <option value="Texto Complementario">Texto Complementario</option>
                 </select>
                 <LuTag className="app-search-icon text-muted" />
-              </div>
-
-              <div className="app-search">
-                <select
-                  className="form-select form-control my-1 my-md-0"
-                  value={(table.getColumn('status')?.getFilterValue() as string) ?? 'All'}
-                  onChange={(e) => table.getColumn('status')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Estado</option>
-                  <option value="published">Publicado</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="rejected">Rechazado</option>
-                </select>
-                <LuBox className="app-search-icon text-muted" />
               </div>
 
               <div className="app-search">
@@ -550,7 +546,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                   className="form-select form-control my-1 my-md-0"
                   value={table.getState().pagination.pageSize}
                   onChange={(e) => table.setPageSize(Number(e.target.value))}>
-                  {[5, 8,10, 15, 20].map((size) => (
+                  {[5, 8, 10, 15, 20].map((size) => (
                     <option key={size} value={size}>
                       {size}
                     </option>
@@ -560,19 +556,9 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
             </div>
 
             <div className="d-flex gap-1">
-              <Link passHref href="/products-grid">
-                <Button variant="outline-primary" className="btn-icon btn-soft-primary">
-                  <TbLayoutGrid className="fs-lg" />
-                </Button>
-              </Link>
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
-              <Link href="/add-product" passHref>
-                <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Agregar Producto
-                </Button>
-              </Link>
             </div>
           </CardHeader>
 
@@ -607,12 +593,26 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
             onHide={toggleDeleteModal}
             onConfirm={handleDelete}
             selectedCount={Object.keys(selectedRowIds).length}
-            itemName="product"
+            itemName="producto"
           />
+
+          {selectedProduct && (
+            <ChangeStatusModal
+              show={showChangeStatusModal}
+              onHide={() => {
+                setShowChangeStatusModal(false)
+                setSelectedProduct(null)
+              }}
+              onConfirm={handleChangeStatus}
+              currentStatus={selectedProduct.estadoPublicacion || 'Pendiente'}
+              productName={selectedProduct.name || 'Sin nombre'}
+            />
+          )}
         </Card>
       </Col>
     </Row>
   )
 }
 
-export default ProductsListing
+export default ProductRequestsListing
+
