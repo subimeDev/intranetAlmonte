@@ -142,6 +142,11 @@ export type WooCommerceOrder = {
   date_paid: string | null
   cart_hash: string
   number: string
+  meta_data?: Array<{
+    id: number
+    key: string
+    value: string | number
+  }>
   line_items: Array<{
     id: number
     name: string
@@ -155,7 +160,51 @@ export type WooCommerceOrder = {
     total_tax: string
     sku: string
     price: string
+    meta_data?: Array<{
+      id: number
+      key: string
+      value: string | number
+    }>
   }>
+  tax_lines?: Array<{
+    id: number
+    rate_code: string
+    rate_id: number
+    label: string
+    compound: boolean
+    tax_total: string
+    shipping_tax_total: string
+  }>
+  shipping_lines?: Array<{
+    id: number
+    method_title: string
+    method_id: string
+    total: string
+    total_tax: string
+  }>
+  fee_lines?: Array<{
+    id: number
+    name: string
+    tax_class: string
+    tax_status: string
+    total: string
+    total_tax: string
+  }>
+  coupon_lines?: Array<{
+    id: number
+    code: string
+    discount: string
+    discount_tax: string
+  }>
+  refunds?: Array<{
+    id: number
+    reason: string
+    total: string
+  }>
+  _links?: {
+    self: Array<{ href: string }>
+    collection: Array<{ href: string }>
+  }
 }
 
 // Tipo para items del carrito en el POS

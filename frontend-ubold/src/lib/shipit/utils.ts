@@ -51,7 +51,7 @@ export function mapWooCommerceOrderToShipit(
     full_name: `${order.shipping.first_name || ''} ${order.shipping.last_name || ''}`.trim() || 
                `${order.billing.first_name || ''} ${order.billing.last_name || ''}`.trim(),
     email: order.billing.email || '',
-    phone: order.billing.phone || order.shipping.phone || '',
+    phone: order.billing.phone || '',
     kind: 'home_delivery',
   }
 
@@ -96,11 +96,11 @@ export async function calculateOrderSizesAsync(order: WooCommerceOrder): Promise
       // Consultar productos para obtener dimensiones y peso
       const productPromises = order.line_items.map(async (item) => {
         try {
-          const product = await wooCommerceClient.get(`products/${item.product_id}`)
-          const weight = parseFloat(product.weight || '0')
-          const length = parseFloat(product.dimensions?.length || '0')
-          const width = parseFloat(product.dimensions?.width || '0')
-          const height = parseFloat(product.dimensions?.height || '0')
+          const product = await wooCommerceClient.get(`products/${item.product_id}`) as any
+          const weight = parseFloat(product?.weight || '0')
+          const length = parseFloat(product?.dimensions?.length || '0')
+          const width = parseFloat(product?.dimensions?.width || '0')
+          const height = parseFloat(product?.dimensions?.height || '0')
 
           return {
             weight: weight * item.quantity,
@@ -186,7 +186,9 @@ export function getShipitIdFromOrder(order: WooCommerceOrder): number | null {
   const shipitMeta = order.meta_data?.find(
     (meta) => meta.key === '_shipit_id' || meta.key === 'shipit_id'
   )
-  return shipitMeta ? parseInt(shipitMeta.value, 10) : null
+  if (!shipitMeta) return null
+  const value = typeof shipitMeta.value === 'string' ? shipitMeta.value : String(shipitMeta.value)
+  return parseInt(value, 10) || null
 }
 
 /**
@@ -196,7 +198,8 @@ export function getShipitTrackingFromOrder(order: WooCommerceOrder): string | nu
   const trackingMeta = order.meta_data?.find(
     (meta) => meta.key === '_shipit_tracking' || meta.key === 'shipit_tracking_number'
   )
-  return trackingMeta ? trackingMeta.value : null
+  if (!trackingMeta) return null
+  return typeof trackingMeta.value === 'string' ? trackingMeta.value : String(trackingMeta.value)
 }
 
 /**
@@ -236,11 +239,11 @@ export function validateOrderForShipment(order: WooCommerceOrder): {
     }
   }
 
-  if (!order.billing.email && !order.shipping.email) {
+  if (!order.billing.email) {
     errors.push('El email del destinatario es requerido')
   }
 
-  if (!order.billing.phone && !order.shipping.phone) {
+  if (!order.billing.phone) {
     errors.push('El teléfono del destinatario es requerido')
   }
 

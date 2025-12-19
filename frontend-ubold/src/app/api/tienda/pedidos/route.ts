@@ -170,7 +170,9 @@ export async function POST(request: NextRequest) {
     const deliveryTypeMeta = wooCommerceOrder.meta_data?.find(
       (meta) => meta.key === '_delivery_type'
     )
-    const deliveryType = deliveryTypeMeta?.value || 'pickup'
+    const deliveryType = deliveryTypeMeta 
+      ? (typeof deliveryTypeMeta.value === 'string' ? deliveryTypeMeta.value : String(deliveryTypeMeta.value))
+      : 'pickup'
 
     // Solo crear envío si es tipo "shipping" (envío a domicilio)
     if (deliveryType === 'shipping') {
@@ -180,9 +182,7 @@ export async function POST(request: NextRequest) {
       
       if (validation.valid) {
         // Verificar si ya tiene un envío de Shipit
-        const existingShipitId = wooCommerceOrder.meta_data?.find(
-          (meta) => meta.key === '_shipit_id' || meta.key === 'shipit_id'
-        )
+        const existingShipitId = getShipitIdFromOrder(wooCommerceOrder)
 
         if (!existingShipitId) {
           // Verificar cobertura antes de crear envío (opcional, puede ser lento)
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
           }
         } else {
           if (process.env.NODE_ENV === 'development') {
-            console.log('[API Pedidos POST] ⚠️  Pedido ya tiene envío de Shipit:', existingShipitId.value)
+            console.log('[API Pedidos POST] ⚠️  Pedido ya tiene envío de Shipit:', existingShipitId)
           }
         }
       } else {

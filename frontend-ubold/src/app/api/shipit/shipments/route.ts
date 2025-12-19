@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import shipitClient from '@/lib/shipit/client'
 import type { ShipitCreateShipment, ShipitShipmentResponse } from '@/lib/shipit/types'
-import { mapWooCommerceOrderToShipit, validateOrderForShipment } from '@/lib/shipit/utils'
+import { mapWooCommerceOrderToShipit, validateOrderForShipment, getShipitIdFromOrder } from '@/lib/shipit/utils'
 import wooCommerceClient from '@/lib/woocommerce/client'
 import type { WooCommerceOrder } from '@/lib/woocommerce/types'
 
@@ -104,16 +104,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si ya tiene un envío de Shipit
-    const existingShipitId = order.meta_data?.find(
-      (meta) => meta.key === '_shipit_id' || meta.key === 'shipit_id'
-    )
+    const existingShipitId = getShipitIdFromOrder(order)
 
     if (existingShipitId) {
       return NextResponse.json(
         {
           success: false,
           error: 'Este pedido ya tiene un envío de Shipit asociado',
-          shipitId: existingShipitId.value,
+          shipitId: existingShipitId,
         },
         { status: 400 }
       )
