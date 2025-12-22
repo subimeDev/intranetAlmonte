@@ -15,7 +15,7 @@ import {
 } from '@tanstack/react-table'
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
-import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
+import { Button, Card, CardBody, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuBox, LuSearch } from 'react-icons/lu'
 import { TbEdit, TbEye, TbPlus, TbTrash } from 'react-icons/tb'
 
@@ -257,7 +257,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
           </div>
         </CardHeader>
 
-        <div className="card-body">
+        <CardBody>
           <Row className="mb-3">
             <Col md={6}>
               <div className="input-group">
@@ -290,10 +290,30 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
           ) : (
             <>
               <DataTable table={table} />
-              <TablePagination table={table} />
+              {table.getRowModel().rows.length > 0 && (
+                <CardFooter className="border-0">
+                  <TablePagination
+                    totalItems={table.getFilteredRowModel().rows.length}
+                    start={table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}
+                    end={Math.min(
+                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                      table.getFilteredRowModel().rows.length
+                    )}
+                    itemsName="colecciones"
+                    showInfo
+                    previousPage={table.previousPage}
+                    canPreviousPage={table.getCanPreviousPage()}
+                    pageCount={table.getPageCount()}
+                    pageIndex={table.getState().pagination.pageIndex}
+                    setPageIndex={table.setPageIndex}
+                    nextPage={table.nextPage}
+                    canNextPage={table.getCanNextPage()}
+                  />
+                </CardFooter>
+              )}
             </>
           )}
-        </div>
+        </CardBody>
       </Card>
 
       <DeleteConfirmationModal
