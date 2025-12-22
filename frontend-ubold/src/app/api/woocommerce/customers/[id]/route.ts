@@ -105,7 +105,7 @@ export async function PUT(
     })
 
     // Actualizar cliente en WooCommerce
-    const customer = await wooCommerceClient.put(
+    const customer = await wooCommerceClient.put<any>(
       `customers/${customerId}`,
       updateData
     )
@@ -120,8 +120,8 @@ export async function PUT(
         const strapiCliente = strapiClientes[0]
         const strapiClienteId = strapiCliente.documentId || strapiCliente.id?.toString()
         
-        const nombreCompleto = `${updateData.first_name || customer.first_name} ${updateData.last_name || customer.last_name || ''}`.trim()
-        const emailFinal = updateData.email || customer.email
+        const nombreCompleto = `${updateData.first_name || (customer as any).first_name} ${updateData.last_name || (customer as any).last_name || ''}`.trim()
+        const emailFinal = updateData.email || (customer as any).email
         
         const strapiUpdateData: any = {
           data: {
@@ -143,7 +143,7 @@ export async function PUT(
 
     // Actualizar también en Persona si existe
     try {
-      const emailFinal = updateData.email || customer.email
+      const emailFinal = updateData.email || (customer as any).email
       // Buscar persona por email
       const personaSearch = await strapiClient.get<any>(`/api/personas?populate[emails]=*&pagination[pageSize]=1000`)
       const personasArray = personaSearch.data && Array.isArray(personaSearch.data) 
@@ -166,15 +166,15 @@ export async function PUT(
       }
       
       if (personaEncontrada) {
-        const nombreCompleto = `${updateData.first_name || customer.first_name} ${updateData.last_name || customer.last_name || ''}`.trim()
+        const nombreCompleto = `${updateData.first_name || (customer as any).first_name} ${updateData.last_name || (customer as any).last_name || ''}`.trim()
         const nombreParseado = parseNombreCompleto(nombreCompleto)
         const personaId = personaEncontrada.documentId || personaEncontrada.id?.toString()
         
         const personaUpdateData: any = {
           data: {
             nombre_completo: nombreCompleto,
-            nombres: nombreParseado.nombres || updateData.first_name || customer.first_name,
-            primer_apellido: nombreParseado.primer_apellido || updateData.last_name || customer.last_name || null,
+            nombres: nombreParseado.nombres || updateData.first_name || (customer as any).first_name,
+            primer_apellido: nombreParseado.primer_apellido || updateData.last_name || (customer as any).last_name || null,
             segundo_apellido: nombreParseado.segundo_apellido || null,
           },
         }
@@ -197,12 +197,12 @@ export async function PUT(
 
     // Enviar a ambos WordPress (ya está actualizado en el principal, pero lo sincronizamos también con el segundo)
     try {
-      const nombreCompleto = `${updateData.first_name || customer.first_name} ${updateData.last_name || customer.last_name || ''}`.trim()
+      const nombreCompleto = `${updateData.first_name || (customer as any).first_name} ${updateData.last_name || (customer as any).last_name || ''}`.trim()
       const nombreParseado = parseNombreCompleto(nombreCompleto)
       await enviarClienteABothWordPress({
-        email: updateData.email || customer.email,
-        first_name: nombreParseado.nombres || updateData.first_name || customer.first_name,
-        last_name: nombreParseado.primer_apellido || updateData.last_name || customer.last_name || '',
+        email: updateData.email || (customer as any).email,
+        first_name: nombreParseado.nombres || updateData.first_name || (customer as any).first_name,
+        last_name: nombreParseado.primer_apellido || updateData.last_name || (customer as any).last_name || '',
       })
       console.log('[API PUT] ✅ Cliente sincronizado con WordPress adicional')
     } catch (wpError: any) {
