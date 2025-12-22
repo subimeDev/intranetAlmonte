@@ -47,7 +47,7 @@ const AddCuponForm = () => {
             producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
             uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
             fecha_caducidad: formData.fecha_caducidad || null,
-            // origin_platform no existe en el schema de Strapi, se guardará en external_ids
+            originPlatform: 'woo_moraleja',
           },
         }
 
@@ -61,7 +61,7 @@ const AddCuponForm = () => {
             producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
             uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
             fecha_caducidad: formData.fecha_caducidad || null,
-            // origin_platform no existe en el schema de Strapi, se guardará en external_ids
+            originPlatform: 'woo_moraleja',
           },
         }
 
@@ -112,7 +112,7 @@ const AddCuponForm = () => {
             producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
             uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
             fecha_caducidad: formData.fecha_caducidad || null,
-            // origin_platform no existe en el schema de Strapi, se guardará en external_ids
+            originPlatform: 'woo_moraleja',
           },
         }
 

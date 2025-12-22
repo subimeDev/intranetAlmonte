@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validar origin_platform (aceptar tanto originPlatform como origin_platform para compatibilidad)
+    // Validar originPlatform (usar camelCase como en el schema)
     const validPlatforms = ['woo_moraleja', 'woo_escolar', 'otros']
-    const originPlatform = body.data.origin_platform || body.data.originPlatform || 'woo_moraleja'
+    const originPlatform = body.data.originPlatform || body.data.origin_platform || 'woo_moraleja'
     if (!validPlatforms.includes(originPlatform)) {
       return NextResponse.json({
         success: false,
@@ -99,8 +99,7 @@ export async function POST(request: NextRequest) {
     // Crear en Strapi PRIMERO para obtener el documentId
     console.log('[API Cupones POST] 📚 Creando cupón en Strapi primero...')
     
-    // Crear cupón en Strapi sin origin_platform (no existe en el schema)
-    // Lo guardaremos en external_ids después
+    // Crear cupón en Strapi con todos los campos del schema (usar camelCase)
     const cuponData: any = {
       data: {
         codigo: codigo,
@@ -112,6 +111,7 @@ export async function POST(request: NextRequest) {
           : null,
         uso_limite: body.data.uso_limite ? parseInt(body.data.uso_limite) : null,
         fecha_caducidad: body.data.fecha_caducidad || null,
+        originPlatform: originPlatform, // Enumeration en Strapi
       }
     }
 
@@ -182,10 +182,23 @@ export async function POST(request: NextRequest) {
         throw new Error('La respuesta de WooCommerce no contiene un cupón válido')
       }
 
-      // No actualizar Strapi con campos que no existen en el schema
-      // Los datos de WooCommerce se pueden obtener desde la API cuando sea necesario
-      // origin_platform se maneja en la lógica de la aplicación, no se guarda en Strapi
-      console.log('[API Cupones POST] ✅ Cupón creado en WooCommerce, datos guardados en memoria de la aplicación')
+      // Actualizar Strapi con el wooId y rawWooData (usar camelCase como en el schema)
+      const updateData: any = {
+        data: {
+          wooId: wooCommerceCupon.id,
+          rawWooData: wooCommerceCupon,
+          externalIds: {
+            wooCommerce: {
+              id: wooCommerceCupon.id,
+              code: wooCommerceCupon.code,
+            },
+            originPlatform: originPlatform,
+          }
+        }
+      }
+
+      await strapiClient.put<any>(`${cuponEndpoint}/${documentId}`, updateData)
+      console.log('[API Cupones POST] ✅ Strapi actualizado con datos de WooCommerce')
     } catch (wooError: any) {
       console.error('[API Cupones POST] ⚠️ Error al crear cupón en WooCommerce:', wooError.message)
       
