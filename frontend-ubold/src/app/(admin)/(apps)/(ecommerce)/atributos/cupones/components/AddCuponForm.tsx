@@ -20,6 +20,7 @@ const AddCuponForm = () => {
     uso_limite: '',
     fecha_caducidad: '',
     originPlatform: 'woo_moraleja',
+    ambasPlataformas: false,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,47 +35,109 @@ const AddCuponForm = () => {
         throw new Error('El código del cupón es obligatorio')
       }
 
-      // Preparar datos para Strapi según schema real
-      const cuponData: any = {
-        data: {
-          codigo: formData.codigo.trim(),
-          tipo_cupon: formData.tipo_cupon || null,
-          importe_cupon: formData.importe_cupon ? parseFloat(formData.importe_cupon) : null,
-          descripcion: formData.descripcion.trim() || null,
-          producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
-          uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
-          fecha_caducidad: formData.fecha_caducidad || null,
-          originPlatform: formData.originPlatform,
-        },
+      // Si ambas plataformas están marcadas, crear cupón en ambas
+      if (formData.ambasPlataformas) {
+        // Crear primero en Moraleja
+        const cuponDataMoraleja: any = {
+          data: {
+            codigo: formData.codigo.trim(),
+            tipo_cupon: formData.tipo_cupon || null,
+            importe_cupon: formData.importe_cupon ? parseFloat(formData.importe_cupon) : null,
+            descripcion: formData.descripcion.trim() || null,
+            producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
+            uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
+            fecha_caducidad: formData.fecha_caducidad || null,
+            originPlatform: 'woo_moraleja',
+          },
+        }
+
+        // Crear segundo en Escolar (con código diferente para evitar duplicados)
+        const cuponDataEscolar: any = {
+          data: {
+            codigo: `${formData.codigo.trim()}_ESC`,
+            tipo_cupon: formData.tipo_cupon || null,
+            importe_cupon: formData.importe_cupon ? parseFloat(formData.importe_cupon) : null,
+            descripcion: formData.descripcion.trim() || null,
+            producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
+            uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
+            fecha_caducidad: formData.fecha_caducidad || null,
+            originPlatform: 'woo_escolar',
+          },
+        }
+
+        console.log('[AddCuponForm] Creando cupones en ambas plataformas:', { moraleja: cuponDataMoraleja, escolar: cuponDataEscolar })
+
+        // Crear ambos cupones
+        const [responseMoraleja, responseEscolar] = await Promise.all([
+          fetch('/api/tienda/cupones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cuponDataMoraleja),
+          }),
+          fetch('/api/tienda/cupones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cuponDataEscolar),
+          }),
+        ])
+
+        const resultMoraleja = await responseMoraleja.json()
+        const resultEscolar = await responseEscolar.json()
+
+        if (!responseMoraleja.ok || !resultMoraleja.success) {
+          throw new Error(resultMoraleja.error || 'Error al crear el cupón en Moraleja')
+        }
+
+        if (!responseEscolar.ok || !resultEscolar.success) {
+          throw new Error(resultEscolar.error || 'Error al crear el cupón en Escolar')
+        }
+
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/atributos/cupones')
+        }, 1500)
+      } else {
+        // Crear cupón en una sola plataforma
+        const cuponData: any = {
+          data: {
+            codigo: formData.codigo.trim(),
+            tipo_cupon: formData.tipo_cupon || null,
+            importe_cupon: formData.importe_cupon ? parseFloat(formData.importe_cupon) : null,
+            descripcion: formData.descripcion.trim() || null,
+            producto_ids: formData.producto_ids.length > 0 ? formData.producto_ids : null,
+            uso_limite: formData.uso_limite ? parseInt(formData.uso_limite) : null,
+            fecha_caducidad: formData.fecha_caducidad || null,
+            originPlatform: formData.originPlatform,
+          },
+        }
+
+        console.log('[AddCuponForm] Enviando datos:', cuponData)
+
+        const response = await fetch('/api/tienda/cupones', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(cuponData),
+        })
+
+        const result = await response.json()
+
+        console.log('[AddCuponForm] Respuesta:', { response: response.status, result })
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Error al crear el cupón')
+        }
+
+        if (!result.success) {
+          throw new Error(result.error || 'Error al crear el cupón')
+        }
+
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/atributos/cupones')
+        }, 1500)
       }
-
-      console.log('[AddCuponForm] Enviando datos:', cuponData)
-
-      // Crear el cupón
-      const response = await fetch('/api/tienda/cupones', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cuponData),
-      })
-
-      const result = await response.json()
-
-      console.log('[AddCuponForm] Respuesta:', { response: response.status, result })
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al crear el cupón')
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Error al crear el cupón')
-      }
-
-      setSuccess(true)
-      setTimeout(() => {
-        router.push('/atributos/cupones')
-      }, 1500)
     } catch (err: any) {
       console.error('[AddCuponForm] Error al crear cupón:', err)
       setError(err.message || 'Error al crear el cupón')
@@ -178,20 +241,41 @@ const AddCuponForm = () => {
                 <FormLabel>
                   Plataforma de Origen <span className="text-danger">*</span>
                 </FormLabel>
-                <FormControl
-                  as="select"
-                  value={formData.originPlatform}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, originPlatform: e.target.value }))
-                  }
-                  required
-                >
-                  <option value="woo_moraleja">WooCommerce Moraleja</option>
-                  <option value="woo_escolar">WooCommerce Escolar</option>
-                  <option value="otros">Otros</option>
-                </FormControl>
+                <div className="mb-2">
+                  <FormControl
+                    as="select"
+                    value={formData.ambasPlataformas ? '' : formData.originPlatform}
+                    onChange={(e) => {
+                      if (e.target.value === 'ambas') {
+                        setFormData((prev) => ({ ...prev, ambasPlataformas: true, originPlatform: 'woo_moraleja' }))
+                      } else {
+                        setFormData((prev) => ({ ...prev, ambasPlataformas: false, originPlatform: e.target.value }))
+                      }
+                    }}
+                    disabled={formData.ambasPlataformas}
+                    required
+                  >
+                    <option value="woo_moraleja">WooCommerce Moraleja</option>
+                    <option value="woo_escolar">WooCommerce Escolar</option>
+                    <option value="otros">Otros</option>
+                  </FormControl>
+                </div>
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="ambasPlataformas"
+                    checked={formData.ambasPlataformas}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, ambasPlataformas: e.target.checked }))
+                    }}
+                  />
+                  <label className="form-check-label" htmlFor="ambasPlataformas">
+                    Aplicar a ambas plataformas (Moraleja y Escolar)
+                  </label>
+                </div>
                 <small className="text-muted">
-                  Selecciona la plataforma donde se creará el cupón.
+                  Selecciona la plataforma donde se creará el cupón. Puedes marcar "Aplicar a ambas plataformas" para crear el cupón en Moraleja y Escolar simultáneamente.
                 </small>
               </FormGroup>
             </Col>
@@ -225,7 +309,7 @@ const AddCuponForm = () => {
                   }
                   endpoint="/api/tienda/productos"
                   multiple={true}
-                  displayField="titulo"
+                  displayField="nombre_libro"
                 />
                 <small className="text-muted">
                   Selecciona los productos a los que aplica este cupón (opcional). Si no se selecciona, aplica a todos.

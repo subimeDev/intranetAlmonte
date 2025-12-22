@@ -353,7 +353,7 @@ const CuponDetails = ({ cupon: initialCupon, cuponId, error: initialError }: Cup
                       }
                       endpoint="/api/tienda/productos"
                       multiple={true}
-                      displayField="titulo"
+                      displayField="nombre_libro"
                     />
                     <small className="text-muted">
                       Selecciona los productos a los que aplica este cupón (opcional). Si no se selecciona, aplica a todos.

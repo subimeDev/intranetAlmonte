@@ -133,9 +133,11 @@ const RelationSelector = memo(function RelationSelector({
     // Obtener el ID del producto
     const productId = option.id || option.documentId || data.id || data.documentId
     
-    // Intentar obtener el nombre/título del producto
+    // Intentar obtener el nombre/título del producto (incluyendo nombre_libro que es el campo real)
     const nombre = data[displayField] || 
                    option[displayField] ||
+                   data.nombre_libro ||
+                   option.nombre_libro ||
                    data.nombre || 
                    option.nombre || 
                    data.titulo ||
