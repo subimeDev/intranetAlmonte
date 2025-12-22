@@ -190,9 +190,11 @@ export async function login(email: string, password: string): Promise<void> {
     setStorageItem('auth_token', data.jwt)
   }
 
-  // Guardar colaborador
+  // Guardar colaborador (en ambas claves para compatibilidad)
   if (data.colaborador) {
-    setStorageItem('colaborador', JSON.stringify(data.colaborador))
+    const colaboradorStr = JSON.stringify(data.colaborador)
+    setStorageItem('colaborador', colaboradorStr)
+    setStorageItem('colaboradorData', colaboradorStr) // El middleware busca esta clave
   }
 
   // Guardar usuario (si existe)
