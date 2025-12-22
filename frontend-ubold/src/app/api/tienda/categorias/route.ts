@@ -54,3 +54,58 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    console.log('[API Categorias POST] 📝 Creando categoría:', body)
+
+    // Validar nombre obligatorio
+    if (!body.data?.nombre) {
+      return NextResponse.json({
+        success: false,
+        error: 'El nombre de la categoría es obligatorio'
+      }, { status: 400 })
+    }
+
+    // Crear en Strapi - intentar con diferentes endpoints
+    console.log('[API Categorias POST] 📚 Creando categoría en Strapi...')
+    
+    const categoriaData: any = {
+      data: {
+        nombre: body.data.nombre.trim(),
+        descripcion: body.data.descripcion || null,
+        slug: body.data.slug || body.data.nombre.toLowerCase().replace(/\s+/g, '-'),
+      },
+    }
+
+    // Intentar crear en diferentes endpoints posibles
+    let response: any
+    let categoriaEndpoint = '/api/categorias-producto'
+    
+    try {
+      response = await strapiClient.post(categoriaEndpoint, categoriaData) as any
+    } catch (error: any) {
+      try {
+        categoriaEndpoint = '/api/categoria-productos'
+        response = await strapiClient.post(categoriaEndpoint, categoriaData) as any
+      } catch (error2: any) {
+        categoriaEndpoint = '/api/categorias'
+        response = await strapiClient.post(categoriaEndpoint, categoriaData) as any
+      }
+    }
+    
+    console.log('[API Categorias POST] ✅ Categoría creada en Strapi:', response.id || response.documentId)
+    
+    return NextResponse.json({
+      success: true,
+      data: response
+    })
+  } catch (error: any) {
+    console.error('[API Categorias POST] ❌ Error:', error.message)
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error al crear la categoría'
+    }, { status: 500 })
+  }
+}
+

@@ -1,5 +1,5 @@
 import { Container } from 'react-bootstrap'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import type { Metadata } from 'next'
 
 import PageBreadcrumb from '@/components/PageBreadcrumb'
@@ -17,12 +17,21 @@ export default async function Page() {
 
   try {
     const headersList = await headers()
+    const cookieStore = await cookies()
     const host = headersList.get('host') || 'localhost:3000'
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
     const baseUrl = `${protocol}://${host}`
 
+    // Construir el header Cookie con todas las cookies del request original
+    const cookieHeader = cookieStore.getAll()
+      .map(cookie => `${cookie.name}=${cookie.value}`)
+      .join('; ')
+
     const response = await fetch(`${baseUrl}/api/tienda/marca`, {
       cache: 'no-store',
+      headers: {
+        'Cookie': cookieHeader, // Pasar cookies del request original
+      },
     })
 
     const data = await response.json()
