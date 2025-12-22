@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
+import { parseNombreCompleto, enviarClienteABothWordPress } from '@/lib/clientes/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -155,13 +156,112 @@ export async function PUT(
       updateData.data.ultima_actividad = body.data.ultima_actividad
     }
 
-    const response = await strapiClient.put(`/api/wo-clientes/${clienteDocumentId}`, updateData)
+    // 1. Actualizar en WO-Clientes
+    const woClienteResponse = await strapiClient.put(`/api/wo-clientes/${clienteDocumentId}`, updateData)
+    console.log('[API Clientes PUT] ✅ Cliente actualizado en WO-Clientes:', clienteDocumentId)
     
-    console.log('[API Clientes PUT] ✅ Cliente actualizado:', clienteDocumentId)
+    // 2. Si se actualizó nombre o correo, actualizar también en Persona y WordPress
+    if (body.data.nombre !== undefined || body.data.correo_electronico !== undefined) {
+      const nombreFinal = body.data.nombre !== undefined ? body.data.nombre : (cliente.attributes?.nombre || (cliente as any).nombre || '')
+      const correoFinal = body.data.correo_electronico !== undefined ? body.data.correo_electronico : (cliente.attributes?.correo_electronico || (cliente as any).correo_electronico || '')
+      
+      // Actualizar en Persona (buscar por correo)
+      if (correoFinal) {
+        try {
+          // Buscar persona por email - obtener todas las personas y filtrar por email
+          // ya que emails es un componente y el filtro puede no funcionar directamente
+          const personaSearch = await strapiClient.get<any>(`/api/personas?populate[emails]=*&pagination[pageSize]=1000`)
+          
+          let personaEncontrada: any = null
+          const personasArray = personaSearch.data && Array.isArray(personaSearch.data) 
+            ? personaSearch.data 
+            : (personaSearch.data ? [personaSearch.data] : [])
+          
+          // Buscar persona que tenga el email en su array de emails
+          for (const persona of personasArray) {
+            const attrs = persona.attributes || persona
+            if (attrs.emails && Array.isArray(attrs.emails)) {
+              const tieneEmail = attrs.emails.some((e: any) => {
+                const emailValue = typeof e === 'string' ? e : (e.email || e)
+                return emailValue?.toLowerCase() === correoFinal.toLowerCase()
+              })
+              if (tieneEmail) {
+                personaEncontrada = persona
+                break
+              }
+            }
+          }
+          
+          if (personaEncontrada) {
+            const nombreParseado = parseNombreCompleto(nombreFinal.trim())
+            const personaDocumentId = personaEncontrada.documentId || personaEncontrada.id?.toString()
+            
+            const personaUpdateData: any = {
+              data: {
+                nombre_completo: nombreFinal.trim(),
+                nombres: nombreParseado.nombres || null,
+                primer_apellido: nombreParseado.primer_apellido || null,
+                segundo_apellido: nombreParseado.segundo_apellido || null,
+              },
+            }
+            
+            // Actualizar email si cambió
+            if (body.data.correo_electronico !== undefined) {
+              personaUpdateData.data.emails = [
+                {
+                  email: correoFinal.trim(),
+                  tipo: 'principal',
+                }
+              ]
+            }
+            
+            await strapiClient.put(`/api/personas/${personaDocumentId}`, personaUpdateData)
+            console.log('[API Clientes PUT] ✅ Persona actualizada en Strapi:', personaDocumentId)
+          } else {
+            // Si no se encuentra, crear nueva persona
+            const nombreParseado = parseNombreCompleto(nombreFinal.trim())
+            const personaData: any = {
+              data: {
+                nombre_completo: nombreFinal.trim(),
+                nombres: nombreParseado.nombres || null,
+                primer_apellido: nombreParseado.primer_apellido || null,
+                segundo_apellido: nombreParseado.segundo_apellido || null,
+                emails: [
+                  {
+                    email: correoFinal.trim(),
+                    tipo: 'principal',
+                  }
+                ],
+              },
+            }
+            await strapiClient.post('/api/personas', personaData)
+            console.log('[API Clientes PUT] ✅ Nueva Persona creada en Strapi')
+          }
+        } catch (personaError: any) {
+          console.error('[API Clientes PUT] ⚠️ Error al actualizar/crear Persona (no crítico):', personaError.message)
+        }
+      }
+      
+      // Actualizar en WordPress (buscará por email y actualizará o creará según corresponda)
+      try {
+        const nombreParseado = parseNombreCompleto(nombreFinal.trim())
+        const wpResults = await enviarClienteABothWordPress({
+          email: correoFinal.trim(),
+          first_name: nombreParseado.nombres || nombreFinal.trim(),
+          last_name: nombreParseado.primer_apellido || '',
+        })
+        console.log('[API Clientes PUT] ✅ Cliente sincronizado con WordPress:', {
+          escolar: wpResults.escolar.success,
+          moraleja: wpResults.moraleja.success,
+        })
+      } catch (wpError: any) {
+        console.error('[API Clientes PUT] ⚠️ Error al sincronizar con WordPress (no crítico):', wpError.message)
+      }
+    }
     
     return NextResponse.json({
       success: true,
-      data: response
+      data: woClienteResponse
     })
   } catch (error: any) {
     console.error('[API Clientes PUT] ❌ Error:', error.message)
