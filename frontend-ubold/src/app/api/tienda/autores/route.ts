@@ -49,11 +49,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Obtener estado_publicacion (por defecto 'Pendiente')
-    const estadoPublicacion = body.data?.estado_publicacion || 'Pendiente'
+    // IMPORTANTE: Al crear, siempre se guarda con estado_publicacion = "pendiente" (minúscula)
+    // El estado solo se puede cambiar desde la página de Solicitudes
+    const estadoPublicacion = 'pendiente'
     
     console.log('[API Autores POST] 📚 Creando autor en Strapi...')
-    console.log('[API Autores POST] Estado de publicación:', estadoPublicacion)
+    console.log('[API Autores POST] Estado de publicación:', estadoPublicacion, '(siempre pendiente al crear)')
     
     // Crear en Strapi
     const autorData: any = {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
         tipo_autor: body.data.tipo_autor || 'Persona',
         website: body.data.website || null,
         pais: body.data.pais || null,
-        estado_publicacion: estadoPublicacion, // Siempre guardar el estado
+        estado_publicacion: estadoPublicacion, // Siempre "pendiente" al crear (minúscula para Strapi)
       },
     }
 
@@ -81,16 +82,13 @@ export async function POST(request: NextRequest) {
     const response = await strapiClient.post('/api/autores', autorData) as any
     
     console.log('[API Autores POST] ✅ Autor creado en Strapi:', response.id || response.documentId)
-    console.log('[API Autores POST] Estado:', estadoPublicacion === 'Publicado' 
-      ? '✅ Se publicará en WordPress (si está configurado en Strapi)' 
-      : '⏸️ Solo guardado en Strapi, no se publica en WordPress')
+    console.log('[API Autores POST] Estado: ⏸️ Solo guardado en Strapi (pendiente), no se publica en WordPress')
+    console.log('[API Autores POST] Para publicar, cambiar el estado desde la página de Solicitudes')
     
     return NextResponse.json({
       success: true,
       data: response,
-      message: estadoPublicacion === 'Publicado' 
-        ? 'Autor creado y se publicará en WordPress' 
-        : 'Autor creado en Strapi (no publicado en WordPress)'
+      message: 'Autor creado en Strapi con estado "pendiente". Para publicar en WordPress, cambia el estado desde Solicitudes.'
     })
   } catch (error: any) {
     console.error('[API Autores POST] ❌ Error:', error.message)

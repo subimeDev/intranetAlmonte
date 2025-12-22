@@ -131,8 +131,11 @@ export async function PUT(
     console.log('[API Autores PUT] Usando documentId para actualizar:', autorDocumentId)
 
     // Obtener estado_publicacion actual del autor antes de actualizar
-    const estadoActual = autor.attributes?.estado_publicacion || autor.estado_publicacion || 'Pendiente'
-    const nuevoEstado = body.data.estado_publicacion !== undefined ? body.data.estado_publicacion : estadoActual
+    // IMPORTANTE: Strapi espera valores en minúsculas: "pendiente", "publicado", "borrador"
+    const estadoActual = autor.attributes?.estado_publicacion || autor.estado_publicacion || 'pendiente'
+    const nuevoEstadoRaw = body.data.estado_publicacion !== undefined ? body.data.estado_publicacion : estadoActual
+    // Normalizar a minúsculas para Strapi
+    const nuevoEstado = typeof nuevoEstadoRaw === 'string' ? nuevoEstadoRaw.toLowerCase() : nuevoEstadoRaw
 
     // Preparar datos de actualización
     const updateData: any = {
@@ -172,21 +175,21 @@ export async function PUT(
     const response = await strapiClient.put(`/api/autores/${autorDocumentId}`, updateData)
     
     // IMPORTANTE: 
-    // - Si nuevoEstado = "Publicado" → Strapi debería publicarlo y sincronizarlo con WordPress (ambos: escolar y moraleja)
-    // - Si nuevoEstado = "Pendiente" o "Borrador" → Solo se actualiza en Strapi, NO se publica en WordPress
+    // - Si nuevoEstado = "publicado" (minúscula) → Strapi debería publicarlo y sincronizarlo con WordPress (ambos: escolar y moraleja)
+    // - Si nuevoEstado = "pendiente" o "borrador" (minúsculas) → Solo se actualiza en Strapi, NO se publica en WordPress
     // La sincronización con WordPress se maneja en los lifecycles de Strapi basándose en estado_publicacion
     
     console.log('[API Autores PUT] ✅ Autor actualizado:', autorDocumentId)
-    console.log('[API Autores PUT]', nuevoEstado === 'Publicado' 
+    console.log('[API Autores PUT]', nuevoEstado === 'publicado' 
       ? '✅ Se publicará en WordPress (si está configurado en Strapi)' 
       : '⏸️ Solo actualizado en Strapi, no se publica en WordPress')
     
     return NextResponse.json({
       success: true,
       data: response,
-      message: nuevoEstado === 'Publicado' && estadoActual !== 'Publicado'
+      message: nuevoEstado === 'publicado' && estadoActual !== 'publicado'
         ? 'Autor actualizado y se publicará en WordPress'
-        : nuevoEstado !== 'Publicado' && estadoActual === 'Publicado'
+        : nuevoEstado !== 'publicado' && estadoActual === 'publicado'
         ? 'Autor actualizado (ya no se publica en WordPress)'
         : 'Autor actualizado'
     })
