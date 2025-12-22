@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server'
-import type { Request } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
 import wooCommerceClient from '@/lib/woocommerce/client'
 
@@ -52,7 +51,7 @@ async function getSerieColeccionEndpoint(): Promise<string> {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -104,7 +103,7 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -239,11 +238,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     console.log('[API SerieColeccion DELETE] 🗑️ Eliminando serie-coleccion:', id)
 
     const serieColeccionEndpoint = await getSerieColeccionEndpoint()
@@ -287,7 +286,7 @@ export async function DELETE(
         if (terms && terms.length > 0) {
           await wooCommerceClient.delete<any>(
             `products/attributes/${attributeId}/terms/${terms[0].id}`,
-            { force: true }
+            true
           )
           console.log('[API SerieColeccion DELETE] ✅ Término eliminado de WooCommerce')
         }
