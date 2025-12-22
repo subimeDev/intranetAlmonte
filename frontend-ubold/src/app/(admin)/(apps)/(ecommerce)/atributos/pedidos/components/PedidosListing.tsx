@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation'
 type PedidoType = {
   id: number
   numero_pedido: string
+  nombre_cliente: string
   fecha_pedido: string | null
   estado: string
   total: number | null
@@ -75,6 +76,33 @@ const mapStrapiPedidoToPedidoType = (pedido: any): PedidoType => {
   // originPlatform es un campo directo en Strapi (Enumeration)
   const originPlatform = getField(data, 'originPlatform', 'origin_platform', 'ORIGIN_PLATFORM') || 'woo_moraleja'
   
+  // Obtener nombre del cliente desde billing o cliente
+  let nombreCliente = ''
+  const billing = getField(data, 'billing', 'BILLING')
+  const cliente = getField(data, 'cliente', 'CLIENTE')
+  
+  if (billing && typeof billing === 'object') {
+    const firstName = billing.first_name || ''
+    const lastName = billing.last_name || ''
+    nombreCliente = `${firstName} ${lastName}`.trim()
+  } else if (cliente) {
+    if (typeof cliente === 'object') {
+      nombreCliente = cliente.nombre || cliente.name || cliente.razon_social || ''
+    } else {
+      nombreCliente = String(cliente)
+    }
+  }
+  
+  // Si no hay nombre, intentar desde rawWooData
+  if (!nombreCliente) {
+    const rawWooData = getField(data, 'rawWooData', 'rawWooData')
+    if (rawWooData && rawWooData.billing) {
+      const firstName = rawWooData.billing.first_name || ''
+      const lastName = rawWooData.billing.last_name || ''
+      nombreCliente = `${firstName} ${lastName}`.trim()
+    }
+  }
+  
   // Obtener fechas
   const createdAt = attrs.createdAt || (pedido as any).createdAt || fechaPedido || new Date().toISOString()
   const createdDate = new Date(createdAt)
@@ -82,6 +110,7 @@ const mapStrapiPedidoToPedidoType = (pedido: any): PedidoType => {
   return {
     id: pedido.id || pedido.documentId || pedido.id,
     numero_pedido: numeroPedido,
+    nombre_cliente: nombreCliente || 'Sin cliente',
     fecha_pedido: fechaPedido || null,
     estado,
     total: total ? parseFloat(total) : null,
@@ -170,6 +199,8 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
     columnHelper.accessor('numero_pedido', {
       header: 'Pedido',
       cell: ({ row }) => {
+        const numeroPedido = row.original.numero_pedido || 'Sin número'
+        const nombreCliente = row.original.nombre_cliente || 'Sin cliente'
         return (
           <div className="d-flex align-items-center">
             <div className="avatar-md me-3 bg-light d-flex align-items-center justify-center rounded">
@@ -178,7 +209,7 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
             <div>
               <h5 className="mb-0">
                 <span className="link-reset" style={{ cursor: 'pointer' }} onClick={() => row.toggleExpanded()}>
-                  #{row.original.numero_pedido || 'Sin número'}
+                  #{numeroPedido} {nombreCliente}
                 </span>
               </h5>
             </div>
