@@ -851,7 +851,7 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
                 ))}
               </thead>
               <tbody>
-                {table.getRowModel().rows.map((row) => (
+                {table.getFilteredRowModel().rows.map((row) => (
                   <>
                     <tr key={row.id} className={row.getIsSelected() ? 'table-active' : ''}>
                       {row.getVisibleCells().map((cell) => (
@@ -871,7 +871,7 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
                     )}
                   </>
                 ))}
-                {table.getRowModel().rows.length === 0 && (
+                {table.getFilteredRowModel().rows.length === 0 && (
                   <tr>
                     <td colSpan={table.getAllColumns().length} className="text-center py-5">
                       <div className="text-muted">No se encontraron pedidos</div>
@@ -882,7 +882,7 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
             </table>
           </div>
 
-          {table.getRowModel().rows.length > 0 && (
+          {table.getFilteredRowModel().rows.length > 0 && (
             <CardFooter className="border-0">
               <TablePagination
                 totalItems={totalItems}
