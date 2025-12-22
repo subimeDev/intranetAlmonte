@@ -320,12 +320,13 @@ export async function PUT(
 
     // Actualizar en WooCommerce primero si tenemos el ID y no es "otros"
     let wooCommercePedido = null
+    let wooCommercePedidoData: any = {}
     if (wooId && originPlatform !== 'otros') {
       try {
         const wcClient = getWooCommerceClientForPlatform(originPlatform)
         console.log('[API Pedidos PUT] 🛒 Actualizando pedido en WooCommerce:', wooId)
         
-        const wooCommercePedidoData: any = {}
+        wooCommercePedidoData = {}
         
         if (body.data.estado !== undefined) {
           const estadoMapeado = mapWooStatus(body.data.estado)
@@ -373,7 +374,7 @@ export async function PUT(
           message: wooError.message,
           status: wooError.status,
           details: wooError.details,
-          estadoEnviado: wooCommercePedidoData.status,
+          estadoEnviado: wooCommercePedidoData?.status,
           estadoOriginal: body.data.estado,
         })
         // Si el error es crítico (validación de estado), lanzarlo para que se muestre al usuario

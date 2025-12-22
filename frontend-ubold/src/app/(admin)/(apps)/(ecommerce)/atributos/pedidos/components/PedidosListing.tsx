@@ -755,7 +755,7 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Buscar número de pedido..."
+                  placeholder="Buscar número de pedido o cliente..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
