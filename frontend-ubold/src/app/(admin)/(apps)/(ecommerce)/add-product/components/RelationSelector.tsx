@@ -36,7 +36,12 @@ const RelationSelector = memo(function RelationSelector({
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch(endpoint)
+      const res = await fetch(endpoint, {
+        credentials: 'include', // Incluir cookies en la petición
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
       const data = await res.json()
       
       if (data.success) {

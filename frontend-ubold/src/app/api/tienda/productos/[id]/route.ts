@@ -14,6 +14,20 @@ export async function GET(
   try {
     const { id } = await params
     
+    // Validar que el ID no sea una palabra reservada (categorias, etiquetas, etc.)
+    const reservedWords = ['categorias', 'etiquetas', 'marcas', 'autores', 'obras', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      console.error('[API /tienda/productos/[id] GET] ❌ ID es una palabra reservada:', id)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: `Ruta no válida. Use /api/tienda/${id} en lugar de /api/tienda/productos/${id}`,
+          data: null,
+        },
+        { status: 404 }
+      )
+    }
+    
     console.log('[API /tienda/productos/[id] GET] Obteniendo producto:', {
       id,
       esNumerico: !isNaN(parseInt(id)),
