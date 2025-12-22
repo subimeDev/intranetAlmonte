@@ -166,6 +166,7 @@ export const menuItems: MenuItemType[] = [
         ],
       },
       { key: 'customers', label: 'Clientes', url: '/customers' },
+      { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
       {
         key: 'sellers',
         label: 'Sellers',
@@ -294,6 +295,7 @@ export const horizontalMenuItems: MenuItemType[] = [
             ],
           },
           { key: 'customers', label: 'Clientes', url: '/customers' },
+          { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
           {
             key: 'sellers',
             label: 'Sellers',
