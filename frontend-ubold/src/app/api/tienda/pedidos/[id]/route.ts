@@ -397,7 +397,15 @@ export async function PUT(
 
     if (body.data.numero_pedido !== undefined) pedidoData.data.numero_pedido = body.data.numero_pedido.trim()
     if (body.data.fecha_pedido !== undefined) pedidoData.data.fecha_pedido = body.data.fecha_pedido || null
-    if (body.data.estado !== undefined) pedidoData.data.estado = body.data.estado || null
+    // Mapear estado de español a inglés antes de enviar a Strapi (Strapi espera valores en inglés de WooCommerce)
+    if (body.data.estado !== undefined) {
+      const estadoMapeadoParaStrapi = mapWooStatus(body.data.estado)
+      pedidoData.data.estado = estadoMapeadoParaStrapi || null
+      console.log('[API Pedidos PUT] Mapeando estado para Strapi:', { 
+        original: body.data.estado, 
+        mapeado: estadoMapeadoParaStrapi 
+      })
+    }
     if (body.data.total !== undefined) pedidoData.data.total = body.data.total ? parseFloat(body.data.total) : null
     if (body.data.subtotal !== undefined) pedidoData.data.subtotal = body.data.subtotal ? parseFloat(body.data.subtotal) : null
     if (body.data.impuestos !== undefined) pedidoData.data.impuestos = body.data.impuestos ? parseFloat(body.data.impuestos) : null

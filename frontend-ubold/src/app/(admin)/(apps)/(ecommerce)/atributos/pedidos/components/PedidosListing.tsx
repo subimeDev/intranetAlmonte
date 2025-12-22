@@ -58,6 +58,24 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
+// Función helper para mapear estado de WooCommerce (inglés) a estado de Strapi (español)
+const mapEstadoFromWoo = (wooStatus: string): string => {
+  const mapping: Record<string, string> = {
+    'pending': 'pendiente',
+    'processing': 'procesando',
+    'on-hold': 'en_espera',
+    'completed': 'completado',
+    'cancelled': 'cancelado',
+    'refunded': 'reembolsado',
+    'failed': 'fallido',
+    'auto-draft': 'pendiente',
+    'checkout-draft': 'pendiente',
+  }
+  
+  const statusLower = wooStatus.toLowerCase().trim()
+  return mapping[statusLower] || wooStatus // Si no está en el mapeo, devolver el original
+}
+
 // Función para mapear pedidos de Strapi al formato PedidoType
 const mapStrapiPedidoToPedidoType = (pedido: any): PedidoType => {
   const attrs = pedido.attributes || {}
@@ -65,7 +83,9 @@ const mapStrapiPedidoToPedidoType = (pedido: any): PedidoType => {
 
   const numeroPedido = getField(data, 'numero_pedido', 'numeroPedido', 'NUMERO_PEDIDO') || 'Sin número'
   const fechaPedido = getField(data, 'fecha_pedido', 'fechaPedido', 'FECHA_PEDIDO')
-  const estado = getField(data, 'estado', 'ESTADO') || 'pendiente'
+  // Mapear estado de inglés (WooCommerce) a español para el frontend
+  const estadoRaw = getField(data, 'estado', 'ESTADO') || 'pending'
+  const estado = mapEstadoFromWoo(estadoRaw)
   const total = getField(data, 'total', 'TOTAL')
   const subtotal = getField(data, 'subtotal', 'SUBTOTAL')
   const impuestos = getField(data, 'impuestos', 'IMPUESTOS')
