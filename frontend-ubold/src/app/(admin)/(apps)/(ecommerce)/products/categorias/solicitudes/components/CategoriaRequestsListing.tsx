@@ -4,7 +4,6 @@ import {
   ColumnDef,
   ColumnFiltersState,
   createColumnHelper,
-  FilterFn,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -14,40 +13,21 @@ import {
   Table as TableType,
   useReactTable,
 } from '@tanstack/react-table'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
-import { LuBox, LuSearch, LuTag } from 'react-icons/lu'
-import { TbEdit, TbEye, TbLayoutGrid, TbList, TbPlus, TbTrash } from 'react-icons/tb'
+import { LuBox, LuSearch } from 'react-icons/lu'
+import { TbEdit, TbEye, TbList, TbTrash, TbCheck } from 'react-icons/tb'
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
+import ChangeStatusModal from '@/components/table/ChangeStatusModal'
 import TablePagination from '@/components/table/TablePagination'
-import { toPascalCase } from '@/helpers/casing'
-import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
-interface Categoria {
-  id: number
-  nombre?: string
-  name?: string
-  slug?: string
-  descripcion?: string
-  description?: string
-  activo?: boolean
-  isActive?: boolean
-  imagen?: any
-  image?: any
-  productos?: any[]
-  products?: any[]
-  createdAt?: string
-  updatedAt?: string
-}
-
-// Tipo para la tabla
-type CategoryType = {
+// Tipo extendido para categorías con estado_publicacion
+type CategoriaTypeExtended = {
   id: number
   name: string
   slug: string
@@ -58,7 +38,9 @@ type CategoryType = {
   date: string
   time: string
   url: string
+  strapiId?: number
   estadoPublicacion?: 'Publicado' | 'Pendiente' | 'Borrador'
+  categoriaOriginal?: any
 }
 
 // Helper para obtener campo con múltiples variaciones
@@ -71,17 +53,24 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear categorías de Strapi al formato CategoryType
-const mapStrapiCategoryToCategoryType = (categoria: any): CategoryType => {
-  // Los datos pueden venir en attributes o directamente
+// Función para mapear categorías de Strapi al formato CategoriaTypeExtended
+const mapStrapiCategoriaToCategoriaType = (categoria: any): CategoriaTypeExtended => {
   const attrs = categoria.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (categoria as any)
 
+  // Obtener name (schema real de Strapi usa "name")
+  const nombre = getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || 'Sin nombre'
+  
+  // Obtener slug
+  const slug = getField(data, 'slug', 'SLUG') || ''
+  
+  // Obtener descripcion
+  const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION') || ''
+  
   // Obtener URL de imagen
   const getImageUrl = (): string | null => {
     let imagen = data.imagen || data.image || data.IMAGEN || data.IMAGE
     
-    // Si imagen tiene .data, acceder a eso
     if (imagen?.data) {
       imagen = Array.isArray(imagen.data) ? imagen.data[0] : imagen.data
     }
@@ -90,33 +79,22 @@ const mapStrapiCategoryToCategoryType = (categoria: any): CategoryType => {
       return null
     }
 
-    // Obtener la URL - puede estar en attributes o directamente
     const url = imagen.attributes?.url || imagen.attributes?.URL || imagen.url || imagen.URL
     if (!url) {
       return null
     }
     
-    // Si la URL ya es completa, retornarla tal cual
     if (url.startsWith('http')) {
       return url
     }
     
-    // Si no, construir la URL completa con la base de Strapi
-    const baseUrl = STRAPI_API_URL.replace(/\/$/, '')
+    // Construir URL completa con la base de Strapi
+    const baseUrl = process.env.NEXT_PUBLIC_STRAPI_URL?.replace(/\/$/, '') || 'http://localhost:1337'
     return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
   }
-
-  // Obtener nombre
-  const nombre = getField(data, 'nombre', 'name', 'NOMBRE', 'NAME') || 'Sin nombre'
   
-  // Obtener slug
-  const slug = getField(data, 'slug', 'SLUG') || ''
-  
-  // Obtener descripción
-  const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || ''
-  
-  // Obtener estado
-  const activo = data.activo !== undefined ? data.activo : (data.isActive !== undefined ? data.isActive : true)
+  // Obtener estado (publishedAt indica si está publicado)
+  const isPublished = !!(attrs.publishedAt || categoria.publishedAt)
   
   // Obtener estado_publicacion (Strapi devuelve en minúsculas: "pendiente", "publicado", "borrador")
   const estadoPublicacionRaw = getField(data, 'estado_publicacion', 'ESTADO_PUBLICACION', 'estadoPublicacion') || 'pendiente'
@@ -125,61 +103,63 @@ const mapStrapiCategoryToCategoryType = (categoria: any): CategoryType => {
     ? estadoPublicacionRaw.toLowerCase() 
     : estadoPublicacionRaw
   
-  // Contar productos
+  // Contar productos (si hay relación)
   const productos = data.productos?.data || data.products?.data || data.productos || data.products || []
   const productosCount = Array.isArray(productos) ? productos.length : 0
   
   // Obtener fechas
   const createdAt = attrs.createdAt || (categoria as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
-
-  const imageUrl = getImageUrl()
   
   return {
     id: categoria.id || categoria.documentId || categoria.id,
     name: nombre,
     slug: slug,
     description: descripcion,
-    image: imageUrl,
+    image: getImageUrl(),
     products: productosCount,
-    status: activo ? 'active' : 'inactive',
+    status: isPublished ? 'active' : 'inactive',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
     url: `/products/categorias/${categoria.id || categoria.documentId || categoria.id}`,
+    strapiId: categoria.id,
     estadoPublicacion: (estadoPublicacion === 'publicado' ? 'Publicado' : 
                        estadoPublicacion === 'borrador' ? 'Borrador' : 
                        'Pendiente') as 'Publicado' | 'Pendiente' | 'Borrador',
+    categoriaOriginal: categoria,
   }
 }
 
-interface CategoriesListingProps {
+interface CategoriaRequestsListingProps {
   categorias?: any[]
   error?: string | null
 }
 
-const columnHelper = createColumnHelper<CategoryType>()
+const columnHelper = createColumnHelper<CategoriaTypeExtended>()
 
-const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) => {
+const CategoriaRequestsListing = ({ categorias, error }: CategoriaRequestsListingProps = {}) => {
   const router = useRouter()
   
-  // Mapear categorías de Strapi al formato CategoryType si están disponibles
-  const mappedCategories = useMemo(() => {
+  const mappedCategorias = useMemo(() => {
     if (categorias && categorias.length > 0) {
-      console.log('[CategoriesListing] Categorías recibidas:', categorias.length)
-      const mapped = categorias.map(mapStrapiCategoryToCategoryType)
-      console.log('[CategoriesListing] Categorías mapeadas:', mapped.length)
+      console.log('[CategoriaRequestsListing] Categorías recibidas:', categorias.length)
+      const mapped = categorias.map(mapStrapiCategoriaToCategoriaType)
+      console.log('[CategoriaRequestsListing] Categorías mapeadas:', mapped.length)
       return mapped
     }
-    console.log('[CategoriesListing] No hay categorías de Strapi')
     return []
   }, [categorias])
 
-  const columns: ColumnDef<CategoryType, any>[] = [
+  // Estado para el modal de cambio de estado
+  const [showChangeStatusModal, setShowChangeStatusModal] = useState(false)
+  const [selectedCategoria, setSelectedCategoria] = useState<CategoriaTypeExtended | null>(null)
+
+  const columns: ColumnDef<CategoriaTypeExtended, any>[] = [
     {
       id: 'select',
       maxSize: 45,
       size: 45,
-      header: ({ table }: { table: TableType<CategoryType> }) => (
+      header: ({ table }: { table: TableType<CategoriaTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -187,7 +167,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: { row: TableRow<CategoryType> }) => (
+      cell: ({ row }: { row: TableRow<CategoriaTypeExtended> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -199,60 +179,18 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
       enableColumnFilter: false,
     },
     columnHelper.accessor('name', {
-      header: 'Category',
-      cell: ({ row }) => {
-        const imageSrc = row.original.image
-        
-        // Si no hay imagen, mostrar placeholder
-        if (!imageSrc) {
-          return (
-            <div className="d-flex">
-              <div className="avatar-md me-3 bg-light d-flex align-items-center justify-content-center rounded">
-                <span className="text-muted fs-xs">Sin imagen</span>
-              </div>
-              <div>
-                <h5 className="mb-0">
-                  <Link href={row.original.url} className="link-reset">
-                    {row.original.name}
-                  </Link>
-                </h5>
-                <p className="text-muted mb-0 fs-xxs">Slug: {row.original.slug || 'N/A'}</p>
-              </div>
-            </div>
-          )
-        }
-        
-        return (
-          <div className="d-flex">
-            <div className="avatar-md me-3">
-              <Image 
-                src={imageSrc} 
-                alt={row.original.name || 'Category'} 
-                height={36} 
-                width={36} 
-                className="img-fluid rounded"
-                unoptimized={imageSrc.startsWith('http')}
-                onError={(e) => {
-                  console.error('[CategoriesListing] Error al cargar imagen:', imageSrc, e)
-                }}
-              />
-            </div>
-            <div>
-              <h5 className="mb-0">
-                <Link href={row.original.url} className="link-reset">
-                  {row.original.name || 'Sin nombre'}
-                </Link>
-              </h5>
-              <p className="text-muted mb-0 fs-xxs">Slug: {row.original.slug || 'N/A'}</p>
-            </div>
-          </div>
-        )
-      },
-    }),
-    columnHelper.accessor('slug', { 
-      header: 'Slug',
+      header: 'Categoría',
       cell: ({ row }) => (
-        <code className="text-muted">{row.original.slug || 'N/A'}</code>
+        <div>
+          <h5 className="mb-0">
+            <Link href={row.original.url} className="link-reset">
+              {row.original.name || 'Sin nombre'}
+            </Link>
+          </h5>
+          {row.original.slug && (
+            <p className="text-muted mb-0 fs-xxs">Slug: {row.original.slug}</p>
+          )}
+        </div>
       ),
     }),
     columnHelper.accessor('description', {
@@ -267,17 +205,6 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
       header: 'Productos',
       cell: ({ row }) => (
         <span className="badge badge-soft-info">{row.original.products}</span>
-      ),
-    }),
-    columnHelper.accessor('status', {
-      header: 'Estado',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => (
-        <span
-          className={`badge ${row.original.status === 'active' ? 'badge-soft-success' : 'badge-soft-danger'} fs-xxs`}>
-          {row.original.status === 'active' ? 'Activo' : 'Inactivo'}
-        </span>
       ),
     }),
     columnHelper.accessor('estadoPublicacion', {
@@ -306,19 +233,15 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
     }),
     {
       header: 'Acciones',
-      cell: ({ row }: { row: TableRow<CategoryType> }) => (
+      cell: ({ row }: { row: TableRow<CategoriaTypeExtended> }) => (
         <div className="d-flex gap-1">
           <Link href={row.original.url}>
-            <Button variant="default" size="sm" className="btn-icon rounded-circle">
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Ver">
               <TbEye className="fs-lg" />
             </Button>
           </Link>
           <Link href={row.original.url}>
-            <Button
-              variant="default"
-              size="sm"
-              className="btn-icon rounded-circle"
-            >
+            <Button variant="default" size="sm" className="btn-icon rounded-circle" title="Editar">
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
@@ -326,6 +249,18 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
             variant="default"
             size="sm"
             className="btn-icon rounded-circle"
+            title="Cambiar Estado"
+            onClick={() => {
+              setSelectedCategoria(row.original)
+              setShowChangeStatusModal(true)
+            }}>
+            <TbCheck className="fs-lg" />
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="btn-icon rounded-circle"
+            title="Eliminar"
             onClick={() => {
               toggleDeleteModal()
               setSelectedRowIds({ [row.id]: true })
@@ -337,18 +272,17 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
     },
   ]
 
-  const [data, setData] = useState<CategoryType[]>([])
+  const [data, setData] = useState<CategoriaTypeExtended[]>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 8 })
-
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
   // Estado para el orden de columnas
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('categories-column-order')
+      const saved = localStorage.getItem('categoria-requests-column-order')
       if (saved) {
         try {
           return JSON.parse(saved)
@@ -364,18 +298,15 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
   const handleColumnOrderChange = (newOrder: string[]) => {
     setColumnOrder(newOrder)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('categories-column-order', JSON.stringify(newOrder))
+      localStorage.setItem('categoria-requests-column-order', JSON.stringify(newOrder))
     }
   }
 
-  // Actualizar datos cuando cambien las categorías de Strapi
   useEffect(() => {
-    console.log('[CategoriesListing] useEffect - categorias:', categorias?.length, 'mappedCategories:', mappedCategories.length)
-    setData(mappedCategories)
-    console.log('[CategoriesListing] Datos actualizados. Total:', mappedCategories.length)
-  }, [mappedCategories, categorias])
+    setData(mappedCategorias)
+  }, [mappedCategorias])
 
-  const table = useReactTable<CategoryType>({
+  const table = useReactTable<CategoriaTypeExtended>({
     data,
     columns,
     state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds, columnOrder },
@@ -397,7 +328,6 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
   const pageIndex = table.getState().pagination.pageIndex
   const pageSize = table.getState().pagination.pageSize
   const totalItems = table.getFilteredRowModel().rows.length
-
   const start = pageIndex * pageSize + 1
   const end = Math.min(start + pageSize - 1, totalItems)
 
@@ -412,23 +342,20 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
     const idsToDelete = selectedIds.map(id => data[parseInt(id)]?.id).filter(Boolean)
     
     try {
-      // Eliminar cada categoría seleccionada
-      for (const categoryId of idsToDelete) {
-        const response = await fetch(`/api/tienda/categorias/${categoryId}`, {
+      for (const categoriaId of idsToDelete) {
+        const response = await fetch(`/api/tienda/categorias/${categoriaId}`, {
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar categoría ${categoryId}`)
+          throw new Error(`Error al eliminar categoría ${categoriaId}`)
         }
       }
       
-      // Actualizar datos localmente
       setData((old) => old.filter((_, idx) => !selectedIds.includes(idx.toString())))
       setSelectedRowIds({})
       setPagination({ ...pagination, pageIndex: 0 })
       setShowDeleteModal(false)
       
-      // Recargar la página para reflejar cambios
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar categorías:', error)
@@ -436,9 +363,44 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
     }
   }
 
-  // Mostrar error si existe
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedCategoria?.strapiId) return
+
+    // IMPORTANTE: Strapi espera valores en minúsculas: "pendiente", "publicado", "borrador"
+    const newStatusLower = newStatus.toLowerCase()
+
+    try {
+      const response = await fetch(`/api/tienda/categorias/${selectedCategoria.strapiId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: { estado_publicacion: newStatusLower } }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al actualizar el estado de la categoría')
+      }
+
+      // Actualizar el estado local (capitalizar para mostrar)
+      const estadoMostrar = newStatusLower === 'publicado' ? 'Publicado' : 
+                           newStatusLower === 'borrador' ? 'Borrador' : 
+                           'Pendiente'
+      setData((prevData) =>
+        prevData.map((c) =>
+          c.strapiId === selectedCategoria.strapiId ? { ...c, estadoPublicacion: estadoMostrar as any } : c
+        )
+      )
+      console.log(`[CategoriaRequestsListing] Estado de categoría ${selectedCategoria.strapiId} actualizado a ${newStatus}`)
+    } catch (err: any) {
+      console.error('[CategoriaRequestsListing] Error al cambiar estado:', err)
+      alert(`Error al cambiar estado: ${err.message}`)
+    }
+  }
+
   const hasError = !!error
-  const hasData = mappedCategories.length > 0
+  const hasData = mappedCategorias.length > 0
   
   if (hasError && !hasData) {
     return (
@@ -446,31 +408,11 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
         <Col xs={12}>
           <Alert variant="warning">
             <strong>Error al cargar categorías desde Strapi:</strong> {error}
-            <br />
-            <small className="text-muted">
-              Verifica que:
-              <ul className="mt-2 mb-0">
-                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
-                <li>El servidor de Strapi esté disponible</li>
-                <li>Las variables de entorno estén correctas</li>
-              </ul>
-            </small>
           </Alert>
         </Col>
       </Row>
     )
   }
-  
-  // Si hay error pero también hay datos, mostrar advertencia pero continuar
-  if (hasError && hasData) {
-    console.warn('[CategoriesListing] Error al cargar desde Strapi, usando datos disponibles:', error)
-  }
-
-  // Obtener categorías únicas para el filtro
-  const uniqueCategories = useMemo(() => {
-    const categories = new Set(data.map(cat => cat.name))
-    return Array.from(categories).sort()
-  }, [data])
 
   return (
     <Row>
@@ -502,18 +444,6 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
               <div className="app-search">
                 <select
                   className="form-select form-control my-1 my-md-0"
-                  value={(table.getColumn('status')?.getFilterValue() as string) ?? 'All'}
-                  onChange={(e) => table.getColumn('status')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Estado</option>
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </select>
-                <LuBox className="app-search-icon text-muted" />
-              </div>
-
-              <div className="app-search">
-                <select
-                  className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('estadoPublicacion')?.getFilterValue() as string) ?? 'All'}
                   onChange={(e) => table.getColumn('estadoPublicacion')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
                   <option value="All">Estado Publicación</option>
@@ -539,23 +469,13 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
             </div>
 
             <div className="d-flex gap-1">
-              <Link passHref href="/products/categorias">
-                <Button variant="outline-primary" className="btn-icon btn-soft-primary">
-                  <TbLayoutGrid className="fs-lg" />
-                </Button>
-              </Link>
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
-              <Link href="/products/categorias/agregar" passHref>
-                <Button variant="danger" className="ms-1">
-                  <TbPlus className="fs-sm me-2" /> Agregar Categoría
-                </Button>
-              </Link>
             </div>
           </CardHeader>
 
-          <DataTable<CategoryType>
+          <DataTable<CategoriaTypeExtended>
             table={table}
             emptyMessage="No se encontraron registros"
             enableColumnReordering={true}
@@ -586,12 +506,26 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
             onHide={toggleDeleteModal}
             onConfirm={handleDelete}
             selectedCount={Object.keys(selectedRowIds).length}
-            itemName="category"
+            itemName="categoría"
           />
+
+          {selectedCategoria && (
+            <ChangeStatusModal
+              show={showChangeStatusModal}
+              onHide={() => {
+                setShowChangeStatusModal(false)
+                setSelectedCategoria(null)
+              }}
+              onConfirm={handleStatusChange}
+              currentStatus={selectedCategoria.estadoPublicacion || 'Pendiente'}
+              productName={selectedCategoria.name || 'Categoría'}
+            />
+          )}
         </Card>
       </Col>
     </Row>
   )
 }
 
-export default CategoriesListing
+export default CategoriaRequestsListing
+
