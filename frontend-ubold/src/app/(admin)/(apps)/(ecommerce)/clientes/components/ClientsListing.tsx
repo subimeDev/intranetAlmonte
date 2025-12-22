@@ -16,7 +16,8 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuDollarSign, LuSearch, LuUser } from 'react-icons/lu'
-import { TbList, TbTrash } from 'react-icons/tb'
+import { TbList, TbPlus, TbTrash } from 'react-icons/tb'
+import Link from 'next/link'
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
@@ -401,6 +402,11 @@ const ClientsListing = ({ clientes, error }: ClientsListingProps = {}) => {
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
+              <Link href="/clientes/agregar">
+                <Button variant="primary" className="btn-icon">
+                  <TbPlus className="fs-lg" />
+                </Button>
+              </Link>
             </div>
           </CardHeader>
 
