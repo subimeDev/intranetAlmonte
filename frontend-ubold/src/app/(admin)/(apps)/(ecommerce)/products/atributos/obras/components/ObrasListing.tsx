@@ -54,8 +54,8 @@ const mapStrapiObraToObraType = (obra: any): ObraType => {
   const attrs = obra.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
 
-  // Obtener nombre
-  const nombre = getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || 'Sin nombre'
+  // Obtener nombre_obra (schema usa nombre_obra, no name)
+  const nombre = getField(data, 'nombre_obra', 'nombreObra', 'NOMBRE_OBRA', 'name', 'nombre') || 'Sin nombre'
   
   // Obtener descripción
   const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || ''
