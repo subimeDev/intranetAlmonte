@@ -38,7 +38,8 @@ export function middleware(request: NextRequest) {
 
   // Verificar autenticación mediante cookies
   const authToken = request.cookies.get('auth_token')?.value
-  const colaboradorData = request.cookies.get('colaboradorData')?.value
+  // Buscar colaborador en ambas posibles cookies (colaborador o colaboradorData)
+  const colaboradorData = request.cookies.get('colaborador')?.value || request.cookies.get('colaboradorData')?.value
 
   // Si no hay token ni datos de colaborador
   if (!authToken || !colaboradorData) {
