@@ -8,35 +8,17 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // IMPORTANTE: Verificar primero si es una ruta de autenticación y permitir acceso inmediatamente
+  if (pathname.startsWith('/auth-1') || pathname.startsWith('/auth-2')) {
+    return NextResponse.next()
+  }
+
   // Rutas públicas que no requieren autenticación
-  const publicRoutes = [
-    '/auth-1/sign-in',
-    '/auth-1/sign-up',
-    '/auth-1/reset-password',
-    '/auth-1/new-password',
-    '/auth-1/two-factor',
-    '/auth-1/login-pin',
-    '/auth-1/lock-screen',
-    '/auth-1/delete-account',
-    '/auth-1/success-mail',
-    '/auth-2/sign-in',
-    '/auth-2/sign-up',
-    '/auth-2/reset-password',
-    '/auth-2/new-password',
-    '/auth-2/two-factor',
-    '/auth-2/login-pin',
-    '/auth-2/lock-screen',
-    '/auth-2/delete-account',
-    '/auth-2/success-mail',
+  const publicRoutePatterns = [
     '/landing',
     '/coming-soon',
     '/maintenance',
-    '/error/400',
-    '/error/401',
-    '/error/403',
-    '/error/404',
-    '/error/408',
-    '/error/500',
+    '/error',
   ]
 
   // Rutas de API públicas (no requieren autenticación)
@@ -46,10 +28,10 @@ export function middleware(request: NextRequest) {
   ]
 
   // Verificar si la ruta es pública
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  const isPublicRoute = publicRoutePatterns.some(pattern => pathname.startsWith(pattern))
   const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route))
 
-  // Si es una ruta pública o API pública, permitir acceso
+  // Si es una ruta pública o API pública, permitir acceso sin verificar autenticación
   if (isPublicRoute || isPublicApiRoute) {
     return NextResponse.next()
   }
@@ -80,7 +62,7 @@ export function middleware(request: NextRequest) {
 
 /**
  * Configuración del matcher para aplicar el middleware solo a rutas específicas
- * Excluye archivos estáticos, imágenes, y rutas de API públicas
+ * Excluye archivos estáticos, imágenes, y rutas públicas
  */
 export const config = {
   matcher: [
@@ -90,7 +72,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files
-     * - api routes that are public (health, auth/login)
+     * - auth routes (auth-1, auth-2)
+     * - static assets
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)',
   ],
