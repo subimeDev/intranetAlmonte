@@ -200,8 +200,17 @@ export async function DELETE(
     const strapiEndpoint = documentId ? `${cuponEndpoint}/${documentId}` : `${cuponEndpoint}/${id}`
     console.log('[API Cupones DELETE] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
 
-    const response = await strapiClient.delete<any>(strapiEndpoint)
-    console.log('[API Cupones DELETE] ✅ Cupón eliminado en Strapi')
+    try {
+      const response = await strapiClient.delete<any>(strapiEndpoint)
+      console.log('[API Cupones DELETE] ✅ Cupón eliminado en Strapi')
+    } catch (deleteError: any) {
+      // Ignorar errores si la respuesta no es JSON válido (puede ser 204 No Content)
+      if (deleteError.message && !deleteError.message.includes('JSON') && !deleteError.message.includes('Unexpected end')) {
+        throw deleteError
+      } else {
+        console.log('[API Cupones DELETE] ✅ Cupón eliminado en Strapi (respuesta no JSON, probablemente exitosa)')
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -297,9 +306,21 @@ export async function PUT(
           wooCommerceCuponData.expiry_date = body.data.fecha_caducidad || null
         }
         if (body.data.producto_ids !== undefined) {
+          const requiresProducts = body.data.tipo_cupon === 'fixed_product' || body.data.tipo_cupon === 'percent_product'
           if (Array.isArray(body.data.producto_ids) && body.data.producto_ids.length > 0) {
-            wooCommerceCuponData.product_ids = body.data.producto_ids
-          } else {
+            const productIds = body.data.producto_ids
+              .map((id: any) => {
+                const numId = parseInt(String(id))
+                return isNaN(numId) ? null : numId
+              })
+              .filter((id: number | null) => id !== null) as number[]
+            
+            if (productIds.length > 0) {
+              wooCommerceCuponData.product_ids = productIds
+            } else if (requiresProducts) {
+              wooCommerceCuponData.product_ids = []
+            }
+          } else if (requiresProducts) {
             wooCommerceCuponData.product_ids = []
           }
         }

@@ -105,11 +105,12 @@ export async function POST(request: NextRequest) {
         tipo_cupon: body.data.tipo_cupon || null,
         importe_cupon: body.data.importe_cupon ? parseFloat(body.data.importe_cupon) : null,
         descripcion: body.data.descripcion || null,
-        producto_ids: body.data.producto_ids || null,
+        producto_ids: body.data.producto_ids && Array.isArray(body.data.producto_ids) && body.data.producto_ids.length > 0 
+          ? body.data.producto_ids.map((id: any) => parseInt(String(id))).filter((id: number) => !isNaN(id))
+          : null,
         uso_limite: body.data.uso_limite ? parseInt(body.data.uso_limite) : null,
         fecha_caducidad: body.data.fecha_caducidad || null,
         originPlatform: originPlatform,
-        externalIds: body.data.externalIds || null,
       }
     }
 
@@ -134,16 +135,34 @@ export async function POST(request: NextRequest) {
       discount_type: mapDiscountType(body.data.tipo_cupon),
       amount: body.data.importe_cupon ? String(body.data.importe_cupon) : '0',
       description: body.data.descripcion || '',
-      usage_limit: body.data.uso_limite || null,
+      usage_limit: body.data.uso_limite ? parseInt(String(body.data.uso_limite)) : null,
       expiry_date: body.data.fecha_caducidad || null,
       individual_use: false,
       exclude_sale_items: false,
       free_shipping: false,
     }
 
-    // Si hay producto_ids, agregar product_ids
+    // Si hay producto_ids, agregar product_ids (convertir a números enteros)
+    // Solo agregar si hay productos válidos y el tipo de cupón requiere productos
+    const requiresProducts = body.data.tipo_cupon === 'fixed_product' || body.data.tipo_cupon === 'percent_product'
     if (body.data.producto_ids && Array.isArray(body.data.producto_ids) && body.data.producto_ids.length > 0) {
-      wooCommerceCuponData.product_ids = body.data.producto_ids
+      const productIds = body.data.producto_ids
+        .map((id: any) => {
+          const numId = parseInt(String(id))
+          return isNaN(numId) ? null : numId
+        })
+        .filter((id: number | null) => id !== null) as number[]
+      
+      // Solo agregar si hay IDs válidos
+      if (productIds.length > 0) {
+        wooCommerceCuponData.product_ids = productIds
+      } else if (requiresProducts) {
+        // Si el tipo requiere productos pero no hay IDs válidos, usar array vacío
+        wooCommerceCuponData.product_ids = []
+      }
+    } else if (requiresProducts) {
+      // Si el tipo requiere productos pero no se proporcionaron, usar array vacío
+      wooCommerceCuponData.product_ids = []
     }
 
     // Crear cupón en WooCommerce
@@ -183,10 +202,15 @@ export async function POST(request: NextRequest) {
       
       // Si falla WooCommerce, eliminar de Strapi para mantener consistencia
       try {
-        await strapiClient.delete<any>(`${cuponEndpoint}/${documentId}`)
+        const deleteResponse = await strapiClient.delete<any>(`${cuponEndpoint}/${documentId}`)
         console.log('[API Cupones POST] 🗑️ Cupón eliminado de Strapi debido a error en WooCommerce')
       } catch (deleteError: any) {
-        console.error('[API Cupones POST] ⚠️ Error al eliminar de Strapi:', deleteError.message)
+        // Ignorar errores de eliminación si la respuesta no es JSON válido (puede ser 204 No Content)
+        if (deleteError.message && !deleteError.message.includes('JSON')) {
+          console.error('[API Cupones POST] ⚠️ Error al eliminar de Strapi:', deleteError.message)
+        } else {
+          console.log('[API Cupones POST] 🗑️ Cupón eliminado de Strapi (respuesta no JSON, probablemente exitosa)')
+        }
       }
       
       throw new Error(`Error al crear cupón en WooCommerce: ${wooError.message}`)

@@ -356,8 +356,18 @@ const CuponesListing = ({ cupones, error }: CuponesListingProps = {}) => {
   }
 
   const handleDelete = async () => {
-    const selectedIds = Object.keys(selectedRowIds)
-    const idsToDelete = selectedIds.map(id => data[parseInt(id)]?.id).filter(Boolean)
+    const selectedRowIdsArray = Object.keys(selectedRowIds)
+    const idsToDelete = selectedRowIdsArray
+      .map(rowId => {
+        const row = table.getRow(rowId)
+        return row?.original?.id
+      })
+      .filter(Boolean)
+    
+    if (idsToDelete.length === 0) {
+      alert('No se seleccionaron cupones para eliminar')
+      return
+    }
     
     try {
       for (const cuponId of idsToDelete) {
@@ -365,19 +375,22 @@ const CuponesListing = ({ cupones, error }: CuponesListingProps = {}) => {
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar cupón ${cuponId}`)
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `Error al eliminar cupón ${cuponId}`)
         }
       }
       
-      setData((old) => old.filter((_, idx) => !selectedIds.includes(idx.toString())))
+      // Actualizar datos eliminando los cupones eliminados
+      setData((old) => old.filter(cupon => !idsToDelete.includes(cupon.id)))
       setSelectedRowIds({})
       setPagination({ ...pagination, pageIndex: 0 })
       setShowDeleteModal(false)
       
+      // Recargar la página para obtener datos actualizados
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al eliminar cupones:', error)
-      alert('Error al eliminar los cupones seleccionados')
+      alert(`Error al eliminar los cupones seleccionados: ${error.message || 'Error desconocido'}`)
     }
   }
 
