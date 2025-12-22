@@ -3,7 +3,7 @@
  * Esto evita exponer el token de Strapi en el cliente
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
 import type { StrapiResponse, StrapiEntity } from '@/lib/strapi/types'
 
@@ -109,6 +109,59 @@ export async function GET() {
       },
       { status: error.status || 500 }
     )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    console.log('[API Clientes POST] 📝 Creando cliente:', body)
+
+    // Validar nombre y correo obligatorios
+    if (!body.data?.nombre || !body.data?.nombre.trim()) {
+      return NextResponse.json({
+        success: false,
+        error: 'El nombre del cliente es obligatorio'
+      }, { status: 400 })
+    }
+
+    if (!body.data?.correo_electronico || !body.data?.correo_electronico.trim()) {
+      return NextResponse.json({
+        success: false,
+        error: 'El correo electrónico del cliente es obligatorio'
+      }, { status: 400 })
+    }
+
+    // Crear en Strapi
+    console.log('[API Clientes POST] 📚 Creando cliente en Strapi...')
+    
+    const clienteData: any = {
+      data: {
+        nombre: body.data.nombre.trim(),
+        correo_electronico: body.data.correo_electronico.trim(),
+        telefono: body.data.telefono?.trim() || null,
+        direccion: body.data.direccion?.trim() || null,
+        pedidos: body.data.pedidos ? parseInt(body.data.pedidos) || 0 : 0,
+        gasto_total: body.data.gasto_total ? parseFloat(body.data.gasto_total) || 0 : 0,
+        fecha_registro: body.data.fecha_registro || new Date().toISOString(),
+        ultima_actividad: body.data.ultima_actividad || null,
+      },
+    }
+
+    const response = await strapiClient.post('/api/wo-clientes', clienteData) as any
+    
+    console.log('[API Clientes POST] ✅ Cliente creado en Strapi:', response.id || response.documentId || response.data?.id || response.data?.documentId)
+    
+    return NextResponse.json({
+      success: true,
+      data: response
+    })
+  } catch (error: any) {
+    console.error('[API Clientes POST] ❌ Error:', error.message)
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error al crear el cliente'
+    }, { status: 500 })
   }
 }
 

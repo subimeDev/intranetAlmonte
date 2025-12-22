@@ -221,7 +221,7 @@ const ClientsListing = ({ clientes, error }: ClientsListingProps = {}) => {
               <TbEye className="fs-lg" />
             </Button>
           </Link>
-          <Link href={`/clientes/${row.original.id}/editar`}>
+          <Link href={`/clientes/${row.original.id}`}>
             <Button variant="default" size="sm" className="btn-icon rounded-circle">
               <TbEdit className="fs-lg" />
             </Button>
