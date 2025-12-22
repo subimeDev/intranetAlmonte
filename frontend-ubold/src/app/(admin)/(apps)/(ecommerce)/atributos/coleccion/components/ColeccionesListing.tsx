@@ -17,7 +17,7 @@ import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert } from 'react-bootstrap'
 import { LuBox, LuSearch } from 'react-icons/lu'
-import { TbEdit, TbEye, TbLayoutGrid, TbList, TbPlus, TbTrash } from 'react-icons/tb'
+import { TbEdit, TbEye, TbPlus, TbTrash } from 'react-icons/tb'
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
@@ -173,7 +173,6 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
   const [selectedRows, setSelectedRows] = useState<TableRow<ColeccionType>[]>([])
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [rowToDelete, setRowToDelete] = useState<ColeccionType | null>(null)
@@ -274,24 +273,6 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
                 />
               </div>
             </Col>
-            <Col md={6} className="text-end">
-              <div className="btn-group" role="group">
-                <Button
-                  variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={() => setViewMode('table')}
-                >
-                  <TbList size={18} />
-                </Button>
-                <Button
-                  variant={viewMode === 'grid' ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <TbLayoutGrid size={18} />
-                </Button>
-              </div>
-            </Col>
           </Row>
 
           {mappedColecciones.length === 0 ? (
@@ -308,7 +289,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
             </div>
           ) : (
             <>
-              <DataTable table={table} viewMode={viewMode} />
+              <DataTable table={table} />
               <TablePagination table={table} />
             </>
           )}
