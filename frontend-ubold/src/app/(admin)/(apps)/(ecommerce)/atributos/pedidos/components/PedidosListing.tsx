@@ -196,7 +196,8 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
       enableSorting: false,
       enableColumnFilter: false,
     },
-    columnHelper.accessor('numero_pedido', {
+    columnHelper.accessor((row) => `${row.numero_pedido || ''} ${row.nombre_cliente || ''}`.toLowerCase(), {
+      id: 'numero_pedido',
       header: 'Pedido',
       cell: ({ row }) => {
         const numeroPedido = row.original.numero_pedido || 'Sin número'
@@ -466,14 +467,28 @@ const PedidosListing = ({ pedidos, error }: PedidosListingProps = {}) => {
         throw new Error(result.error || 'Error al actualizar el estado')
       }
 
-      // Actualizar el estado en los datos locales
+      // Actualizar el estado en los datos locales inmediatamente
       setData((old) =>
         old.map((pedido) =>
           pedido.id === pedidoId ? { ...pedido, estado: nuevoEstado } : pedido
         )
       )
 
-      // Recargar para obtener datos actualizados
+      // Recargar los datos desde el servidor
+      try {
+        const refreshResponse = await fetch('/api/tienda/pedidos')
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json()
+          if (refreshData.success && refreshData.data) {
+            const refreshedMapped = refreshData.data.map(mapStrapiPedidoToPedidoType)
+            setData(refreshedMapped)
+          }
+        }
+      } catch (refreshError) {
+        console.warn('Error al recargar datos, usando actualización local:', refreshError)
+      }
+
+      // También recargar la página para asegurar sincronización
       router.refresh()
     } catch (error: any) {
       console.error('Error al actualizar estado:', error)
