@@ -22,6 +22,7 @@ import { TbCheck, TbEdit, TbEye, TbList, TbPlus, TbTrash, TbX } from 'react-icon
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
+import ConfirmStatusModal from '@/components/table/ConfirmStatusModal'
 import TablePagination from '@/components/table/TablePagination'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
@@ -82,8 +83,9 @@ const mapStrapiSolicitudToRequestType = (solicitud: any): ProductRequestType => 
   const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
   const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || 'Sin categoría'
   
-  // Por defecto todas las solicitudes están pendientes hasta que tengamos el campo específico
-  const estado = getField(data, 'estado', 'estado_solicitud', 'ESTADO') || 'pendiente'
+  // Leer estado_publicacion: 'pendiente' -> 'pendiente', 'publicado' -> 'aprobada'
+  const estadoPublicacion = getField(data, 'estado_publicacion', 'estadoPublicacion', 'ESTADO_PUBLICACION') || 'pendiente'
+  const estado = estadoPublicacion === 'publicado' ? 'aprobada' : estadoPublicacion === 'pendiente' ? 'pendiente' : 'pendiente'
   
   const createdAt = attrs.createdAt || (solicitud as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
@@ -248,7 +250,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
                 variant="success"
                 size="sm"
                 className="btn-icon rounded-circle"
-                onClick={() => handleApprove(row.original.id)}
+                onClick={() => handleApproveClick(row.original.id)}
                 title="Aprobar"
               >
                 <TbCheck className="fs-lg" />
@@ -257,7 +259,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
                 variant="danger"
                 size="sm"
                 className="btn-icon rounded-circle"
-                onClick={() => handleReject(row.original.id)}
+                onClick={() => handleRejectClick(row.original.id)}
                 title="Rechazar"
               >
                 <TbX className="fs-lg" />
@@ -320,38 +322,91 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
   const end = Math.min(start + pageSize - 1, totalItems)
 
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false)
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false)
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject'>('approve')
+  const [pendingId, setPendingId] = useState<number | null>(null)
 
   const toggleDeleteModal = () => {
     setShowDeleteModal(!showDeleteModal)
   }
 
-  const handleApprove = async (id: number) => {
+  const handleApproveClick = (id: number) => {
+    setPendingId(id)
+    setConfirmAction('approve')
+    setShowConfirmModal(true)
+  }
+
+  const handleRejectClick = (id: number) => {
+    setPendingId(id)
+    setConfirmAction('reject')
+    setShowConfirmModal(true)
+  }
+
+  const handleApprove = async () => {
+    if (!pendingId) return
+    
     try {
-      // TODO: Implementar endpoint para aprobar solicitud
-      console.log('[ProductRequestsListing] Aprobando solicitud:', id)
+      console.log('[ProductRequestsListing] Aprobando solicitud:', pendingId)
+      const response = await fetch(`/api/tienda/productos/${pendingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          estado_publicacion: 'publicado',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al aprobar la solicitud')
+      }
+
       // Actualizar estado local
       setData((old) => old.map(item => 
-        item.id === id ? { ...item, estado: 'aprobada' as const } : item
+        item.id === pendingId ? { ...item, estado: 'aprobada' as const } : item
       ))
+      
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al aprobar solicitud:', error)
-      alert('Error al aprobar la solicitud')
+      alert(error.message || 'Error al aprobar la solicitud')
+    } finally {
+      setPendingId(null)
     }
   }
 
-  const handleReject = async (id: number) => {
+  const handleReject = async () => {
+    if (!pendingId) return
+    
     try {
-      // TODO: Implementar endpoint para rechazar solicitud
-      console.log('[ProductRequestsListing] Rechazando solicitud:', id)
+      console.log('[ProductRequestsListing] Rechazando solicitud:', pendingId)
+      const response = await fetch(`/api/tienda/productos/${pendingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          estado_publicacion: 'pendiente',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al rechazar la solicitud')
+      }
+
       // Actualizar estado local
       setData((old) => old.map(item => 
-        item.id === id ? { ...item, estado: 'rechazada' as const } : item
+        item.id === pendingId ? { ...item, estado: 'pendiente' as const } : item
       ))
+      
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al rechazar solicitud:', error)
-      alert('Error al rechazar la solicitud')
+      alert(error.message || 'Error al rechazar la solicitud')
+    } finally {
+      setPendingId(null)
     }
   }
 
@@ -523,6 +578,17 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
             onHide={toggleDeleteModal}
             onConfirm={handleDelete}
             selectedCount={Object.keys(selectedRowIds).length}
+            itemName="solicitud"
+          />
+
+          <ConfirmStatusModal
+            show={showConfirmModal}
+            onHide={() => {
+              setShowConfirmModal(false)
+              setPendingId(null)
+            }}
+            onConfirm={confirmAction === 'approve' ? handleApprove : handleReject}
+            action={confirmAction}
             itemName="solicitud"
           />
         </Card>

@@ -337,6 +337,14 @@ export async function PUT(
     
     if (body.data.nombre_obra) obraData.data.nombre_obra = body.data.nombre_obra.trim()
     if (body.data.nombreObra) obraData.data.nombre_obra = body.data.nombreObra.trim()
+    
+    // Estado de publicación
+    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
+      obraData.data.estado_publicacion = body.estado_publicacion
+    }
+    if (body.data?.estado_publicacion !== undefined && body.data.estado_publicacion !== '') {
+      obraData.data.estado_publicacion = body.data.estado_publicacion
+    }
     if (body.data.nombre) obraData.data.nombre_obra = body.data.nombre.trim()
     
     if (body.data.descripcion !== undefined) obraData.data.descripcion = body.data.descripcion || null

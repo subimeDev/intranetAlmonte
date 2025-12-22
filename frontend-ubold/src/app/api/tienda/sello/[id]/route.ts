@@ -368,6 +368,14 @@ export async function PUT(
       selloData.data.logo = body.data.logo || null
     }
 
+    // Estado de publicación
+    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
+      selloData.data.estado_publicacion = body.estado_publicacion
+    }
+    if (body.data?.estado_publicacion !== undefined && body.data.estado_publicacion !== '') {
+      selloData.data.estado_publicacion = body.data.estado_publicacion
+    }
+
     // No guardamos woocommerce_id en Strapi porque no existe en el schema
     // El match se hace usando documentId como slug en WooCommerce
 
