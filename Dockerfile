@@ -21,7 +21,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Construir la aplicación
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \ npm run build
 
 # Exponer el puerto
 EXPOSE 3000
@@ -31,3 +31,4 @@ ENV HOSTNAME="0.0.0.0"
 
 # Comando para iniciar la aplicación
 CMD ["node", "server.js"]
+
