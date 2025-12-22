@@ -273,8 +273,6 @@ export const horizontalMenuItems: MenuItemType[] = [
                   { key: 'add-sello', label: 'Agregar Sello', url: '/atributos/sello/agregar' },
                   { key: 'all-marcas', label: 'Todas las Marcas', url: '/atributos/marca' },
                   { key: 'add-marca', label: 'Agregar Marca', url: '/atributos/marca/agregar' },
-                  { key: 'all-colecciones', label: 'Todas las Colecciones', url: '/atributos/coleccion' },
-                  { key: 'add-coleccion', label: 'Agregar Colección', url: '/atributos/coleccion/agregar' },
                 ],
               },
               { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
