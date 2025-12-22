@@ -167,14 +167,13 @@ export const menuItems: MenuItemType[] = [
       },
       { key: 'customers', label: 'Clientes', url: '/customers' },
       {
-        key: 'sellers',
-        label: 'Sellers',
+        key: 'cupones',
+        label: 'Cupones',
         children: [
-          { key: 'sellers-list', label: 'Sellers', url: '/sellers' },
-          { key: 'seller-details', label: 'Seller Details', url: '/sellers/1' },
+          { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
+          { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
         ],
       },
-      { key: 'reviews', label: 'Reviews', url: '/reviews' },
     ],
   },
   { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
@@ -295,14 +294,13 @@ export const horizontalMenuItems: MenuItemType[] = [
           },
           { key: 'customers', label: 'Clientes', url: '/customers' },
           {
-            key: 'sellers',
-            label: 'Sellers',
+            key: 'cupones',
+            label: 'Cupones',
             children: [
-              { key: 'sellers-list', label: 'Sellers', url: '/sellers' },
-              { key: 'seller-details', label: 'Seller Details', url: '/sellers/1' },
+              { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
+              { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
             ],
           },
-          { key: 'reviews', label: 'Reviews', url: '/reviews' },
         ],
       },
       {
