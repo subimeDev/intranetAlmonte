@@ -138,6 +138,7 @@ export const menuItems: MenuItemType[] = [
           { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
           { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
           { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
+          { key: 'all-clientes', label: 'Todos los Clientes', url: '/products/clientes' },
           {
             key: 'atributos',
             label: 'Atributos',
@@ -271,6 +272,7 @@ export const horizontalMenuItems: MenuItemType[] = [
               { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
               { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
               { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
+              { key: 'all-clientes', label: 'Todos los Clientes', url: '/products/clientes' },
               {
                 key: 'atributos',
                 label: 'Atributos',
