@@ -174,6 +174,14 @@ export const menuItems: MenuItemType[] = [
           { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
         ],
       },
+      {
+        key: 'pedidos',
+        label: 'Pedidos',
+        children: [
+          { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
+          { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
+        ],
+      },
     ],
   },
   { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
@@ -299,6 +307,14 @@ export const horizontalMenuItems: MenuItemType[] = [
             children: [
               { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
               { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
+            ],
+          },
+          {
+            key: 'pedidos',
+            label: 'Pedidos',
+            children: [
+              { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
+              { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
             ],
           },
         ],
