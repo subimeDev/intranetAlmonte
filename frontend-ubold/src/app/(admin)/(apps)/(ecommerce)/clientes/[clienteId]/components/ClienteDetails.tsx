@@ -31,12 +31,10 @@ const ClienteDetails = ({ cliente: initialCliente, clienteId }: ClienteDetailsPr
   const attrs = cliente.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (cliente as any)
 
-  // Inicializar formData con los valores del cliente
+  // Inicializar formData con los valores del cliente (solo campos válidos en el schema)
   const [formData, setFormData] = useState({
     nombre: getField(data, 'nombre', 'NOMBRE', 'name', 'NAME') || '',
     correo_electronico: getField(data, 'correo_electronico', 'CORREO_ELECTRONICO', 'email', 'EMAIL') || '',
-    telefono: getField(data, 'telefono', 'TELEFONO', 'phone', 'PHONE') || '',
-    direccion: getField(data, 'direccion', 'DIRECCION', 'address', 'ADDRESS') || '',
     pedidos: (typeof data.pedidos === 'number' ? data.pedidos : (typeof data.pedidos === 'string' ? parseInt(data.pedidos) : 0)) || 0,
     gasto_total: (typeof data.gasto_total === 'number' ? data.gasto_total : (typeof data.gasto_total === 'string' ? parseFloat(data.gasto_total) : 0)) || 0,
     fecha_registro: getField(data, 'fecha_registro', 'FECHA_REGISTRO', 'fechaRegistro') || attrs.createdAt || cliente.createdAt || '',
@@ -51,8 +49,6 @@ const ClienteDetails = ({ cliente: initialCliente, clienteId }: ClienteDetailsPr
     setFormData({
       nombre: getField(data, 'nombre', 'NOMBRE', 'name', 'NAME') || '',
       correo_electronico: getField(data, 'correo_electronico', 'CORREO_ELECTRONICO', 'email', 'EMAIL') || '',
-      telefono: getField(data, 'telefono', 'TELEFONO', 'phone', 'PHONE') || '',
-      direccion: getField(data, 'direccion', 'DIRECCION', 'address', 'ADDRESS') || '',
       pedidos: (typeof data.pedidos === 'number' ? data.pedidos : (typeof data.pedidos === 'string' ? parseInt(data.pedidos) : 0)) || 0,
       gasto_total: (typeof data.gasto_total === 'number' ? data.gasto_total : (typeof data.gasto_total === 'string' ? parseFloat(data.gasto_total) : 0)) || 0,
       fecha_registro: getField(data, 'fecha_registro', 'FECHA_REGISTRO', 'fechaRegistro') || attrs.createdAt || cliente.createdAt || '',
@@ -127,8 +123,6 @@ const ClienteDetails = ({ cliente: initialCliente, clienteId }: ClienteDetailsPr
         data: {
           nombre: formData.nombre.trim(),
           correo_electronico: formData.correo_electronico.trim(),
-          telefono: formData.telefono.trim() || null,
-          direccion: formData.direccion.trim() || null,
           pedidos: parseInt(formData.pedidos.toString()) || 0,
           gasto_total: parseFloat(formData.gasto_total.toString()) || 0,
           fecha_registro: formData.fecha_registro || null,
@@ -173,8 +167,6 @@ const ClienteDetails = ({ cliente: initialCliente, clienteId }: ClienteDetailsPr
         setFormData({
           nombre: getField(updatedData, 'nombre', 'NOMBRE', 'name', 'NAME') || formData.nombre,
           correo_electronico: getField(updatedData, 'correo_electronico', 'CORREO_ELECTRONICO', 'email', 'EMAIL') || formData.correo_electronico,
-          telefono: getField(updatedData, 'telefono', 'TELEFONO', 'phone', 'PHONE') || formData.telefono,
-          direccion: getField(updatedData, 'direccion', 'DIRECCION', 'address', 'ADDRESS') || formData.direccion,
           pedidos: (typeof updatedData.pedidos === 'number' ? updatedData.pedidos : (typeof updatedData.pedidos === 'string' ? parseInt(updatedData.pedidos) : 0)) || formData.pedidos,
           gasto_total: (typeof updatedData.gasto_total === 'number' ? updatedData.gasto_total : (typeof updatedData.gasto_total === 'string' ? parseFloat(updatedData.gasto_total) : 0)) || formData.gasto_total,
           fecha_registro: getField(updatedData, 'fecha_registro', 'FECHA_REGISTRO', 'fechaRegistro') || formData.fecha_registro,
@@ -248,33 +240,6 @@ const ClienteDetails = ({ cliente: initialCliente, clienteId }: ClienteDetailsPr
                       setFormData((prev) => ({ ...prev, correo_electronico: e.target.value }))
                     }
                     required
-                  />
-                </FormGroup>
-              </Col>
-
-              <Col md={6}>
-                <FormGroup>
-                  <FormLabel>Teléfono</FormLabel>
-                  <FormControl
-                    type="text"
-                    placeholder="Ej: +56 9 1234 5678"
-                    value={formData.telefono}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, telefono: e.target.value }))
-                    }
-                  />
-                </FormGroup>
-              </Col>
-              <Col md={6}>
-                <FormGroup>
-                  <FormLabel>Dirección</FormLabel>
-                  <FormControl
-                    type="text"
-                    placeholder="Ej: Calle Principal 123, Santiago"
-                    value={formData.direccion}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, direccion: e.target.value }))
-                    }
                   />
                 </FormGroup>
               </Col>

@@ -141,12 +141,7 @@ export async function PUT(
     if (body.data.correo_electronico !== undefined) {
       updateData.data.correo_electronico = body.data.correo_electronico
     }
-    if (body.data.telefono !== undefined) {
-      updateData.data.telefono = body.data.telefono
-    }
-    if (body.data.direccion !== undefined) {
-      updateData.data.direccion = body.data.direccion
-    }
+    // Nota: telefono y direccion no existen en el schema de WO-Clientes, se omiten
     if (body.data.pedidos !== undefined) {
       updateData.data.pedidos = typeof body.data.pedidos === 'number' ? body.data.pedidos : parseInt(body.data.pedidos) || 0
     }

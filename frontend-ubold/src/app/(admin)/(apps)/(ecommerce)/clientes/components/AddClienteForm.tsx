@@ -13,8 +13,6 @@ const AddClienteForm = () => {
   const [formData, setFormData] = useState({
     nombre: '',
     correo_electronico: '',
-    telefono: '',
-    direccion: '',
     pedidos: '0',
     gasto_total: '0',
   })
@@ -48,13 +46,11 @@ const AddClienteForm = () => {
         throw new Error('El correo electrónico no tiene un formato válido')
       }
 
-      // Preparar datos para Strapi
+      // Preparar datos para Strapi (solo campos válidos en el schema)
       const clienteData: any = {
         data: {
           nombre: formData.nombre.trim(),
           correo_electronico: formData.correo_electronico.trim(),
-          telefono: formData.telefono.trim() || null,
-          direccion: formData.direccion.trim() || null,
           pedidos: parseInt(formData.pedidos) || 0,
           gasto_total: parseFloat(formData.gasto_total) || 0,
           fecha_registro: new Date().toISOString(),
@@ -134,31 +130,6 @@ const AddClienteForm = () => {
                       value={formData.correo_electronico}
                       onChange={(e) => handleFieldChange('correo_electronico', e.target.value)}
                       required
-                    />
-                  </FormGroup>
-                </Col>
-              </Row>
-
-              <Row>
-                <Col md={6}>
-                  <FormGroup className="mb-3">
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl
-                      type="text"
-                      placeholder="Ej: +56 9 1234 5678"
-                      value={formData.telefono}
-                      onChange={(e) => handleFieldChange('telefono', e.target.value)}
-                    />
-                  </FormGroup>
-                </Col>
-                <Col md={6}>
-                  <FormGroup className="mb-3">
-                    <FormLabel>Dirección</FormLabel>
-                    <FormControl
-                      type="text"
-                      placeholder="Ej: Calle Principal 123, Santiago"
-                      value={formData.direccion}
-                      onChange={(e) => handleFieldChange('direccion', e.target.value)}
                     />
                   </FormGroup>
                 </Col>

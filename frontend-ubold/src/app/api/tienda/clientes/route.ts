@@ -17,8 +17,7 @@ interface WOClienteAttributes {
   fecha_registro?: string
   pedidos?: number
   gasto_total?: number
-  telefono?: string
-  direccion?: string
+  // Nota: telefono y direccion no existen en el schema de WO-Clientes
   createdAt?: string
   updatedAt?: string
 }
@@ -135,17 +134,20 @@ export async function POST(request: NextRequest) {
     // Crear en Strapi
     console.log('[API Clientes POST] 📚 Creando cliente en Strapi...')
     
+    // Solo incluir campos válidos en el schema de WO-Clientes
     const clienteData: any = {
       data: {
         nombre: body.data.nombre.trim(),
         correo_electronico: body.data.correo_electronico.trim(),
-        telefono: body.data.telefono?.trim() || null,
-        direccion: body.data.direccion?.trim() || null,
         pedidos: body.data.pedidos ? parseInt(body.data.pedidos) || 0 : 0,
         gasto_total: body.data.gasto_total ? parseFloat(body.data.gasto_total) || 0 : 0,
         fecha_registro: body.data.fecha_registro || new Date().toISOString(),
-        ultima_actividad: body.data.ultima_actividad || null,
       },
+    }
+    
+    // Solo agregar ultima_actividad si está definida
+    if (body.data.ultima_actividad) {
+      clienteData.data.ultima_actividad = body.data.ultima_actividad
     }
 
     const response = await strapiClient.post('/api/wo-clientes', clienteData) as any
