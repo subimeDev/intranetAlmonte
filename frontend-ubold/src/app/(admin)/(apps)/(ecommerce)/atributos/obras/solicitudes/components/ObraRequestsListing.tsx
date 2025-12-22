@@ -13,28 +13,23 @@ import {
   Table as TableType,
   useReactTable,
 } from '@tanstack/react-table'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect, useMemo } from 'react'
 import { Button, Card, CardFooter, CardHeader, Col, Row, Alert, Badge } from 'react-bootstrap'
 import { LuBox, LuSearch } from 'react-icons/lu'
-import { TbCheck, TbEdit, TbEye, TbList, TbPlus, TbTrash, TbX } from 'react-icons/tb'
+import { TbCheck, TbEye, TbList, TbPlus, TbTrash, TbX } from 'react-icons/tb'
 
 import DataTable from '@/components/table/DataTable'
 import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
 import TablePagination from '@/components/table/TablePagination'
-import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
-// Tipo para solicitudes de productos
-type ProductRequestType = {
+type ObraRequestType = {
   id: number
-  name: string
-  code: string
-  brand: string
-  category: string
-  image: { src: string | null }
+  nombre_obra: string
+  codigo_obra: string
+  descripcion: string
   estado: 'pendiente' | 'aprobada' | 'rechazada'
   fecha_solicitud: string
   time: string
@@ -42,7 +37,6 @@ type ProductRequestType = {
   strapiId?: number
 }
 
-// Helper para obtener campo con múltiples variaciones
 const getField = (obj: any, ...fieldNames: string[]): any => {
   for (const fieldName of fieldNames) {
     if (obj[fieldName] !== undefined && obj[fieldName] !== null && obj[fieldName] !== '') {
@@ -52,86 +46,55 @@ const getField = (obj: any, ...fieldNames: string[]): any => {
   return undefined
 }
 
-// Función para mapear solicitudes de Strapi al formato ProductRequestType
-const mapStrapiSolicitudToRequestType = (solicitud: any): ProductRequestType => {
+const mapStrapiSolicitudToRequestType = (solicitud: any): ObraRequestType => {
   const attrs = solicitud.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (solicitud as any)
 
-  // Obtener URL de imagen
-  const getImageUrl = (): string | null => {
-    let portada = data.portada_libro || data.PORTADA_LIBRO || data.portadaLibro
-    if (portada?.data) {
-      portada = portada.data
-    }
-    if (!portada || portada === null) {
-      return null
-    }
-    const url = portada.attributes?.url || portada.attributes?.URL || portada.url || portada.URL
-    if (!url) {
-      return null
-    }
-    if (url.startsWith('http')) {
-      return url
-    }
-    const baseUrl = STRAPI_API_URL.replace(/\/$/, '')
-    return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
-  }
-
-  const nombre = getField(data, 'NOMBRE_LIBRO', 'nombre_libro', 'nombreLibro', 'NOMBRE', 'nombre', 'name', 'NAME') || 'Sin nombre'
-  const isbn = getField(data, 'ISBN_LIBRO', 'isbn_libro', 'isbnLibro', 'ISBN', 'isbn') || ''
-  const autor = data.autor_relacion?.data?.attributes?.nombre || data.autor_relacion?.data?.attributes?.NOMBRE || 'Sin autor'
-  const tipoLibro = getField(data, 'TIPO_LIBRO', 'tipo_libro', 'tipoLibro') || 'Sin categoría'
-  
-  // Por defecto todas las solicitudes están pendientes hasta que tengamos el campo específico
+  const nombre = getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'NOMBRE_OBRA', 'NAME') || 'Sin nombre'
+  const codigo = getField(data, 'codigo_obra', 'codigoObra', 'CODIGO_OBRA') || ''
+  const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || ''
   const estado = getField(data, 'estado', 'estado_solicitud', 'ESTADO') || 'pendiente'
-  
+
   const createdAt = attrs.createdAt || (solicitud as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
-  const imageUrl = getImageUrl()
 
   return {
     id: solicitud.id || solicitud.documentId || solicitud.id,
-    name: nombre,
-    code: isbn || `STRAPI-${solicitud.id}`,
-    brand: autor,
-    category: tipoLibro,
-    image: { src: imageUrl || '' },
+    nombre_obra: nombre,
+    codigo_obra: codigo,
+    descripcion: descripcion,
     estado: estado as 'pendiente' | 'aprobada' | 'rechazada',
     fecha_solicitud: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
-    url: `/products/${solicitud.id || solicitud.documentId || solicitud.id}`,
+    url: `/atributos/obras/${solicitud.id || solicitud.documentId || solicitud.id}`,
     strapiId: solicitud.id,
   }
 }
 
-interface ProductRequestsListingProps {
+interface ObraRequestsListingProps {
   solicitudes?: any[]
   error?: string | null
 }
 
-const columnHelper = createColumnHelper<ProductRequestType>()
+const columnHelper = createColumnHelper<ObraRequestType>()
 
-const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingProps = {}) => {
+const ObraRequestsListing = ({ solicitudes, error }: ObraRequestsListingProps = {}) => {
   const router = useRouter()
-  
-  // Mapear solicitudes de Strapi al formato ProductRequestType si están disponibles
+
   const mappedSolicitudes = useMemo(() => {
     if (solicitudes && solicitudes.length > 0) {
-      console.log('[ProductRequestsListing] Solicitudes recibidas:', solicitudes.length)
       const mapped = solicitudes.map(mapStrapiSolicitudToRequestType)
-      console.log('[ProductRequestsListing] Solicitudes mapeadas:', mapped.length)
       return mapped
     }
-    console.log('[ProductRequestsListing] No hay solicitudes de Strapi')
     return []
   }, [solicitudes])
 
-  const columns: ColumnDef<ProductRequestType, any>[] = [
+  const columns: ColumnDef<ObraRequestType, any>[] = [
     {
       id: 'select',
       maxSize: 45,
       size: 45,
-      header: ({ table }: { table: TableType<ProductRequestType> }) => (
+      header: ({ table }: { table: TableType<ObraRequestType> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -139,7 +102,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: { row: TableRow<ProductRequestType> }) => (
+      cell: ({ row }: { row: TableRow<ObraRequestType> }) => (
         <input
           type="checkbox"
           className="form-check-input form-check-input-light fs-14"
@@ -150,58 +113,31 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
       enableSorting: false,
       enableColumnFilter: false,
     },
-    columnHelper.accessor('name', {
-      header: 'Producto',
-      cell: ({ row }) => {
-        const imageSrc = row.original.image?.src
-        
-        if (!imageSrc) {
-          return (
-            <div className="d-flex">
-              <div className="avatar-md me-3 bg-light d-flex align-items-center justify-content-center rounded">
-                <span className="text-muted fs-xs">📦</span>
-              </div>
-              <div>
-                <h5 className="mb-0">
-                  <Link href={row.original.url} className="link-reset">
-                    {row.original.name}
-                  </Link>
-                </h5>
-                <p className="text-muted mb-0 fs-xxs">by: {row.original.brand}</p>
-              </div>
-            </div>
-          )
-        }
-        
-        return (
-          <div className="d-flex">
-            <div className="avatar-md me-3">
-              <Image 
-                src={imageSrc} 
-                alt={row.original.name || 'Product'} 
-                height={36} 
-                width={36} 
-                className="img-fluid rounded"
-                unoptimized={imageSrc.startsWith('http')}
-              />
-            </div>
-            <div>
-              <h5 className="mb-0">
-                <Link href={row.original.url} className="link-reset">
-                  {row.original.name || 'Sin nombre'}
-                </Link>
-              </h5>
-              <p className="text-muted mb-0 fs-xxs">by: {row.original.brand || 'Sin autor'}</p>
-            </div>
-          </div>
-        )
-      },
+    columnHelper.accessor('codigo_obra', {
+      header: 'Código',
+      cell: ({ row }) => (
+        <span className="fw-semibold">{row.original.codigo_obra || '-'}</span>
+      ),
     }),
-    columnHelper.accessor('code', { header: 'SKU' }),
-    columnHelper.accessor('category', {
-      header: 'Categoría',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
+    columnHelper.accessor('nombre_obra', {
+      header: 'Obra',
+      cell: ({ row }) => (
+        <div className="d-flex">
+          <div className="avatar-md me-3 bg-light d-flex align-items-center justify-content-center rounded">
+            <span className="text-muted fs-xs">📚</span>
+          </div>
+          <div>
+            <h5 className="mb-0">
+              <Link href={row.original.url} className="link-reset">
+                {row.original.nombre_obra || 'Sin nombre'}
+              </Link>
+            </h5>
+            {row.original.descripcion && (
+              <p className="text-muted mb-0 small">{row.original.descripcion.substring(0, 50)}...</p>
+            )}
+          </div>
+        </div>
+      ),
     }),
     columnHelper.accessor('estado', {
       header: 'Estado',
@@ -235,7 +171,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
     }),
     {
       header: 'Acciones',
-      cell: ({ row }: { row: TableRow<ProductRequestType> }) => (
+      cell: ({ row }: { row: TableRow<ObraRequestType> }) => (
         <div className="d-flex gap-1">
           <Link href={row.original.url}>
             <Button variant="default" size="sm" className="btn-icon rounded-circle">
@@ -271,7 +207,8 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
             onClick={() => {
               toggleDeleteModal()
               setSelectedRowIds({ [row.id]: true })
-            }}>
+            }}
+          >
             <TbTrash className="fs-lg" />
           </Button>
         </div>
@@ -279,7 +216,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
     },
   ]
 
-  const [data, setData] = useState<ProductRequestType[]>([])
+  const [data, setData] = useState<ObraRequestType[]>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -287,14 +224,11 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
 
   const [selectedRowIds, setSelectedRowIds] = useState<Record<string, boolean>>({})
 
-  // Actualizar datos cuando cambien las solicitudes de Strapi
   useEffect(() => {
-    console.log('[ProductRequestsListing] useEffect - solicitudes:', solicitudes?.length, 'mappedSolicitudes:', mappedSolicitudes.length)
     setData(mappedSolicitudes)
-    console.log('[ProductRequestsListing] Datos actualizados. Total:', mappedSolicitudes.length)
   }, [mappedSolicitudes, solicitudes])
 
-  const table = useReactTable<ProductRequestType>({
+  const table = useReactTable<ObraRequestType>({
     data,
     columns,
     state: { sorting, globalFilter, columnFilters, pagination, rowSelection: selectedRowIds },
@@ -327,12 +261,9 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
 
   const handleApprove = async (id: number) => {
     try {
-      // TODO: Implementar endpoint para aprobar solicitud
-      console.log('[ProductRequestsListing] Aprobando solicitud:', id)
-      // Actualizar estado local
-      setData((old) => old.map(item => 
-        item.id === id ? { ...item, estado: 'aprobada' as const } : item
-      ))
+      setData((old) =>
+        old.map((item) => (item.id === id ? { ...item, estado: 'aprobada' as const } : item)),
+      )
       router.refresh()
     } catch (error) {
       console.error('Error al aprobar solicitud:', error)
@@ -342,12 +273,9 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
 
   const handleReject = async (id: number) => {
     try {
-      // TODO: Implementar endpoint para rechazar solicitud
-      console.log('[ProductRequestsListing] Rechazando solicitud:', id)
-      // Actualizar estado local
-      setData((old) => old.map(item => 
-        item.id === id ? { ...item, estado: 'rechazada' as const } : item
-      ))
+      setData((old) =>
+        old.map((item) => (item.id === id ? { ...item, estado: 'rechazada' as const } : item)),
+      )
       router.refresh()
     } catch (error) {
       console.error('Error al rechazar solicitud:', error)
@@ -357,26 +285,23 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
 
   const handleDelete = async () => {
     const selectedIds = Object.keys(selectedRowIds)
-    const idsToDelete = selectedIds.map(id => data[parseInt(id)]?.id).filter(Boolean)
-    
+    const idsToDelete = selectedIds.map((id) => data[parseInt(id)]?.id).filter(Boolean)
+
     try {
-      // Eliminar cada solicitud seleccionada
       for (const solicitudId of idsToDelete) {
-        const response = await fetch(`/api/tienda/productos/${solicitudId}`, {
+        const response = await fetch(`/api/tienda/obras/${solicitudId}`, {
           method: 'DELETE',
         })
         if (!response.ok) {
           throw new Error(`Error al eliminar solicitud ${solicitudId}`)
         }
       }
-      
-      // Actualizar datos localmente
+
       setData((old) => old.filter((_, idx) => !selectedIds.includes(idx.toString())))
       setSelectedRowIds({})
       setPagination({ ...pagination, pageIndex: 0 })
       setShowDeleteModal(false)
-      
-      // Recargar la página para reflejar cambios
+
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar solicitudes:', error)
@@ -384,34 +309,19 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
     }
   }
 
-  // Mostrar error si existe
   const hasError = !!error
   const hasData = mappedSolicitudes.length > 0
-  
+
   if (hasError && !hasData) {
     return (
       <Row>
         <Col xs={12}>
           <Alert variant="warning">
             <strong>Error al cargar solicitudes desde Strapi:</strong> {error}
-            <br />
-            <small className="text-muted">
-              Verifica que:
-              <ul className="mt-2 mb-0">
-                <li>STRAPI_API_TOKEN esté configurado en Railway</li>
-                <li>El servidor de Strapi esté disponible</li>
-                <li>Las variables de entorno estén correctas</li>
-              </ul>
-            </small>
           </Alert>
         </Col>
       </Row>
     )
-  }
-  
-  // Si hay error pero también hay datos, mostrar advertencia pero continuar
-  if (hasError && hasData) {
-    console.warn('[ProductRequestsListing] Error al cargar desde Strapi, usando datos disponibles:', error)
   }
 
   return (
@@ -424,7 +334,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
                 <input
                   type="search"
                   className="form-control"
-                  placeholder="Buscar solicitud de producto..."
+                  placeholder="Buscar solicitud de obra..."
                   value={globalFilter ?? ''}
                   onChange={(e) => setGlobalFilter(e.target.value)}
                 />
@@ -444,21 +354,13 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
               <div className="app-search">
                 <select
                   className="form-select form-control my-1 my-md-0"
-                  value={(table.getColumn('category')?.getFilterValue() as string) ?? 'All'}
-                  onChange={(e) => table.getColumn('category')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Categoría</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="Home">Home</option>
-                </select>
-                <LuBox className="app-search-icon text-muted" />
-              </div>
-
-              <div className="app-search">
-                <select
-                  className="form-select form-control my-1 my-md-0"
                   value={(table.getColumn('estado')?.getFilterValue() as string) ?? 'All'}
-                  onChange={(e) => table.getColumn('estado')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
+                  onChange={(e) =>
+                    table
+                      .getColumn('estado')
+                      ?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)
+                  }
+                >
                   <option value="All">Estado</option>
                   <option value="pendiente">Pendiente</option>
                   <option value="aprobada">Aprobada</option>
@@ -471,7 +373,8 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
                 <select
                   className="form-select form-control my-1 my-md-0"
                   value={table.getState().pagination.pageSize}
-                  onChange={(e) => table.setPageSize(Number(e.target.value))}>
+                  onChange={(e) => table.setPageSize(Number(e.target.value))}
+                >
                   {[5, 8, 10, 15, 20].map((size) => (
                     <option key={size} value={size}>
                       {size}
@@ -485,7 +388,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
               <Button variant="primary" className="btn-icon">
                 <TbList className="fs-lg" />
               </Button>
-              <Link href="/add-product" passHref>
+              <Link href="/atributos/obras/agregar" passHref>
                 <Button variant="danger" className="ms-1">
                   <TbPlus className="fs-sm me-2" /> Nueva Solicitud
                 </Button>
@@ -493,7 +396,7 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
             </div>
           </CardHeader>
 
-          <DataTable<ProductRequestType>
+          <DataTable<ObraRequestType>
             table={table}
             emptyMessage="No se encontraron solicitudes"
             enableColumnReordering={true}
@@ -531,5 +434,5 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
   )
 }
 
-export default ProductRequestsListing
+export default ObraRequestsListing
 

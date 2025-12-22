@@ -3,9 +3,8 @@ import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 
 import PageBreadcrumb from '@/components/PageBreadcrumb'
-import SolicitudesObrasListing from './components/SolicitudesObrasListing'
+import ObraRequestsListing from './components/ObraRequestsListing'
 
-// Forzar renderizado dinámico
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -17,21 +16,18 @@ export default async function Page() {
   let error: string | null = null
 
   try {
-    // Usar API Route como proxy (igual que productos)
     const headersList = await headers()
     const host = headersList.get('host') || 'localhost:3000'
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
     const baseUrl = `${protocol}://${host}`
-    
-    // TODO: Crear endpoint /api/tienda/obras/solicitudes cuando esté listo
+
     const response = await fetch(`${baseUrl}/api/tienda/obras`, {
-      cache: 'no-store', // Forzar fetch dinámico
+      cache: 'no-store',
     })
-    
+
     const data = await response.json()
-    
+
     if (data.success && data.data) {
-      // Por ahora usar las obras como solicitudes hasta que tengamos el endpoint específico
       solicitudes = Array.isArray(data.data) ? data.data : [data.data]
       console.log('[Solicitudes Obras Page] Solicitudes obtenidas:', solicitudes.length)
     } else {
@@ -46,8 +42,7 @@ export default async function Page() {
   return (
     <Container fluid>
       <PageBreadcrumb title="Solicitudes de Obras" subtitle="Ecommerce" />
-      <SolicitudesObrasListing solicitudes={solicitudes} error={error} />
+      <ObraRequestsListing solicitudes={solicitudes} error={error} />
     </Container>
   )
 }
-
