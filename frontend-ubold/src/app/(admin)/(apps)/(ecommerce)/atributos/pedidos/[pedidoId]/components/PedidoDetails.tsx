@@ -4,7 +4,8 @@ import { Badge, Col, Row, Alert, Card, CardHeader, CardBody, Form, Button, FormG
 import { format } from 'date-fns'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { LuSave, LuX, LuEdit } from 'react-icons/lu'
+import { LuSave, LuX } from 'react-icons/lu'
+import { TbEdit } from 'react-icons/tb'
 import Link from 'next/link'
 
 interface PedidoDetailsProps {
@@ -255,7 +256,7 @@ const PedidoDetails = ({ pedido: initialPedido, pedidoId, error: initialError }:
               <CardHeader className="d-flex justify-content-between align-items-center">
                 <h6 className="mb-0">Facturación</h6>
                 <Button variant="link" size="sm" className="p-0">
-                  <LuEdit className="fs-sm" />
+                  <TbEdit className="fs-sm" />
                 </Button>
               </CardHeader>
               <CardBody>
@@ -303,7 +304,7 @@ const PedidoDetails = ({ pedido: initialPedido, pedidoId, error: initialError }:
               <CardHeader className="d-flex justify-content-between align-items-center">
                 <h6 className="mb-0">Envío</h6>
                 <Button variant="link" size="sm" className="p-0">
-                  <LuEdit className="fs-sm" />
+                  <TbEdit className="fs-sm" />
                 </Button>
               </CardHeader>
               <CardBody>
