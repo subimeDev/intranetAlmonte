@@ -200,8 +200,9 @@ export async function DELETE(
     const strapiEndpoint = documentId ? `${cuponEndpoint}/${documentId}` : `${cuponEndpoint}/${id}`
     console.log('[API Cupones DELETE] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
 
+    let strapiResponse: any = null
     try {
-      const response = await strapiClient.delete<any>(strapiEndpoint)
+      strapiResponse = await strapiClient.delete<any>(strapiEndpoint)
       console.log('[API Cupones DELETE] ✅ Cupón eliminado en Strapi')
     } catch (deleteError: any) {
       // Ignorar errores si la respuesta no es JSON válido (puede ser 204 No Content)
@@ -215,7 +216,7 @@ export async function DELETE(
     return NextResponse.json({
       success: true,
       message: 'Cupón eliminado exitosamente' + (wooCommerceDeleted ? ' en WooCommerce y Strapi' : ' en Strapi'),
-      data: response
+      data: strapiResponse || { deleted: true }
     })
 
   } catch (error: any) {

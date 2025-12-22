@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, memo, useRef } from 'react'
 import { FormLabel, FormSelect } from 'react-bootstrap'
 
 interface RelationSelectorProps {
@@ -27,10 +27,32 @@ const RelationSelector = memo(function RelationSelector({
   const [options, setOptions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   useEffect(() => {
     fetchOptions()
   }, [endpoint])
+
+  // Sincronizar valores seleccionados cuando cambia el prop value
+  useEffect(() => {
+    if (multiple && selectRef.current) {
+      const select = selectRef.current
+      const valueArray = Array.isArray(value) ? value.map(String) : (value ? [String(value)] : [])
+      
+      // Deseleccionar todas las opciones primero
+      Array.from(select.options).forEach(option => {
+        option.selected = false
+      })
+      
+      // Seleccionar las opciones que están en el array de valores
+      valueArray.forEach(val => {
+        const option = Array.from(select.options).find(opt => opt.value === val)
+        if (option) {
+          option.selected = true
+        }
+      })
+    }
+  }, [value, multiple, options])
 
   const fetchOptions = async () => {
     try {
@@ -100,15 +122,16 @@ const RelationSelector = memo(function RelationSelector({
       ) : (
         <>
           <FormSelect
+            ref={selectRef}
             value={multiple ? undefined : (value as string || '')}
             onChange={handleSelectChange}
             multiple={multiple}
             required={required}
             {...(multiple ? { style: { minHeight: '120px' } } : {})}
           >
-            <option value="">Add or create a relation</option>
+            {!multiple && <option value="">Add or create a relation</option>}
             {options.map((option: any) => {
-              const optionId = option.documentId || option.id
+              const optionId = String(option.documentId || option.id)
               const displayText = getDisplayValue(option)
               return (
                 <option key={optionId} value={optionId}>
