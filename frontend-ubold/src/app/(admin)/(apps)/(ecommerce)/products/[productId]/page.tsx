@@ -128,7 +128,7 @@ export default function Page() {
   if (loading) {
     return (
       <Container fluid>
-        <PageBreadcrumb title="Product Details" subtitle="Ecommerce" />
+        <PageBreadcrumb title="Detalles del Producto" subtitle="Ecommerce" />
         <div className="text-center p-5">
           <Spinner animation="border" variant="primary" />
           <p className="mt-3 text-muted">Cargando producto...</p>
@@ -140,7 +140,7 @@ export default function Page() {
   if (error || !producto) {
     return (
       <Container fluid>
-        <PageBreadcrumb title="Product Details" subtitle="Ecommerce" />
+        <PageBreadcrumb title="Detalles del Producto" subtitle="Ecommerce" />
         <Alert variant="danger">
           <div>
             <strong>Error:</strong> {error || 'Producto no encontrado'}
@@ -167,7 +167,7 @@ export default function Page() {
 
   return (
     <Container fluid>
-      <PageBreadcrumb title="Product Details" subtitle="Ecommerce" />
+      <PageBreadcrumb title="Detalles del Producto" subtitle="Ecommerce" />
 
       <Row>
         <Col xs={12}>
