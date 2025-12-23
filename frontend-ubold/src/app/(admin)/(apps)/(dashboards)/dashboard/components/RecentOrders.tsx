@@ -19,7 +19,7 @@ import TablePagination from '@/components/table/TablePagination'
 import type { DashboardOrder } from '../lib/getDashboardData'
 
 // Tipo compatible con OrderType pero usando DashboardOrder
-type OrderType = DashboardOrder & {
+type OrderType = Omit<DashboardOrder, 'userImage'> & {
   userImage?: string | { src: string }
 }
 import {
@@ -36,9 +36,15 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<OrderType>()
 
-// Type guard para verificar si userImage es un objeto con src
-function isImageObject(image: string | { src: string } | undefined): image is { src: string } {
-  return typeof image === 'object' && image !== null && 'src' in image
+// Helper para obtener la URL de la imagen del usuario
+function getUserImageSrc(userImage: string | { src: string } | undefined, userName: string): string {
+  if (userImage) {
+    if (typeof userImage === 'string') return userImage
+    if (typeof userImage === 'object' && userImage !== null && 'src' in userImage) {
+      return userImage.src
+    }
+  }
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&size=128`
 }
 
 interface RecentOrdersProps {
@@ -52,15 +58,7 @@ const RecentOrders = ({ orders: propsOrders }: RecentOrdersProps) => {
   const columns = [
     columnHelper.accessor('userName', {
       cell: ({ row }) => {
-        let imageSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(row.original.userName)}&background=random&size=128`
-        const userImage = row.original.userImage
-        if (userImage) {
-          if (typeof userImage === 'string') {
-            imageSrc = userImage
-          } else if (isImageObject(userImage)) {
-            imageSrc = userImage.src
-          }
-        }
+        const imageSrc = getUserImageSrc(row.original.userImage, row.original.userName)
         return (
           <div className="d-flex align-items-center">
             <Image src={imageSrc} className="avatar-sm rounded-circle me-2" alt={row.original.userName} />

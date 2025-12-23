@@ -20,7 +20,7 @@ import TablePagination from '@/components/table/TablePagination'
 import type { DashboardProduct } from '../lib/getDashboardData'
 
 // Tipo compatible con ProductType pero usando DashboardProduct
-type ProductType = DashboardProduct & {
+type ProductType = Omit<DashboardProduct, 'image'> & {
   image?: string | { src: string }
 }
 import {
@@ -37,9 +37,14 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<ProductType>()
 
-// Type guard para verificar si image es un objeto con src
-function isImageObject(image: string | { src: string } | undefined): image is { src: string } {
-  return typeof image === 'object' && image !== null && 'src' in image
+// Helper para obtener la URL de la imagen
+function getImageSrc(image: string | { src: string } | undefined): string {
+  if (!image) return '/images/placeholder-product.png'
+  if (typeof image === 'string') return image
+  if (typeof image === 'object' && image !== null && 'src' in image) {
+    return image.src
+  }
+  return '/images/placeholder-product.png'
 }
 
 interface ProductInventoryProps {
@@ -53,15 +58,7 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
   const columns = [
     columnHelper.accessor('name', {
       cell: ({ row }) => {
-        let imageSrc = '/images/placeholder-product.png'
-        const image = row.original.image
-        if (image) {
-          if (typeof image === 'string') {
-            imageSrc = image
-          } else if (isImageObject(image)) {
-            imageSrc = image.src
-          }
-        }
+        const imageSrc = getImageSrc(row.original.image)
         return (
           <div className="d-flex align-items-center">
             <Image src={imageSrc} className="avatar-sm rounded-circle me-2" alt={row.original.name} />
