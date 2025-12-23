@@ -345,17 +345,20 @@ export async function PUT(
     }
 
     // Estado de publicación - IMPORTANTE: Strapi espera valores con mayúscula inicial
-    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
+    // Puede venir en body.estado_publicacion o body.data.estado_publicacion
+    const estadoPublicacionInput = body.data?.estado_publicacion !== undefined ? body.data.estado_publicacion : body.estado_publicacion
+    
+    if (estadoPublicacionInput !== undefined && estadoPublicacionInput !== '') {
       // Normalizar a formato con mayúscula inicial para Strapi: "Publicado", "Pendiente", "Borrador"
       let estadoNormalizado: string
-      if (typeof body.estado_publicacion === 'string') {
-        const estadoLower = body.estado_publicacion.toLowerCase()
+      if (typeof estadoPublicacionInput === 'string') {
+        const estadoLower = estadoPublicacionInput.toLowerCase()
         estadoNormalizado = estadoLower === 'publicado' ? 'Publicado' :
                            estadoLower === 'pendiente' ? 'Pendiente' :
                            estadoLower === 'borrador' ? 'Borrador' :
-                           body.estado_publicacion // Si ya viene correcto, mantenerlo
+                           estadoPublicacionInput // Si ya viene correcto, mantenerlo
       } else {
-        estadoNormalizado = body.estado_publicacion
+        estadoNormalizado = estadoPublicacionInput
       }
       updateData.data.estado_publicacion = estadoNormalizado
       console.log('[API PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
