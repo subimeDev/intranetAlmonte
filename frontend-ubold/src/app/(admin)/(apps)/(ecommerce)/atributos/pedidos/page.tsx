@@ -78,7 +78,7 @@ export default async function Page() {
 
       <Row>
         <Col cols={12}>
-          <OrdersList pedidos={pedidos} error={error} />
+          <OrdersList pedidos={pedidos} error={error} basePath="/atributos/pedidos" />
         </Col>
       </Row>
     </Container>

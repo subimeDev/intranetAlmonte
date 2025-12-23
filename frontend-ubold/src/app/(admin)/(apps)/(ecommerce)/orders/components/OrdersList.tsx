@@ -121,6 +121,7 @@ const mapWooCommerceOrderToOrderType = (pedido: any): OrderType => {
 interface OrdersListProps {
   pedidos?: any[]
   error?: string | null
+  basePath?: string // Ruta base para los links de detalles (default: '/orders')
 }
 
 const columnHelper = createColumnHelper<OrderType>()
@@ -161,7 +162,7 @@ const dateRangeFilterFn: FilterFn<any> = (row, columnId, selectedRange) => {
   }
 }
 
-const OrdersList = ({ pedidos, error }: OrdersListProps = {}) => {
+const OrdersList = ({ pedidos, error, basePath = '/orders' }: OrdersListProps = {}) => {
   const columns = [
     {
       id: 'select',
@@ -192,7 +193,7 @@ const OrdersList = ({ pedidos, error }: OrdersListProps = {}) => {
         const displayNumber = row.original.id
         return (
           <h5 className="fs-sm mb-0 fw-medium">
-            <Link href={`/orders/${row.original.id}`} className="link-reset">
+            <Link href={`${basePath}/${row.original.id}`} className="link-reset">
               #{displayNumber}
             </Link>
           </h5>
@@ -271,7 +272,7 @@ const OrdersList = ({ pedidos, error }: OrdersListProps = {}) => {
       header: 'Acciones',
       cell: ({ row }: { row: TableRow<OrderType> }) => (
         <div className="d-flex gap-1">
-          <Link href={`/orders/${row.original.id}`}>
+          <Link href={`${basePath}/${row.original.id}`}>
             <Button variant="default" size="sm" className="btn-icon rounded-circle">
               <TbEye className="fs-lg" />
             </Button>
