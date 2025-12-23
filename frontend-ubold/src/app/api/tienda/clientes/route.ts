@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
         })),
         telefonos: personaData.telefonos && Array.isArray(personaData.telefonos) && personaData.telefonos.length > 0
           ? personaData.telefonos.map((t: any) => ({
-              numero: t.numero.trim(),
+              telefono: (t.telefono || t.numero || '').trim(),
               tipo: t.tipo || 'principal',
             }))
           : [],
