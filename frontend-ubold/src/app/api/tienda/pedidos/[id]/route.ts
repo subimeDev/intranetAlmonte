@@ -398,70 +398,109 @@ export async function PUT(
     // Actualizar en WooCommerce primero si tenemos el ID y no es "otros"
     let wooCommercePedido = null
     let wooCommercePedidoData: any = {}
-    if (wooId && originPlatform !== 'otros') {
+    
+    // CORRECCIÓN: Validar que wooId sea un número válido antes de intentar actualizar
+    const wooIdValido = wooId && !isNaN(Number(wooId)) && Number(wooId) > 0
+    
+    if (wooIdValido && originPlatform !== 'otros') {
       try {
         const wcClient = getWooCommerceClientForPlatform(originPlatform)
-        console.log('[API Pedidos PUT] 🛒 Actualizando pedido en WooCommerce:', wooId)
+        console.log('[API Pedidos PUT] 🛒 Actualizando pedido en WooCommerce:', wooId, { originPlatform })
         
-        wooCommercePedidoData = {}
+        // Verificar que el pedido existe en WooCommerce antes de intentar actualizarlo
+        try {
+          await wcClient.get<any>(`orders/${wooId}`)
+        } catch (checkError: any) {
+          // Si el pedido no existe en WooCommerce, no intentar actualizarlo
+          if (checkError.status === 404 || checkError.message?.includes('no encontrado') || checkError.message?.includes('no válido')) {
+            console.warn(`[API Pedidos PUT] ⚠️ Pedido ${wooId} no existe en WooCommerce (${originPlatform}), omitiendo actualización`)
+            wooId = null // Marcar como inválido para no intentar actualizar
+          } else {
+            throw checkError // Re-lanzar si es otro tipo de error
+          }
+        }
         
-        if (body.data.estado !== undefined) {
-          const estadoMapeado = mapWooStatus(body.data.estado)
-          console.log('[API Pedidos PUT] Mapeando estado:', { 
-            original: body.data.estado, 
-            mapeado: estadoMapeado 
-          })
-          wooCommercePedidoData.status = estadoMapeado
-        }
-        if (body.data.items !== undefined) {
-          wooCommercePedidoData.line_items = (body.data.items || []).map((item: any) => ({
-            product_id: item.producto_id || item.libro_id || null,
-            quantity: item.cantidad || 1,
-            name: item.nombre || '',
-            price: item.precio_unitario || 0,
-            sku: item.sku || '',
-          })).filter((item: any) => item.product_id)
-        }
-        if (body.data.billing !== undefined) {
-          wooCommercePedidoData.billing = body.data.billing
-        }
-        if (body.data.shipping !== undefined) {
-          wooCommercePedidoData.shipping = body.data.shipping
-        }
-        if (body.data.metodo_pago !== undefined) {
-          wooCommercePedidoData.payment_method = body.data.metodo_pago
-        }
-        if (body.data.metodo_pago_titulo !== undefined) {
-          wooCommercePedidoData.payment_method_title = body.data.metodo_pago_titulo
-        }
-        if (body.data.nota_cliente !== undefined) {
-          wooCommercePedidoData.customer_note = body.data.nota_cliente
-        }
-        if (body.data.total !== undefined) {
-          wooCommercePedidoData.total = String(body.data.total)
-        }
+        if (wooId) {
+          wooCommercePedidoData = {}
+          
+          if (body.data.estado !== undefined) {
+            const estadoMapeado = mapWooStatus(body.data.estado)
+            console.log('[API Pedidos PUT] Mapeando estado:', { 
+              original: body.data.estado, 
+              mapeado: estadoMapeado 
+            })
+            wooCommercePedidoData.status = estadoMapeado
+          }
+          if (body.data.items !== undefined) {
+            wooCommercePedidoData.line_items = (body.data.items || []).map((item: any) => ({
+              product_id: item.producto_id || item.libro_id || null,
+              quantity: item.cantidad || 1,
+              name: item.nombre || '',
+              price: item.precio_unitario || 0,
+              sku: item.sku || '',
+            })).filter((item: any) => item.product_id)
+          }
+          if (body.data.billing !== undefined) {
+            wooCommercePedidoData.billing = body.data.billing
+          }
+          if (body.data.shipping !== undefined) {
+            wooCommercePedidoData.shipping = body.data.shipping
+          }
+          if (body.data.metodo_pago !== undefined) {
+            wooCommercePedidoData.payment_method = body.data.metodo_pago
+          }
+          if (body.data.metodo_pago_titulo !== undefined) {
+            wooCommercePedidoData.payment_method_title = body.data.metodo_pago_titulo
+          }
+          if (body.data.nota_cliente !== undefined) {
+            wooCommercePedidoData.customer_note = body.data.nota_cliente
+          }
+          if (body.data.total !== undefined) {
+            wooCommercePedidoData.total = String(body.data.total)
+          }
 
-        wooCommercePedido = await wcClient.put<any>(
-          `orders/${wooId}`,
-          wooCommercePedidoData
-        )
-        console.log('[API Pedidos PUT] ✅ Pedido actualizado en WooCommerce')
-      } catch (wooError: any) {
-        console.error('[API Pedidos PUT] ⚠️ Error al actualizar en WooCommerce:', {
-          message: wooError.message,
-          status: wooError.status,
-          details: wooError.details,
-          estadoEnviado: wooCommercePedidoData?.status,
-          estadoOriginal: body.data.estado,
-        })
-        // Si el error es crítico (validación de estado), lanzarlo para que se muestre al usuario
-        if (wooError.message && (wooError.message.includes('status must be one of') || wooError.message.includes('estado must be one of'))) {
-          const estadoMapeado = mapWooStatus(body.data.estado)
-          throw new Error(`Error al actualizar el estado: El estado "${body.data.estado}" (mapeado a "${estadoMapeado}") no es válido en WooCommerce. Estados válidos: pending, processing, on-hold, completed, cancelled, refunded, failed`)
+          wooCommercePedido = await wcClient.put<any>(
+            `orders/${wooId}`,
+            wooCommercePedidoData
+          )
+          console.log('[API Pedidos PUT] ✅ Pedido actualizado en WooCommerce')
         }
-        // Para otros errores, lanzar el error para que se muestre al usuario
-        throw new Error(`Error al actualizar pedido en WooCommerce: ${wooError.message || 'Error desconocido'}`)
+      } catch (wooError: any) {
+        // Si el error es "ID no válido" o "no encontrado", no bloquear la actualización en Strapi
+        const esErrorIdInvalido = wooError.message?.includes('ID no válido') || 
+                                   wooError.message?.includes('no válido') ||
+                                   wooError.message?.includes('invalid_id') ||
+                                   wooError.details?.code === 'woocommerce_rest_shop_order_invalid_id' ||
+                                   wooError.status === 404
+        
+        if (esErrorIdInvalido) {
+          console.warn('[API Pedidos PUT] ⚠️ WooCommerce: ID no válido o pedido no encontrado, continuando con actualización en Strapi únicamente:', {
+            wooId,
+            originPlatform,
+            error: wooError.message
+          })
+          // No lanzar error, continuar con la actualización en Strapi
+          wooCommercePedido = null
+        } else {
+          console.error('[API Pedidos PUT] ⚠️ Error al actualizar en WooCommerce:', {
+            message: wooError.message,
+            status: wooError.status,
+            details: wooError.details,
+            estadoEnviado: wooCommercePedidoData?.status,
+            estadoOriginal: body.data.estado,
+          })
+          // Si el error es crítico (validación de estado), lanzarlo para que se muestre al usuario
+          if (wooError.message && (wooError.message.includes('status must be one of') || wooError.message.includes('estado must be one of'))) {
+            const estadoMapeado = mapWooStatus(body.data.estado)
+            throw new Error(`Error al actualizar el estado: El estado "${body.data.estado}" (mapeado a "${estadoMapeado}") no es válido en WooCommerce. Estados válidos: pending, processing, on-hold, completed, cancelled, refunded, failed`)
+          }
+          // Para otros errores, solo registrar warning y continuar con Strapi
+          console.warn('[API Pedidos PUT] ⚠️ Error en WooCommerce no crítico, continuando con actualización en Strapi')
+          wooCommercePedido = null
+        }
       }
+    } else if (wooId && !wooIdValido) {
+      console.warn(`[API Pedidos PUT] ⚠️ wooId inválido (${wooId}), omitiendo actualización en WooCommerce`)
     }
 
     // Actualizar en Strapi usando documentId si está disponible
