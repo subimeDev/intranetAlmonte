@@ -278,6 +278,10 @@ export const horizontalMenuItems: MenuItemType[] = [
           { key: 'all-categories', label: 'Todas las Categorías', url: '/products/categorias' },
           { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
           { key: 'categoria-requests', label: 'Solicitudes de Categorías', url: '/products/categorias/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+          {
+            key: 'atributos',
+            label: 'Atributos',
+            children: [
               { key: 'all-autores', label: 'Todos los Autores', url: '/products/atributos/autores' },
               { key: 'add-autor', label: 'Agregar Autor', url: '/products/atributos/autores/agregar' },
               { key: 'autor-requests', label: 'Solicitudes de Autores', url: '/products/atributos/autores/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
