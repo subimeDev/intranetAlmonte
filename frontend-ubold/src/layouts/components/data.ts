@@ -174,7 +174,7 @@ export const menuItems: MenuItemType[] = [
           { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
         ],
       },
-      { key: 'customers', label: 'Clientes', url: '/customers' },
+      // { key: 'customers', label: 'Clientes', url: '/customers' },
       { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
       {
         key: 'cupones',
@@ -317,7 +317,7 @@ export const horizontalMenuItems: MenuItemType[] = [
               { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
             ],
           },
-          { key: 'customers', label: 'Clientes', url: '/customers' },
+          // { key: 'customers', label: 'Clientes', url: '/customers' },
           { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
           {
             key: 'cupones',
