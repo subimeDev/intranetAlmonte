@@ -38,12 +38,15 @@ export default async function Page() {
         const attrs = pedido.attributes || {}
         const pedidoData = (attrs && Object.keys(attrs).length > 0) ? attrs : pedido
         
+        // Obtener documentId o id de Strapi (necesario para la URL)
+        const documentId = pedido.documentId || pedido.id || pedidoData.documentId || pedidoData.id
+        
         // Mapear estado de Strapi (inglés) a formato WooCommerce
         const estado = pedidoData.estado || 'pending'
         
         return {
-          id: pedidoData.wooId || pedidoData.numero_pedido || pedido.id,
-          number: pedidoData.numero_pedido || pedidoData.wooId || pedido.id,
+          id: documentId, // Usar documentId de Strapi para el link (necesario para la API)
+          number: pedidoData.numero_pedido || pedidoData.wooId || documentId,
           date_created: pedidoData.fecha_pedido || new Date().toISOString(),
           status: estado, // Estados en inglés: pending, processing, completed, cancelled, etc.
           total: String(pedidoData.total || 0),

@@ -149,11 +149,72 @@ export async function GET(
       esNumerico: !isNaN(parseInt(id)),
     })
     
-    // PASO 1: Intentar con filtro si es numérico
+    // PASO 1: Intentar con filtro por documentId primero (más común)
+    try {
+      const filteredResponse = await strapiClient.get<any>(
+        `/api/wo-pedidos?filters[documentId][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+      )
+      
+      let pedido: any
+      if (Array.isArray(filteredResponse)) {
+        pedido = filteredResponse[0]
+      } else if (filteredResponse.data && Array.isArray(filteredResponse.data)) {
+        pedido = filteredResponse.data[0]
+      } else if (filteredResponse.data) {
+        pedido = filteredResponse.data
+      } else {
+        pedido = filteredResponse
+      }
+      
+      if (pedido && (pedido.id || pedido.documentId)) {
+        console.log('[API /tienda/pedidos/[id] GET] ✅ Pedido encontrado con filtro por documentId')
+        return NextResponse.json({
+          success: true,
+          data: pedido
+        }, { status: 200 })
+      }
+    } catch (filterError: any) {
+      // Si el error es 500, puede ser que el campo documentId no exista en el filtro, continuar con otros métodos
+      if (filterError.status !== 500) {
+        console.warn('[API /tienda/pedidos/[id] GET] ⚠️ Error al obtener con filtro por documentId:', filterError.message)
+      }
+    }
+    
+    // PASO 1b: Intentar con filtro por numero_pedido si es numérico o string
+    try {
+      const filteredResponse = await strapiClient.get<any>(
+        `/api/wo-pedidos?filters[numero_pedido][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+      )
+      
+      let pedido: any
+      if (Array.isArray(filteredResponse)) {
+        pedido = filteredResponse[0]
+      } else if (filteredResponse.data && Array.isArray(filteredResponse.data)) {
+        pedido = filteredResponse.data[0]
+      } else if (filteredResponse.data) {
+        pedido = filteredResponse.data
+      } else {
+        pedido = filteredResponse
+      }
+      
+      if (pedido && (pedido.id || pedido.documentId)) {
+        console.log('[API /tienda/pedidos/[id] GET] ✅ Pedido encontrado con filtro por numero_pedido')
+        return NextResponse.json({
+          success: true,
+          data: pedido
+        }, { status: 200 })
+      }
+    } catch (filterError: any) {
+      if (filterError.status !== 500) {
+        console.warn('[API /tienda/pedidos/[id] GET] ⚠️ Error al obtener con filtro por numero_pedido:', filterError.message)
+      }
+    }
+    
+    // PASO 1c: Intentar con filtro por wooId si es numérico
     if (!isNaN(parseInt(id))) {
       try {
         const filteredResponse = await strapiClient.get<any>(
-          `/api/wo-pedidos?filters[id][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+          `/api/wo-pedidos?filters[wooId][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
         )
         
         let pedido: any
@@ -168,14 +229,16 @@ export async function GET(
         }
         
         if (pedido && (pedido.id || pedido.documentId)) {
-          console.log('[API /tienda/pedidos/[id] GET] ✅ Pedido encontrado con filtro')
+          console.log('[API /tienda/pedidos/[id] GET] ✅ Pedido encontrado con filtro por wooId')
           return NextResponse.json({
             success: true,
             data: pedido
           }, { status: 200 })
         }
       } catch (filterError: any) {
-        console.warn('[API /tienda/pedidos/[id] GET] ⚠️ Error al obtener con filtro:', filterError.message)
+        if (filterError.status !== 500) {
+          console.warn('[API /tienda/pedidos/[id] GET] ⚠️ Error al obtener con filtro por wooId:', filterError.message)
+        }
       }
     }
     
@@ -202,13 +265,22 @@ export async function GET(
         
         const pId = pedidoReal.id?.toString() || p.id?.toString()
         const pDocId = pedidoReal.documentId?.toString() || p.documentId?.toString()
+        const pWooId = pedidoReal.wooId?.toString() || pedidoReal.woo_id?.toString()
+        const pNumeroPedido = pedidoReal.numero_pedido?.toString() || pedidoReal.numeroPedido?.toString()
         const idStr = id.toString()
         const idNum = parseInt(idStr)
         
         return (
           pId === idStr ||
           pDocId === idStr ||
-          (!isNaN(idNum) && (pedidoReal.id === idNum || p.id === idNum))
+          pWooId === idStr ||
+          pNumeroPedido === idStr ||
+          (!isNaN(idNum) && (
+            pedidoReal.id === idNum || 
+            p.id === idNum ||
+            pedidoReal.wooId === idNum ||
+            parseInt(pNumeroPedido || '0') === idNum
+          ))
         )
       })
       
