@@ -58,7 +58,17 @@ function mapMetodoPago(paymentMethod: string): string {
 
 // Función para buscar un pedido por número en WooCommerce
 async function buscarPedidoEnWooCommerce(orderNumber: string, platform: 'woo_moraleja' | 'woo_escolar') {
-  const wcClient = createWooCommerceClient(platform)
+  let wcClient
+  try {
+    wcClient = createWooCommerceClient(platform)
+  } catch (credentialError: any) {
+    // Si las credenciales no están configuradas, retornar null con mensaje específico
+    if (credentialError.message && credentialError.message.includes('credentials')) {
+      console.error(`[Sync Specific] ⚠️ Credenciales de WooCommerce no configuradas para ${platform}`)
+      return null
+    }
+    throw credentialError
+  }
   
   try {
     // MÉTODO 1: Intentar buscar directamente por ID si el número es numérico
@@ -238,11 +248,23 @@ async function sincronizarPedidoEspecifico(orderNumber: string, platform: 'woo_m
       // Continuar con el error normal
     }
     
+    // Verificar si las credenciales están configuradas
+    const { getWooCommerceCredentials } = await import('@/lib/woocommerce/config')
+    const credentials = getWooCommerceCredentials(platform)
+    const hasCredentials = credentials.key && credentials.secret
+    
+    let errorMessage = `Pedido #${orderNumber} no encontrado en WooCommerce ${platform}.`
+    if (!hasCredentials) {
+      errorMessage += ` ⚠️ Las credenciales de WooCommerce para ${platform} no están configuradas.`
+    } else {
+      errorMessage += ` Verifique que el pedido existe en el panel de WooCommerce y que el número es correcto.`
+    }
+    
     return {
       success: false,
       orderNumber,
       platform,
-      error: `Pedido #${orderNumber} no encontrado en WooCommerce ${platform}. Verifique que el pedido existe en el panel de WooCommerce y que el número es correcto.`,
+      error: errorMessage,
     }
   }
   
