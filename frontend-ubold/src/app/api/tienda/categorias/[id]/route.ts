@@ -183,9 +183,11 @@ export async function DELETE(
     // Encontrar el endpoint correcto
     const categoriaEndpoint = await findCategoriaEndpoint()
     
-    // Primero obtener la categoría de Strapi para obtener el documentId y woocommerce_id
-    let woocommerceId: string | null = null
+    // Primero obtener la categoría de Strapi para verificar estado_publicacion
+    let categoriaStrapi: any = null
     let documentId: string | null = null
+    let estadoPublicacion: string | null = null
+    
     try {
       const categoriaResponse = await strapiClient.get<any>(`${categoriaEndpoint}?filters[id][$eq]=${id}&populate=*`)
       let categorias: any[] = []
@@ -196,24 +198,44 @@ export async function DELETE(
       } else if (categoriaResponse.data) {
         categorias = [categoriaResponse.data]
       }
-      const categoriaStrapi = categorias[0]
-      documentId = categoriaStrapi?.documentId || categoriaStrapi?.data?.documentId || id
+      categoriaStrapi = categorias[0]
+      
+      if (categoriaStrapi) {
+        const attrs = categoriaStrapi.attributes || {}
+        const data = (attrs && Object.keys(attrs).length > 0) ? attrs : categoriaStrapi
+        estadoPublicacion = data.estado_publicacion || data.estadoPublicacion || null
+        documentId = categoriaStrapi.documentId || categoriaStrapi.data?.documentId || id
+        
+        console.log('[API Categorias DELETE] Estado de publicación:', estadoPublicacion)
+        
+        // Normalizar estado a minúsculas para comparación
+        if (estadoPublicacion) {
+          estadoPublicacion = estadoPublicacion.toLowerCase()
+        }
+      }
     } catch (error: any) {
       console.warn('[API Categorias DELETE] ⚠️ No se pudo obtener categoría de Strapi:', error.message)
       documentId = id
     }
 
     // Eliminar en Strapi
-    // La eliminación en WordPress se maneja automáticamente en los lifecycles de Strapi
+    // El lifecycle de Strapi verifica estado_publicacion y solo elimina de WooCommerce si estaba "publicado"
     const endpoint = `${categoriaEndpoint}/${id}`
     console.log('[API Categorias DELETE] Usando endpoint Strapi:', endpoint)
 
     const response = await strapiClient.delete<any>(endpoint)
-    console.log('[API Categorias DELETE] ✅ Categoría eliminada en Strapi')
+    
+    if (estadoPublicacion === 'publicado') {
+      console.log('[API Categorias DELETE] ✅ Categoría eliminada en Strapi. El lifecycle eliminará de WooCommerce si estaba publicado.')
+    } else {
+      console.log('[API Categorias DELETE] ✅ Categoría eliminada en Strapi (solo Strapi, no estaba publicada en WooCommerce)')
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Categoría eliminada exitosamente en Strapi',
+      message: estadoPublicacion === 'publicado' 
+        ? 'Categoría eliminada exitosamente en Strapi. El lifecycle eliminará de WooCommerce.' 
+        : 'Categoría eliminada exitosamente en Strapi',
       data: response
     })
 
