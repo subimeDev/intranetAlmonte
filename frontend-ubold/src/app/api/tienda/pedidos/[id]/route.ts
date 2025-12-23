@@ -395,7 +395,8 @@ export async function PUT(
       data: {}
     }
 
-    if (body.data.numero_pedido !== undefined) pedidoData.data.numero_pedido = body.data.numero_pedido.trim()
+    // Solo agregar campos que realmente se están actualizando (que están en body.data)
+    if (body.data.numero_pedido !== undefined) pedidoData.data.numero_pedido = body.data.numero_pedido?.toString().trim() || null
     if (body.data.fecha_pedido !== undefined) pedidoData.data.fecha_pedido = body.data.fecha_pedido || null
     // Mapear estado de español a inglés antes de enviar a Strapi (Strapi espera valores en inglés de WooCommerce)
     if (body.data.estado !== undefined) {
@@ -406,11 +407,11 @@ export async function PUT(
         mapeado: estadoMapeadoParaStrapi 
       })
     }
-    if (body.data.total !== undefined) pedidoData.data.total = body.data.total ? parseFloat(body.data.total) : null
-    if (body.data.subtotal !== undefined) pedidoData.data.subtotal = body.data.subtotal ? parseFloat(body.data.subtotal) : null
-    if (body.data.impuestos !== undefined) pedidoData.data.impuestos = body.data.impuestos ? parseFloat(body.data.impuestos) : null
-    if (body.data.envio !== undefined) pedidoData.data.envio = body.data.envio ? parseFloat(body.data.envio) : null
-    if (body.data.descuento !== undefined) pedidoData.data.descuento = body.data.descuento ? parseFloat(body.data.descuento) : null
+    if (body.data.total !== undefined) pedidoData.data.total = body.data.total != null ? parseFloat(String(body.data.total)) : null
+    if (body.data.subtotal !== undefined) pedidoData.data.subtotal = body.data.subtotal != null ? parseFloat(String(body.data.subtotal)) : null
+    if (body.data.impuestos !== undefined) pedidoData.data.impuestos = body.data.impuestos != null ? parseFloat(String(body.data.impuestos)) : null
+    if (body.data.envio !== undefined) pedidoData.data.envio = body.data.envio != null ? parseFloat(String(body.data.envio)) : null
+    if (body.data.descuento !== undefined) pedidoData.data.descuento = body.data.descuento != null ? parseFloat(String(body.data.descuento)) : null
     if (body.data.moneda !== undefined) pedidoData.data.moneda = body.data.moneda || null
     if (body.data.origen !== undefined) pedidoData.data.origen = body.data.origen || null
     if (body.data.cliente !== undefined) pedidoData.data.cliente = body.data.cliente || null
@@ -422,6 +423,7 @@ export async function PUT(
     if (body.data.nota_cliente !== undefined) pedidoData.data.nota_cliente = body.data.nota_cliente || null
     
     // Actualizar campos usando camelCase como en el schema de Strapi
+    // Solo actualizar estos campos si se actualizó en WooCommerce
     if (wooCommercePedido) {
       pedidoData.data.wooId = wooCommercePedido.id
       pedidoData.data.rawWooData = wooCommercePedido
@@ -434,14 +436,65 @@ export async function PUT(
       }
     }
     
-    // Actualizar originPlatform si se proporcionó
-    const platformToSave = body.data.originPlatform || body.data.origin_platform || originPlatform
-    if (platformToSave) {
-      pedidoData.data.originPlatform = platformToSave
+    // Solo actualizar originPlatform si se proporcionó explícitamente en body.data
+    // No usar el valor por defecto para evitar sobrescribir datos existentes
+    if (body.data.originPlatform !== undefined || body.data.origin_platform !== undefined) {
+      const platformToSave = body.data.originPlatform || body.data.origin_platform
+      if (platformToSave) {
+        pedidoData.data.originPlatform = platformToSave
+      }
     }
+    
+    // Verificar que hay datos para actualizar
+    if (Object.keys(pedidoData.data).length === 0) {
+      console.warn('[API Pedidos PUT] ⚠️ No hay campos para actualizar en Strapi')
+      return NextResponse.json({
+        success: true,
+        message: 'No hay campos para actualizar',
+        data: { woocommerce: wooCommercePedido }
+      })
+    }
+    
+    // Log de depuración antes de enviar
+    console.log('[API Pedidos PUT] Datos a enviar a Strapi:', JSON.stringify(pedidoData, null, 2))
 
-    const strapiResponse = await strapiClient.put<any>(strapiEndpoint, pedidoData)
-    console.log('[API Pedidos PUT] ✅ Pedido actualizado en Strapi')
+    try {
+      const strapiResponse = await strapiClient.put<any>(strapiEndpoint, pedidoData)
+      console.log('[API Pedidos PUT] ✅ Pedido actualizado en Strapi')
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          woocommerce: wooCommercePedido,
+          strapi: strapiResponse.data || strapiResponse,
+        },
+        message: 'Pedido actualizado exitosamente' + (wooCommercePedido ? ' en WooCommerce y Strapi' : ' en Strapi')
+      })
+    } catch (strapiError: any) {
+      console.error('[API Pedidos PUT] ❌ Error al actualizar en Strapi:', {
+        message: strapiError.message,
+        status: strapiError.status,
+        details: strapiError.details,
+        endpoint: strapiEndpoint,
+        dataEnviada: pedidoData
+      })
+      
+      // Si WooCommerce se actualizó pero Strapi falló, aún retornar éxito parcial
+      if (wooCommercePedido) {
+        console.warn('[API Pedidos PUT] ⚠️ WooCommerce actualizado pero Strapi falló')
+        return NextResponse.json({
+          success: true,
+          warning: 'Pedido actualizado en WooCommerce pero falló en Strapi',
+          data: {
+            woocommerce: wooCommercePedido,
+            strapiError: strapiError.message
+          }
+        }, { status: 207 }) // 207 Multi-Status
+      }
+      
+      // Si ambos fallaron, lanzar el error
+      throw strapiError
+    }
 
     return NextResponse.json({
       success: true,
