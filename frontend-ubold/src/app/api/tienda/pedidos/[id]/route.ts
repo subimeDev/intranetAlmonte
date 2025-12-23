@@ -27,33 +27,44 @@ function mapEstado(wooStatus: string): string {
   return mapping[wooStatus.toLowerCase()] || 'pendiente'
 }
 
-// Función helper para mapear estado de Strapi a estado de WooCommerce
+// Función helper para mapear estado de español (frontend) a inglés (Strapi/WooCommerce)
 function mapWooStatus(strapiStatus: string): string {
-  const statusLower = strapiStatus.toLowerCase().trim()
+  if (!strapiStatus) {
+    console.warn('[mapWooStatus] Estado vacío, usando pending por defecto')
+    return 'pending'
+  }
+  
+  const statusLower = String(strapiStatus).toLowerCase().trim()
   const mapping: Record<string, string> = {
+    // Estados en español (del frontend)
     'pendiente': 'pending',
     'procesando': 'processing',
     'en_espera': 'on-hold',
+    'en espera': 'on-hold', // Variante con espacio
     'completado': 'completed',
     'cancelado': 'cancelled',
     'reembolsado': 'refunded',
     'fallido': 'failed',
-    // También aceptar estados en inglés directamente (por si acaso)
+    // Estados en inglés (ya están en el formato correcto)
     'pending': 'pending',
     'processing': 'processing',
     'on-hold': 'on-hold',
+    'onhold': 'on-hold', // Variante sin guión
     'completed': 'completed',
     'cancelled': 'cancelled',
     'refunded': 'refunded',
     'failed': 'failed',
+    'auto-draft': 'auto-draft',
+    'checkout-draft': 'checkout-draft',
   }
   
   const mapeado = mapping[statusLower]
   if (!mapeado) {
-    console.warn('[mapWooStatus] Estado no reconocido:', strapiStatus, 'usando pending por defecto')
+    console.warn('[mapWooStatus] ⚠️ Estado no reconocido:', strapiStatus, '(normalizado:', statusLower, ')', 'usando pending por defecto')
     return 'pending'
   }
   
+  console.log('[mapWooStatus] ✅ Mapeo:', strapiStatus, '->', mapeado)
   return mapeado
 }
 
@@ -401,12 +412,11 @@ export async function PUT(
     // Strapi espera valores en inglés (pending, processing, on-hold, completed, cancelled, refunded, failed, auto-draft, checkout-draft)
     // El frontend envía el estado en español, así que lo mapeamos a inglés
     if (body.data.estado !== undefined) {
-      const estadoMapeadoParaStrapi = mapWooStatus(body.data.estado)
-      pedidoData.data.estado = estadoMapeadoParaStrapi || null
-      console.log('[API Pedidos PUT] Mapeando estado para Strapi:', { 
-        original: body.data.estado, 
-        mapeado: estadoMapeadoParaStrapi 
-      })
+      console.log('[API Pedidos PUT] 🔍 Estado recibido del frontend:', body.data.estado, typeof body.data.estado)
+      const estadoMapeadoParaStrapi = mapWooStatus(String(body.data.estado))
+      console.log('[API Pedidos PUT] ✅ Estado mapeado para Strapi:', estadoMapeadoParaStrapi)
+      pedidoData.data.estado = estadoMapeadoParaStrapi || 'pending'
+      console.log('[API Pedidos PUT] 📤 Estado que se enviará a Strapi:', pedidoData.data.estado)
     }
     if (body.data.total !== undefined) pedidoData.data.total = body.data.total != null ? parseFloat(String(body.data.total)) : null
     if (body.data.subtotal !== undefined) pedidoData.data.subtotal = body.data.subtotal != null ? parseFloat(String(body.data.subtotal)) : null
