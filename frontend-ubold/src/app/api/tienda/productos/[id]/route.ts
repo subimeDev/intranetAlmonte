@@ -344,12 +344,19 @@ export async function PUT(
       updateData.data.estado_edicion = body.estado_edicion
     }
 
-    // Estado de publicación - IMPORTANTE: Strapi espera valores en minúsculas
+    // Estado de publicación - IMPORTANTE: Strapi espera valores con mayúscula inicial
     if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
-      // Normalizar a minúsculas para Strapi: "pendiente", "publicado", "borrador"
-      const estadoNormalizado = typeof body.estado_publicacion === 'string' 
-        ? body.estado_publicacion.toLowerCase() 
-        : body.estado_publicacion
+      // Normalizar a formato con mayúscula inicial para Strapi: "Publicado", "Pendiente", "Borrador"
+      let estadoNormalizado: string
+      if (typeof body.estado_publicacion === 'string') {
+        const estadoLower = body.estado_publicacion.toLowerCase()
+        estadoNormalizado = estadoLower === 'publicado' ? 'Publicado' :
+                           estadoLower === 'pendiente' ? 'Pendiente' :
+                           estadoLower === 'borrador' ? 'Borrador' :
+                           body.estado_publicacion // Si ya viene correcto, mantenerlo
+      } else {
+        estadoNormalizado = body.estado_publicacion
+      }
       updateData.data.estado_publicacion = estadoNormalizado
       console.log('[API PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
     }

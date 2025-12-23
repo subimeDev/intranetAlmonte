@@ -130,13 +130,13 @@ export async function POST(request: NextRequest) {
 
     console.log('[API POST] 📚 ISBN a usar:', isbn)
 
-    // IMPORTANTE: Al crear, siempre se guarda con estado_publicacion = "pendiente" (minúscula)
+    // IMPORTANTE: Al crear, siempre se guarda con estado_publicacion = "Pendiente" (con mayúscula inicial como requiere el schema de Strapi)
     // El estado solo se puede cambiar desde la página de Solicitudes
-    // Solo se publica en WordPress si estado_publicacion === "publicado" (se maneja en lifecycles de Strapi)
-    const estadoPublicacion = 'pendiente'
+    // Solo se publica en WordPress si estado_publicacion === "Publicado" (se maneja en lifecycles de Strapi)
+    const estadoPublicacion = 'Pendiente'
     
-    console.log('[API POST] 📚 Estado de publicación:', estadoPublicacion, '(siempre pendiente al crear)')
-    console.log('[API POST] ⏸️ No se crea en WooCommerce al crear - se sincronizará cuando estado_publicacion = "publicado"')
+    console.log('[API POST] 📚 Estado de publicación:', estadoPublicacion, '(siempre Pendiente al crear)')
+    console.log('[API POST] ⏸️ No se crea en WooCommerce al crear - se sincronizará cuando estado_publicacion = "Publicado"')
 
     // Crear SOLO en Strapi (NO en WooCommerce al crear)
     console.log('[API POST] 📚 Creando producto en Strapi...')
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
         isbn_libro: isbn,
         descripcion: body.descripcion?.trim() || '',
         subtitulo_libro: body.subtitulo_libro?.trim() || '',
-        estado_publicacion: estadoPublicacion, // Siempre "pendiente" al crear (minúscula para Strapi)
+        estado_publicacion: estadoPublicacion, // Siempre "Pendiente" al crear (con mayúscula inicial como requiere Strapi)
         // NO incluir precio aquí - Strapi no tiene campo precio directo, usa relación precios
         // NO incluir stock_quantity aquí - Strapi no tiene campo stock_quantity directo, usa relación stocks
       }

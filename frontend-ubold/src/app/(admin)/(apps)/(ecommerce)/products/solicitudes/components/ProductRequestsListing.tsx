@@ -432,8 +432,12 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
       throw new Error('Producto no válido')
     }
 
-    // IMPORTANTE: Strapi espera valores en minúsculas: "pendiente", "publicado", "borrador"
-    const newStatusLower = newStatus.toLowerCase()
+    // IMPORTANTE: Strapi espera valores con mayúscula inicial: "Publicado", "Pendiente", "Borrador"
+    // Normalizar a formato con mayúscula inicial
+    const newStatusNormalized = newStatus === 'Publicado' ? 'Publicado' :
+                                newStatus === 'Pendiente' ? 'Pendiente' :
+                                newStatus === 'Borrador' ? 'Borrador' :
+                                newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase()
 
     try {
       const response = await fetch(`/api/tienda/productos/${selectedProduct.strapiId}`, {
@@ -443,7 +447,7 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
         },
         body: JSON.stringify({
           data: {
-            estado_publicacion: newStatusLower, // Enviar en minúsculas dentro de data
+            estado_publicacion: newStatusNormalized, // Enviar con mayúscula inicial dentro de data
           },
         }),
       })
@@ -453,10 +457,8 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
         throw new Error(error.error || 'Error al actualizar el estado')
       }
 
-      // Actualizar el estado local (capitalizar para mostrar)
-      const estadoMostrar = newStatusLower === 'publicado' ? 'Publicado' : 
-                           newStatusLower === 'borrador' ? 'Borrador' : 
-                           'Pendiente'
+      // Actualizar el estado local (ya viene con mayúscula inicial)
+      const estadoMostrar = newStatusNormalized
       setData((old) => old.map((p) => {
         if (p.strapiId === selectedProduct.strapiId) {
           return { ...p, estadoPublicacion: estadoMostrar as 'Publicado' | 'Pendiente' | 'Borrador' }
