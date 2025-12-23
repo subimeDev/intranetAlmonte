@@ -330,9 +330,10 @@ const ClientsListing = ({ clientes, error }: ClientsListingProps = {}) => {
   const handleDelete = async () => {
     if (!selectedCliente) return
 
-    const woocommerceId = selectedCliente.woocommerce_id
-    if (!woocommerceId) {
-      alert('No se puede eliminar: el cliente no tiene ID de WooCommerce')
+    // Usar email como identificador si no hay woocommerce_id (la API buscará por email)
+    const clienteIdentifier = selectedCliente.woocommerce_id || selectedCliente.correo_electronico
+    if (!clienteIdentifier) {
+      alert('No se puede eliminar: el cliente no tiene email ni ID de WooCommerce')
       setShowDeleteModal(false)
       setSelectedCliente(null)
       return
@@ -340,7 +341,12 @@ const ClientsListing = ({ clientes, error }: ClientsListingProps = {}) => {
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/woocommerce/customers/${woocommerceId}`, {
+      // Usar email como identificador si no es un ID numérico
+      const identifier = typeof clienteIdentifier === 'number' || (typeof clienteIdentifier === 'string' && !clienteIdentifier.includes('@'))
+        ? clienteIdentifier.toString()
+        : selectedCliente.correo_electronico
+      
+      const response = await fetch(`/api/woocommerce/customers/${identifier}`, {
         method: 'DELETE',
       })
 

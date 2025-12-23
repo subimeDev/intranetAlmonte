@@ -74,10 +74,10 @@ const EditClienteModal = ({ show, onHide, cliente, onSave }: EditClienteModalPro
         throw new Error('El correo electrónico no tiene un formato válido')
       }
 
-      // Obtener woocommerce_id del cliente
-      const woocommerceId = cliente?.woocommerce_id
-      if (!woocommerceId) {
-        throw new Error('No se puede editar: el cliente no tiene ID de WooCommerce')
+      // Usar email como identificador (la API buscará por email si no es un ID numérico)
+      const clienteIdentifier = cliente?.woocommerce_id || cliente?.correo_electronico || formData.email.trim()
+      if (!clienteIdentifier) {
+        throw new Error('No se puede editar: el cliente no tiene email ni ID de WooCommerce')
       }
 
       // Preparar datos para la API
@@ -94,8 +94,12 @@ const EditClienteModal = ({ show, onHide, cliente, onSave }: EditClienteModalPro
         }
       }
 
-      // Actualizar el cliente
-      const response = await fetch(`/api/woocommerce/customers/${woocommerceId}`, {
+      // Actualizar el cliente (usar email como identificador si no hay woocommerce_id)
+      const identifier = typeof clienteIdentifier === 'number' || typeof clienteIdentifier === 'string' && !clienteIdentifier.includes('@')
+        ? clienteIdentifier.toString()
+        : formData.email.trim()
+      
+      const response = await fetch(`/api/woocommerce/customers/${identifier}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
 /**
  * PUT /api/woocommerce/customers/[id]
  * Actualiza un cliente existente
+ * El [id] puede ser el ID de WooCommerce o un email
  */
 export async function PUT(
   request: NextRequest,
@@ -21,14 +22,55 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const customerId = parseInt(id)
     const body = await request.json()
 
-    if (isNaN(customerId)) {
+    // Si el ID es un email (contiene @), buscar el cliente por email primero
+    let customerId: number | null = null
+    if (id.includes('@')) {
+      // Es un email, buscar el cliente
+      try {
+        const customers = await wooCommerceClient.get<any[]>(`customers`, { email: id, per_page: 1 })
+        if (customers && Array.isArray(customers) && customers.length > 0) {
+          customerId = customers[0].id
+          console.log('[API PUT] Cliente encontrado por email:', id, 'ID:', customerId)
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Cliente no encontrado con ese email',
+            },
+            { status: 404 }
+          )
+        }
+      } catch (searchError: any) {
+        console.error('[API PUT] Error al buscar cliente por email:', searchError)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Error al buscar cliente por email: ' + (searchError.message || 'Error desconocido'),
+          },
+          { status: 500 }
+        )
+      }
+    } else {
+      // Es un ID numérico
+      customerId = parseInt(id)
+      if (isNaN(customerId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'ID de cliente inválido',
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (!customerId) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ID de cliente inválido',
+          error: 'No se pudo determinar el ID del cliente',
         },
         { status: 400 }
       )
@@ -271,6 +313,7 @@ export async function GET(
 /**
  * DELETE /api/woocommerce/customers/[id]
  * Elimina un cliente de WooCommerce y sincroniza con Strapi
+ * El [id] puede ser el ID de WooCommerce o un email
  */
 export async function DELETE(
   request: NextRequest,
@@ -278,13 +321,54 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const customerId = parseInt(id)
 
-    if (isNaN(customerId)) {
+    // Si el ID es un email (contiene @), buscar el cliente por email primero
+    let customerId: number | null = null
+    if (id.includes('@')) {
+      // Es un email, buscar el cliente
+      try {
+        const customers = await wooCommerceClient.get<any[]>(`customers`, { email: id, per_page: 1 })
+        if (customers && Array.isArray(customers) && customers.length > 0) {
+          customerId = customers[0].id
+          console.log('[API DELETE] Cliente encontrado por email:', id, 'ID:', customerId)
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Cliente no encontrado con ese email',
+            },
+            { status: 404 }
+          )
+        }
+      } catch (searchError: any) {
+        console.error('[API DELETE] Error al buscar cliente por email:', searchError)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Error al buscar cliente por email: ' + (searchError.message || 'Error desconocido'),
+          },
+          { status: 500 }
+        )
+      }
+    } else {
+      // Es un ID numérico
+      customerId = parseInt(id)
+      if (isNaN(customerId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'ID de cliente inválido',
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (!customerId) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ID de cliente inválido',
+          error: 'No se pudo determinar el ID del cliente',
         },
         { status: 400 }
       )
