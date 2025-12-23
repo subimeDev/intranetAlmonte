@@ -438,7 +438,25 @@ export async function PUT(
     if (body.data.moneda !== undefined) pedidoData.data.moneda = body.data.moneda || null
     if (body.data.origen !== undefined) pedidoData.data.origen = body.data.origen || null
     if (body.data.cliente !== undefined) pedidoData.data.cliente = body.data.cliente || null
-    if (body.data.items !== undefined) pedidoData.data.items = body.data.items || []
+    // IMPORTANTE: Solo actualizar items si se envían explícitamente Y tienen product_id válido
+    // Si solo estamos actualizando el estado, NO enviar items para evitar que el hook 
+    // afterUpdate de Strapi intente sincronizar con WooCommerce y falle
+    const soloActualizandoEstado = body.data.estado !== undefined && 
+      Object.keys(body.data).filter(k => k !== 'estado' && body.data[k] !== undefined).length === 0
+    
+    if (body.data.items !== undefined && !soloActualizandoEstado) {
+      // Validar que los items tengan product_id válido antes de enviarlos
+      const itemsValidos = Array.isArray(body.data.items) 
+        ? body.data.items.filter((item: any) => item.producto_id || item.product_id || item.libro_id)
+        : []
+      if (itemsValidos.length > 0 || body.data.items.length === 0) {
+        pedidoData.data.items = body.data.items
+      } else {
+        console.warn('[API Pedidos PUT] ⚠️ Items sin product_id válido, no se actualizarán los items')
+      }
+    } else if (soloActualizandoEstado) {
+      console.log('[API Pedidos PUT] ℹ️ Solo actualizando estado, no se enviarán items para evitar error en hook afterUpdate de Strapi')
+    }
     if (body.data.billing !== undefined) pedidoData.data.billing = body.data.billing || null
     if (body.data.shipping !== undefined) pedidoData.data.shipping = body.data.shipping || null
     if (body.data.metodo_pago !== undefined) pedidoData.data.metodo_pago = body.data.metodo_pago || null
