@@ -87,9 +87,12 @@ const OrderStatusEditor = ({ pedidoId, currentStatus }: OrderStatusEditorProps) 
       }
 
       setSuccess(true)
+      // Actualizar el estado actual para reflejar el cambio
+      setSelectedEstado(selectedEstado)
+      
       setTimeout(() => {
         router.refresh()
-      }, 1000)
+      }, 1500)
     } catch (err: any) {
       console.error('[OrderStatusEditor] Error al actualizar estado:', err)
       setError(err.message || 'Error al actualizar el estado')

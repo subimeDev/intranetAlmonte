@@ -140,16 +140,14 @@ export default async function Page({ params }: PageProps) {
       <PageBreadcrumb title={`Pedido #${pedido.number || pedido.id}`} subtitle="Ecommerce" />
 
       {/* Editor de Estado */}
-      {pedido._strapiData && (
-        <Row className="mb-3">
-          <Col>
-            <OrderStatusEditor 
-              pedidoId={pedido._strapiData.documentId || pedido._strapiData.id}
-              currentStatus={pedido._strapiData.estado}
-            />
-          </Col>
-        </Row>
-      )}
+      <Row className="mb-3">
+        <Col>
+          <OrderStatusEditor 
+            pedidoId={pedido._strapiData?.documentId || pedido._strapiData?.id || pedidoId}
+            currentStatus={pedido.status || pedido._strapiData?.estado || 'pending'}
+          />
+        </Col>
+      </Row>
 
       <Row className="justify-content-center">
         <Col xxl={12}>
