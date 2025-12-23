@@ -218,7 +218,7 @@ export async function PUT(
 
     const obraEndpoint = '/api/obras'
     
-    // Obtener la obra de Strapi para obtener el documentId
+    // Primero obtener la obra de Strapi para obtener el documentId (similar a categorías)
     let obraStrapi: any
     let documentId: string | null = null
     try {
@@ -235,19 +235,13 @@ export async function PUT(
       documentId = obraStrapi?.documentId || obraStrapi?.data?.documentId || id
     } catch (error: any) {
       console.warn('[API Obras PUT] ⚠️ No se pudo obtener obra de Strapi:', error.message)
-      documentId = id
+      documentId = id // Usar el id como fallback
     }
 
-    if (!obraStrapi) {
-      return NextResponse.json({
-        success: false,
-        error: 'Obra no encontrada'
-      }, { status: 404 })
-    }
-
-    // Actualizar en Strapi usando documentId si está disponible
-    const strapiEndpoint = documentId ? `${obraEndpoint}/${documentId}` : `${obraEndpoint}/${id}`
-    console.log('[API Obras PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
+    // Actualizar en Strapi
+    // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+    const endpoint = `${obraEndpoint}/${id}`
+    console.log('[API Obras PUT] Usando endpoint Strapi:', endpoint)
 
     // El schema de Strapi para obras usa: codigo_obra*, nombre_obra*, descripcion
     const obraData: any = {
@@ -275,7 +269,7 @@ export async function PUT(
       console.log('[API Obras PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
     }
 
-    const strapiResponse = await strapiClient.put<any>(strapiEndpoint, obraData)
+    const strapiResponse = await strapiClient.put<any>(endpoint, obraData)
     console.log('[API Obras PUT] ✅ Obra actualizada en Strapi')
 
     return NextResponse.json({
