@@ -54,10 +54,7 @@ export default async function Page({ params }: PageProps) {
     <Container fluid>
       <PageBreadcrumb 
         title="Editar Colaborador" 
-        items={[
-          { label: 'Colaboradores', path: '/colaboradores' },
-          { label: 'Editar', path: `/colaboradores/${id}` },
-        ]}
+        subtitle="Colaboradores"
       />
       <EditColaboradorForm colaborador={colaborador} error={error} />
     </Container>

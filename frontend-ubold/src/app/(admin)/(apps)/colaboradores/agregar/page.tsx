@@ -13,10 +13,7 @@ export default function Page() {
     <Container fluid>
       <PageBreadcrumb 
         title="Agregar Colaborador" 
-        items={[
-          { label: 'Colaboradores', path: '/colaboradores' },
-          { label: 'Agregar', path: '/colaboradores/agregar' },
-        ]}
+        subtitle="Colaboradores"
       />
       <AddColaboradorForm />
     </Container>
