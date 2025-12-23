@@ -160,6 +160,86 @@ export async function POST(request: NextRequest) {
       strapiProductData.data.portada_libro = typeof body.portada_libro === 'number' ? body.portada_libro : parseInt(body.portada_libro, 10)
     }
 
+    // === RELACIONES SIMPLES (documentId) ===
+    if (body.obra) strapiProductData.data.obra = body.obra
+    if (body.autor_relacion) strapiProductData.data.autor_relacion = body.autor_relacion
+    if (body.editorial) strapiProductData.data.editorial = body.editorial
+    if (body.sello) strapiProductData.data.sello = body.sello
+    if (body.coleccion) strapiProductData.data.coleccion = body.coleccion
+
+    // === RELACIONES MÚLTIPLES (array de documentIds) ===
+    // CRÍTICO: Los canales son necesarios para sincronizar con WordPress
+    if (body.canales && Array.isArray(body.canales) && body.canales.length > 0) {
+      strapiProductData.data.canales = body.canales
+      console.log('[API POST] 📡 Canales asignados:', body.canales)
+    } else {
+      console.warn('[API POST] ⚠️ No se asignaron canales. El producto no se sincronizará con WordPress hasta que se asignen canales.')
+    }
+    
+    if (body.marcas && Array.isArray(body.marcas) && body.marcas.length > 0) {
+      strapiProductData.data.marcas = body.marcas
+    }
+    if (body.etiquetas && Array.isArray(body.etiquetas) && body.etiquetas.length > 0) {
+      strapiProductData.data.etiquetas = body.etiquetas
+    }
+    if (body.categorias_producto && Array.isArray(body.categorias_producto) && body.categorias_producto.length > 0) {
+      strapiProductData.data.categorias_producto = body.categorias_producto
+    }
+
+    // === CAMPOS NUMÉRICOS ===
+    if (body.numero_edicion !== undefined && body.numero_edicion !== '') {
+      strapiProductData.data.numero_edicion = parseInt(body.numero_edicion)
+    }
+    if (body.agno_edicion !== undefined && body.agno_edicion !== '') {
+      strapiProductData.data.agno_edicion = parseInt(body.agno_edicion)
+    }
+
+    // === ENUMERACIONES ===
+    if (body.idioma && body.idioma !== '') {
+      strapiProductData.data.idioma = body.idioma
+    }
+    if (body.tipo_libro && body.tipo_libro !== '') {
+      strapiProductData.data.tipo_libro = body.tipo_libro
+    }
+    if (body.estado_edicion && body.estado_edicion !== '') {
+      strapiProductData.data.estado_edicion = body.estado_edicion
+    }
+
+    // === CAMPOS WOOCOMMERCE ===
+    if (body.precio !== undefined) {
+      strapiProductData.data.precio = parseFloat(body.precio) || 0
+    }
+    if (body.precio_regular !== undefined) {
+      strapiProductData.data.precio_regular = parseFloat(body.precio_regular) || 0
+    }
+    if (body.precio_oferta !== undefined) {
+      strapiProductData.data.precio_oferta = parseFloat(body.precio_oferta) || 0
+    }
+    if (body.stock_quantity !== undefined) {
+      strapiProductData.data.stock_quantity = parseInt(body.stock_quantity) || 0
+    }
+    if (body.manage_stock !== undefined) {
+      strapiProductData.data.manage_stock = body.manage_stock
+    }
+    if (body.stock_status) {
+      strapiProductData.data.stock_status = body.stock_status
+    }
+    if (body.weight !== undefined && body.weight !== '') {
+      strapiProductData.data.weight = parseFloat(body.weight) || 0
+    }
+    if (body.length !== undefined && body.length !== '') {
+      strapiProductData.data.length = parseFloat(body.length) || 0
+    }
+    if (body.width !== undefined && body.width !== '') {
+      strapiProductData.data.width = parseFloat(body.width) || 0
+    }
+    if (body.height !== undefined && body.height !== '') {
+      strapiProductData.data.height = parseFloat(body.height) || 0
+    }
+    if (body.featured !== undefined) {
+      strapiProductData.data.featured = body.featured
+    }
+
     // Usar Promise.race con timeout para evitar que se quede colgado
     const strapiPromise = strapiClient.post<any>('/api/libros', strapiProductData)
     const timeoutPromise = new Promise((_, reject) => 
