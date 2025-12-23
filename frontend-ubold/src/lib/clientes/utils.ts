@@ -240,12 +240,12 @@ export async function enviarClienteABothWordPress(
   const moralejaUrl = process.env.NEXT_PUBLIC_WOOCOMMERCE_URL_MORALEJA || ''
   
   // Credenciales para Librería Escolar
-  const escolarKey = process.env.WOOCOMMERCE_CONSUMER_KEY_ESCOLAR || process.env.WOOCOMMERCE_CONSUMER_KEY || ''
-  const escolarSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET_ESCOLAR || process.env.WOOCOMMERCE_CONSUMER_SECRET || ''
+  const escolarKey = process.env.WOO_ESCOLAR_CONSUMER_KEY || process.env.WOOCOMMERCE_CONSUMER_KEY || ''
+  const escolarSecret = process.env.WOO_ESCOLAR_CONSUMER_SECRET || process.env.WOOCOMMERCE_CONSUMER_SECRET || ''
   
   // Credenciales para Editorial Moraleja (DEBE tener credenciales específicas)
-  const moralejaKey = process.env.WOOCOMMERCE_CONSUMER_KEY_MORALEJA || ''
-  const moralejaSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET_MORALEJA || ''
+  const moralejaKey = process.env.WOO_MORALEJA_CONSUMER_KEY || ''
+  const moralejaSecret = process.env.WOO_MORALEJA_CONSUMER_SECRET || ''
   
   // Log para debugging
   console.log('[enviarClienteABothWordPress] Configuración:', {
@@ -266,8 +266,8 @@ export async function enviarClienteABothWordPress(
     console.error('[enviarClienteABothWordPress] ❌ Credenciales de Editorial Moraleja no configuradas')
     console.error('[enviarClienteABothWordPress] Variables requeridas:')
     console.error('  - NEXT_PUBLIC_WOOCOMMERCE_URL_MORALEJA')
-    console.error('  - WOOCOMMERCE_CONSUMER_KEY_MORALEJA')
-    console.error('  - WOOCOMMERCE_CONSUMER_SECRET_MORALEJA')
+    console.error('  - WOO_MORALEJA_CONSUMER_KEY')
+    console.error('  - WOO_MORALEJA_CONSUMER_SECRET')
   }
   
   // Enviar a ambos en paralelo (buscará por email y actualizará o creará según corresponda)
