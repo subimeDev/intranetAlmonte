@@ -334,7 +334,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar sello ${selloId}`)
+          console.warn(`Error al eliminar sello ${selloId}:`, response.status, response.statusText)
         }
       }
       
@@ -348,7 +348,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar sellos:', error)
-      alert('Error al eliminar los sellos seleccionados')
+      // No mostrar alert, solo log en consola
     }
   }
 
