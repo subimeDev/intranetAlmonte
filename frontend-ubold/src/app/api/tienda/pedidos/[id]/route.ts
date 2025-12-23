@@ -359,7 +359,7 @@ export async function DELETE(
         const directResponse = await strapiClient.get<any>(
           `${pedidoEndpoint}/${id}?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
         )
-        const pedidoStrapi = directResponse.data || directResponse
+        pedidoStrapi = directResponse.data || directResponse
         documentId = pedidoStrapi?.documentId || pedidoStrapi?.id || id
         const attrs = pedidoStrapi?.attributes || {}
         const data = (attrs && Object.keys(attrs).length > 0) ? attrs : pedidoStrapi
@@ -382,7 +382,7 @@ export async function DELETE(
         } else if (pedidoResponse.data) {
           pedidos = [pedidoResponse.data]
         }
-        const pedidoStrapi = pedidos[0]
+        pedidoStrapi = pedidos[0]
         if (pedidoStrapi) {
           documentId = pedidoStrapi?.documentId || pedidoStrapi?.id || id
           const attrs = pedidoStrapi?.attributes || {}
@@ -397,14 +397,6 @@ export async function DELETE(
     
     // Si aún no tenemos documentId, usar el id recibido
     if (!documentId) {
-      documentId = id
-      // Leer campos usando camelCase como en el schema de Strapi
-      const attrs = pedidoStrapi?.attributes || {}
-      const data = (attrs && Object.keys(attrs).length > 0) ? attrs : pedidoStrapi
-      wooId = data?.wooId || pedidoStrapi?.wooId || null
-      originPlatform = data?.originPlatform || pedidoStrapi?.originPlatform || 'woo_moraleja'
-    } catch (error: any) {
-      console.warn('[API Pedidos DELETE] ⚠️ No se pudo obtener pedido de Strapi:', error.message)
       documentId = id
     }
 
@@ -518,7 +510,10 @@ export async function PUT(
     // Si aún no tenemos documentId, usar el id recibido
     if (!documentId) {
       documentId = id
-      // Leer campos usando camelCase como en el schema de Strapi
+    }
+    
+    // Leer campos usando camelCase como en el schema de Strapi (si tenemos cuponStrapi)
+    if (cuponStrapi) {
       const attrs = cuponStrapi?.attributes || {}
       const data = (attrs && Object.keys(attrs).length > 0) ? attrs : cuponStrapi
       wooId = data?.wooId || cuponStrapi?.wooId || null
@@ -540,9 +535,6 @@ export async function PUT(
         final: originPlatform,
         wooId
       })
-    } catch (error: any) {
-      console.warn('[API Pedidos PUT] ⚠️ No se pudo obtener pedido de Strapi:', error.message)
-      documentId = id
     }
 
     // Validar originPlatform
