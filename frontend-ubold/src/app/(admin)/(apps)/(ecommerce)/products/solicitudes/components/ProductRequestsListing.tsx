@@ -442,7 +442,9 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          estado_publicacion: newStatusLower, // Enviar en minúsculas
+          data: {
+            estado_publicacion: newStatusLower, // Enviar en minúsculas dentro de data
+          },
         }),
       })
 

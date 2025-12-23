@@ -411,3 +411,100 @@ export async function PUT(
     }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    console.log('[API Productos DELETE] 🗑️ Eliminando producto:', id)
+
+    const productoEndpoint = '/api/libros'
+
+    // Primero obtener el producto de Strapi para verificar estado_publicacion
+    let productoStrapi: any = null
+    
+    try {
+      const productoResponse = await strapiClient.get<any>(`${productoEndpoint}?filters[id][$eq]=${id}&populate=*`)
+      let productos: any[] = []
+      if (Array.isArray(productoResponse)) {
+        productos = productoResponse
+      } else if (productoResponse.data && Array.isArray(productoResponse.data)) {
+        productos = productoResponse.data
+      } else if (productoResponse.data) {
+        productos = [productoResponse.data]
+      }
+      productoStrapi = productos[0]
+    } catch (error: any) {
+      // Si falla, intentar obtener todas y buscar
+      console.warn('[API Productos DELETE] ⚠️ No se pudo obtener producto de Strapi, intentando búsqueda alternativa:', error.message)
+      try {
+        const allResponse = await strapiClient.get<any>(`${productoEndpoint}?populate=*&pagination[pageSize]=1000`)
+        const allProductos = Array.isArray(allResponse) 
+          ? allResponse 
+          : (allResponse.data && Array.isArray(allResponse.data) ? allResponse.data : [])
+        
+        productoStrapi = allProductos.find((p: any) => 
+          p.id?.toString() === id || 
+          p.documentId === id ||
+          (p.attributes && (p.attributes.id?.toString() === id || p.attributes.documentId === id))
+        )
+      } catch (searchError: any) {
+        console.error('[API Productos DELETE] Error en búsqueda alternativa:', searchError.message)
+      }
+    }
+
+    if (!productoStrapi) {
+      return NextResponse.json({
+        success: false,
+        error: 'Producto no encontrado'
+      }, { status: 404 })
+    }
+
+    // Obtener estado_publicacion del producto
+    const attrs = productoStrapi.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (productoStrapi as any)
+    let estadoPublicacion = getField(data, 'estado_publicacion', 'estadoPublicacion', 'ESTADO_PUBLICACION') || ''
+    
+    // Normalizar estado a minúsculas para comparación
+    if (estadoPublicacion) {
+      estadoPublicacion = estadoPublicacion.toLowerCase()
+    }
+
+    // En Strapi v4, usar documentId (string) para eliminar, no el id numérico
+    const productoDocumentId = productoStrapi.documentId || productoStrapi.data?.documentId || productoStrapi.id?.toString() || id
+    console.log('[API Productos DELETE] Usando documentId para eliminar:', productoDocumentId)
+
+    await strapiClient.delete(`/api/libros/${productoDocumentId}`)
+    
+    if (estadoPublicacion === 'publicado') {
+      console.log('[API Productos DELETE] ✅ Producto eliminado en Strapi. El lifecycle eliminará de WooCommerce si estaba publicado.')
+    } else {
+      console.log('[API Productos DELETE] ✅ Producto eliminado en Strapi (solo Strapi, no estaba publicada en WooCommerce)')
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: estadoPublicacion === 'publicado' 
+        ? 'Producto eliminado exitosamente en Strapi. El lifecycle eliminará de WooCommerce.' 
+        : 'Producto eliminado exitosamente en Strapi'
+    })
+  } catch (error: any) {
+    console.error('[API Productos DELETE] ❌ Error:', error.message)
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error al eliminar el producto'
+    }, { status: 500 })
+  }
+}
+
+// Helper para obtener campo con múltiples variaciones
+function getField(obj: any, ...fieldNames: string[]): any {
+  for (const fieldName of fieldNames) {
+    if (obj[fieldName] !== undefined && obj[fieldName] !== null && obj[fieldName] !== '') {
+      return obj[fieldName]
+    }
+  }
+  return undefined
+}
