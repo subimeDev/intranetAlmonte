@@ -17,7 +17,12 @@ import { TbCircleFilled, TbDotsVertical, TbFileExport, TbPlus } from 'react-icon
 
 import Rating from '@/components/Rating'
 import TablePagination from '@/components/table/TablePagination'
-import { products, type ProductType } from '../data'
+import type { DashboardProduct } from '../lib/getDashboardData'
+
+// Tipo compatible con ProductType pero usando DashboardProduct
+type ProductType = DashboardProduct & {
+  image?: string | { src: string }
+}
 import {
   ColumnFiltersState,
   createColumnHelper,
@@ -32,22 +37,34 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<ProductType>()
 
-const ProductInventory = () => {
+interface ProductInventoryProps {
+  products?: ProductType[]
+}
+
+const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) => {
+  // Usar productos de props o datos estáticos como fallback
+  const defaultProducts: ProductType[] = []
+  const productsToUse = propsProducts && propsProducts.length > 0 ? propsProducts : defaultProducts
   const columns = [
     columnHelper.accessor('name', {
-      cell: ({ row }) => (
-        <div className="d-flex align-items-center">
-          <Image src={row.original.image.src} className="avatar-sm rounded-circle me-2" alt={row.original.name} />
-          <div>
-            <span className="text-muted fs-xs">{row.original.category}</span>
-            <h5 className="fs-base mb-0">
-              <Link href="/products/1" className="text-body">
-                {row.original.name}
-              </Link>
-            </h5>
+      cell: ({ row }) => {
+        const imageSrc = typeof row.original.image === 'string' 
+          ? row.original.image 
+          : row.original.image?.src || '/images/placeholder-product.png'
+        return (
+          <div className="d-flex align-items-center">
+            <Image src={imageSrc} className="avatar-sm rounded-circle me-2" alt={row.original.name} />
+            <div>
+              <span className="text-muted fs-xs">{row.original.category}</span>
+              <h5 className="fs-base mb-0">
+                <Link href="/products/1" className="text-body">
+                  {row.original.name}
+                </Link>
+              </h5>
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     }),
     columnHelper.accessor('stock', {
       cell: ({ row }) => (
@@ -106,7 +123,7 @@ const ProductInventory = () => {
     }),
   ]
 
-  const [data, setData] = useState<ProductType[]>(() => [...products])
+  const [data, setData] = useState<ProductType[]>(() => [...productsToUse])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 7 })
 
