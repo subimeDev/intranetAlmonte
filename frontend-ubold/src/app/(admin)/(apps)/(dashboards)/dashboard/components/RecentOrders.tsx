@@ -36,6 +36,11 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<OrderType>()
 
+// Type guard para verificar si userImage es un objeto con src
+function isImageObject(image: string | { src: string } | undefined): image is { src: string } {
+  return typeof image === 'object' && image !== null && 'src' in image
+}
+
 interface RecentOrdersProps {
   orders?: OrderType[]
 }
@@ -48,11 +53,12 @@ const RecentOrders = ({ orders: propsOrders }: RecentOrdersProps) => {
     columnHelper.accessor('userName', {
       cell: ({ row }) => {
         let imageSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(row.original.userName)}&background=random&size=128`
-        if (row.original.userImage) {
-          if (typeof row.original.userImage === 'string') {
-            imageSrc = row.original.userImage
-          } else if (typeof row.original.userImage === 'object' && 'src' in row.original.userImage) {
-            imageSrc = row.original.userImage.src
+        const userImage = row.original.userImage
+        if (userImage) {
+          if (typeof userImage === 'string') {
+            imageSrc = userImage
+          } else if (isImageObject(userImage)) {
+            imageSrc = userImage.src
           }
         }
         return (

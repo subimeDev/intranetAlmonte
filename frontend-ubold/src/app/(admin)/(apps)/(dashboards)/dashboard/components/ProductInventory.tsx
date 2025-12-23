@@ -37,6 +37,11 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<ProductType>()
 
+// Type guard para verificar si image es un objeto con src
+function isImageObject(image: string | { src: string } | undefined): image is { src: string } {
+  return typeof image === 'object' && image !== null && 'src' in image
+}
+
 interface ProductInventoryProps {
   products?: ProductType[]
 }
@@ -49,11 +54,12 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     columnHelper.accessor('name', {
       cell: ({ row }) => {
         let imageSrc = '/images/placeholder-product.png'
-        if (row.original.image) {
-          if (typeof row.original.image === 'string') {
-            imageSrc = row.original.image
-          } else if (typeof row.original.image === 'object' && 'src' in row.original.image) {
-            imageSrc = row.original.image.src
+        const image = row.original.image
+        if (image) {
+          if (typeof image === 'string') {
+            imageSrc = image
+          } else if (isImageObject(image)) {
+            imageSrc = image.src
           }
         }
         return (
