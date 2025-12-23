@@ -153,7 +153,7 @@ export async function GET(
     if (!isNaN(parseInt(id))) {
       try {
         const filteredResponse = await strapiClient.get<any>(
-          `/api/wo-pedidos?filters[id][$eq]=${id}&populate=*`
+          `/api/wo-pedidos?filters[id][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
         )
         
         let pedido: any
@@ -182,7 +182,7 @@ export async function GET(
     // PASO 2: Buscar en lista completa
     try {
       const allPedidos = await strapiClient.get<any>(
-        `/api/wo-pedidos?populate=*&pagination[pageSize]=1000`
+        `/api/wo-pedidos?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario&pagination[pageSize]=1000`
       )
       
       let pedidos: any[] = []
@@ -225,7 +225,9 @@ export async function GET(
     
     // PASO 3: Intentar endpoint directo
     try {
-      const response = await strapiClient.get<any>(`/api/wo-pedidos/${id}?populate=*`)
+      const response = await strapiClient.get<any>(
+        `/api/wo-pedidos/${id}?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+      )
       
       let pedido: any
       if (response.data) {
@@ -276,7 +278,9 @@ export async function DELETE(
     let originPlatform: string = 'woo_moraleja'
     
     try {
-      const pedidoResponse = await strapiClient.get<any>(`${pedidoEndpoint}?filters[id][$eq]=${id}&populate=*`)
+      const pedidoResponse = await strapiClient.get<any>(
+        `${pedidoEndpoint}?filters[id][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+      )
       let pedidos: any[] = []
       if (Array.isArray(pedidoResponse)) {
         pedidos = pedidoResponse
@@ -367,7 +371,9 @@ export async function PUT(
     let originPlatform: string = 'woo_moraleja'
     
     try {
-      const pedidoResponse = await strapiClient.get<any>(`${pedidoEndpoint}?filters[id][$eq]=${id}&populate=*`)
+      const pedidoResponse = await strapiClient.get<any>(
+        `${pedidoEndpoint}?filters[id][$eq]=${id}&populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+      )
       let pedidos: any[] = []
       if (Array.isArray(pedidoResponse)) {
         pedidos = pedidoResponse
@@ -539,7 +545,9 @@ export async function PUT(
     if (soloActualizandoEstado) {
       // Obtener el pedido completo para verificar valores inválidos
       try {
-        const pedidoCompleto = cuponStrapi || (await strapiClient.get<any>(`${pedidoEndpoint}/${documentId || id}?populate=*`))
+        const pedidoCompleto = cuponStrapi || (await strapiClient.get<any>(
+          `${pedidoEndpoint}/${documentId || id}?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario`
+        ))
         const attrs = pedidoCompleto?.attributes || {}
         const pedidoDataCompleto = (attrs && Object.keys(attrs).length > 0) ? attrs : pedidoCompleto
         

@@ -109,8 +109,10 @@ async function syncOrdersFromPlatform(platform: 'woo_moraleja' | 'woo_escolar') 
     results.total = allOrders.length
     console.log(`[Sync ${platform}] ✅ Obtenidos ${allOrders.length} pedidos de WooCommerce`)
 
-    // Obtener todos los pedidos existentes en Strapi para esta plataforma
-    const strapiResponse = await strapiClient.get<any>('/api/wo-pedidos?populate=*&pagination[pageSize]=5000&publicationState=preview')
+    // Obtener solo los campos necesarios de Strapi (sin populate completo para optimizar)
+    const strapiResponse = await strapiClient.get<any>(
+      `/api/wo-pedidos?fields[0]=numero_pedido&fields[1]=wooId&fields[2]=originPlatform&fields[3]=externalIds&pagination[pageSize]=5000&publicationState=preview`
+    )
     let strapiItems: any[] = []
     if (Array.isArray(strapiResponse)) {
       strapiItems = strapiResponse
@@ -140,118 +142,96 @@ async function syncOrdersFromPlatform(platform: 'woo_moraleja' | 'woo_escolar') 
 
     console.log(`[Sync ${platform}] 📊 Pedidos existentes en Strapi para ${platform}: ${existingOrders.size / 2}`)
 
-    // Procesar cada pedido de WooCommerce
-    for (const wooOrder of allOrders) {
-      try {
-        const orderNumber = String(wooOrder.number || wooOrder.id)
-        const wooId = wooOrder.id
+    // Función helper para preparar datos del pedido
+    const prepareOrderData = (wooOrder: any, orderNumber: string, wooId: number) => ({
+      data: {
+        numero_pedido: orderNumber,
+        fecha_pedido: wooOrder.date_created || wooOrder.date_created_gmt,
+        estado: mapWooStatus(wooOrder.status),
+        total: parseFloat(wooOrder.total || 0),
+        subtotal: parseFloat(wooOrder.subtotal || 0),
+        impuestos: parseFloat(wooOrder.total_tax || 0),
+        envio: parseFloat(wooOrder.shipping_total || 0),
+        descuento: parseFloat(wooOrder.discount_total || 0),
+        moneda: wooOrder.currency || 'CLP',
+        origen: mapOrigen(wooOrder.created_via),
+        metodo_pago: mapMetodoPago(wooOrder.payment_method),
+        metodo_pago_titulo: wooOrder.payment_method_title || null,
+        nota_cliente: wooOrder.customer_note || null,
+        billing: wooOrder.billing || null,
+        shipping: wooOrder.shipping || null,
+        items: (wooOrder.line_items || []).map((item: any) => ({
+          item_id: item.id,
+          producto_id: item.product_id,
+          sku: item.sku || '',
+          nombre: item.name || '',
+          cantidad: item.quantity || 1,
+          precio_unitario: parseFloat(item.price || 0),
+          total: parseFloat(item.total || 0),
+          metadata: item.meta_data || null,
+        })),
+        originPlatform: platform,
+        wooId: wooId,
+        rawWooData: wooOrder,
+        externalIds: {
+          wooCommerce: {
+            id: wooId,
+            number: orderNumber,
+          },
+          originPlatform: platform,
+        },
+      },
+    })
 
-        // Verificar si el pedido ya existe
-        const existingByNumber = existingOrders.get(`numero_${orderNumber}`)
-        const existingByWooId = existingOrders.get(`woo_${wooId}`)
-        const existing = existingByNumber || existingByWooId
+    // Procesar pedidos en lotes para mejor rendimiento
+    const batchSize = 10
+    for (let i = 0; i < allOrders.length; i += batchSize) {
+      const batch = allOrders.slice(i, i + batchSize)
+      const batchPromises = batch.map(async (wooOrder) => {
+        try {
+          const orderNumber = String(wooOrder.number || wooOrder.id)
+          const wooId = wooOrder.id
 
-        if (existing) {
-          // Actualizar pedido existente
-          const attrs = existing?.attributes || {}
-          const data = (attrs && Object.keys(attrs).length > 0) ? attrs : existing
-          const documentId = existing.documentId || existing.id
+          // Verificar si el pedido ya existe
+          const existingByNumber = existingOrders.get(`numero_${orderNumber}`)
+          const existingByWooId = existingOrders.get(`woo_${wooId}`)
+          const existing = existingByNumber || existingByWooId
 
-          const updateData: any = {
-            data: {
-              numero_pedido: orderNumber,
-              fecha_pedido: wooOrder.date_created || wooOrder.date_created_gmt,
-              estado: mapWooStatus(wooOrder.status),
-              total: parseFloat(wooOrder.total || 0),
-              subtotal: parseFloat(wooOrder.subtotal || 0),
-              impuestos: parseFloat(wooOrder.total_tax || 0),
-              envio: parseFloat(wooOrder.shipping_total || 0),
-              descuento: parseFloat(wooOrder.discount_total || 0),
-              moneda: wooOrder.currency || 'CLP',
-              origen: mapOrigen(wooOrder.created_via),
-              metodo_pago: mapMetodoPago(wooOrder.payment_method),
-              metodo_pago_titulo: wooOrder.payment_method_title || null,
-              nota_cliente: wooOrder.customer_note || null,
-              billing: wooOrder.billing || null,
-              shipping: wooOrder.shipping || null,
-              items: (wooOrder.line_items || []).map((item: any) => ({
-                item_id: item.id,
-                producto_id: item.product_id,
-                sku: item.sku || '',
-                nombre: item.name || '',
-                cantidad: item.quantity || 1,
-                precio_unitario: parseFloat(item.price || 0),
-                total: parseFloat(item.total || 0),
-                metadata: item.meta_data || null,
-              })),
-              originPlatform: platform,
-              wooId: wooId,
-              rawWooData: wooOrder,
-              externalIds: {
-                wooCommerce: {
-                  id: wooId,
-                  number: orderNumber,
-                },
-                originPlatform: platform,
-              },
-            },
+          if (existing) {
+            // Actualizar pedido existente
+            const attrs = existing?.attributes || {}
+            const data = (attrs && Object.keys(attrs).length > 0) ? attrs : existing
+            const documentId = existing.documentId || existing.id
+
+            const updateData = prepareOrderData(wooOrder, orderNumber, wooId)
+            await strapiClient.put<any>(`/api/wo-pedidos/${documentId}`, updateData)
+            results.updated++
+            return { success: true, orderNumber, action: 'updated' }
+          } else {
+            // Crear nuevo pedido
+            const createData = prepareOrderData(wooOrder, orderNumber, wooId)
+            await strapiClient.post<any>('/api/wo-pedidos', createData)
+            results.created++
+            return { success: true, orderNumber, action: 'created' }
           }
-
-          await strapiClient.put<any>(`/api/wo-pedidos/${documentId}`, updateData)
-          results.updated++
-          console.log(`[Sync ${platform}] ✅ Actualizado pedido #${orderNumber}`)
-        } else {
-          // Crear nuevo pedido
-          const createData: any = {
-            data: {
-              numero_pedido: orderNumber,
-              fecha_pedido: wooOrder.date_created || wooOrder.date_created_gmt,
-              estado: mapWooStatus(wooOrder.status),
-              total: parseFloat(wooOrder.total || 0),
-              subtotal: parseFloat(wooOrder.subtotal || 0),
-              impuestos: parseFloat(wooOrder.total_tax || 0),
-              envio: parseFloat(wooOrder.shipping_total || 0),
-              descuento: parseFloat(wooOrder.discount_total || 0),
-              moneda: wooOrder.currency || 'CLP',
-              origen: mapOrigen(wooOrder.created_via),
-              metodo_pago: mapMetodoPago(wooOrder.payment_method),
-              metodo_pago_titulo: wooOrder.payment_method_title || null,
-              nota_cliente: wooOrder.customer_note || null,
-              billing: wooOrder.billing || null,
-              shipping: wooOrder.shipping || null,
-              items: (wooOrder.line_items || []).map((item: any) => ({
-                item_id: item.id,
-                producto_id: item.product_id,
-                sku: item.sku || '',
-                nombre: item.name || '',
-                cantidad: item.quantity || 1,
-                precio_unitario: parseFloat(item.price || 0),
-                total: parseFloat(item.total || 0),
-                metadata: item.meta_data || null,
-              })),
-              originPlatform: platform,
-              wooId: wooId,
-              rawWooData: wooOrder,
-              externalIds: {
-                wooCommerce: {
-                  id: wooId,
-                  number: orderNumber,
-                },
-                originPlatform: platform,
-              },
-            },
-          }
-
-          await strapiClient.post<any>('/api/wo-pedidos', createData)
-          results.created++
-          console.log(`[Sync ${platform}] ✅ Creado pedido #${orderNumber}`)
+        } catch (error: any) {
+          const errorMsg = `Error procesando pedido #${wooOrder.number || wooOrder.id}: ${error.message}`
+          results.errors.push(errorMsg)
+          results.skipped++
+          return { success: false, orderNumber: wooOrder.number || wooOrder.id, error: errorMsg }
         }
-      } catch (error: any) {
-        const errorMsg = `Error procesando pedido #${wooOrder.number || wooOrder.id}: ${error.message}`
-        results.errors.push(errorMsg)
-        results.skipped++
-        console.error(`[Sync ${platform}] ❌ ${errorMsg}`)
-      }
+      })
+
+      // Ejecutar lote en paralelo
+      const batchResults = await Promise.allSettled(batchPromises)
+      batchResults.forEach((result, idx) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          // Log solo cada 10 pedidos para no saturar
+          if (idx === 0) {
+            console.log(`[Sync ${platform}] 📦 Procesando lote ${Math.floor(i / batchSize) + 1}...`)
+          }
+        }
+      })
     }
 
     console.log(`[Sync ${platform}] ✅ Sincronización completada:`, results)
