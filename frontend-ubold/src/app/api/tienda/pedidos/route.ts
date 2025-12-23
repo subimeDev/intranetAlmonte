@@ -63,8 +63,9 @@ function mapWooStatus(strapiStatus: string): string {
 export async function GET(request: NextRequest) {
   try {
     // Obtener TODOS los pedidos de ambas plataformas (woo_moraleja y woo_escolar)
-    // No filtrar por originPlatform para mostrar todos
-    const response = await strapiClient.get<any>('/api/wo-pedidos?populate=*&pagination[pageSize]=1000')
+    // Incluir publicationState=preview para traer también drafts
+    // Aumentar pageSize para traer más pedidos
+    const response = await strapiClient.get<any>('/api/wo-pedidos?populate=*&pagination[pageSize]=5000&publicationState=preview')
     
     let items: any[] = []
     if (Array.isArray(response)) {
