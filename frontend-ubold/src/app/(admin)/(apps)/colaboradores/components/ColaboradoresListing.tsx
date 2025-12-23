@@ -347,10 +347,14 @@ const ColaboradoresListing = ({ colaboradores: propsColaboradores, error: propsE
         show={deleteModal.open}
         onHide={() => setDeleteModal({ open: false, colaborador: null })}
         onConfirm={handleDelete}
-        title="Eliminar Colaborador"
-        message={`¿Estás seguro de que deseas desactivar a ${deleteModal.colaborador?.email_login}?`}
-        loading={loading}
-      />
+        selectedCount={1}
+        itemName="colaborador"
+        modalTitle="Desactivar Colaborador"
+        confirmButtonText="Desactivar"
+        cancelButtonText="Cancelar"
+      >
+        ¿Estás seguro de que deseas desactivar a {deleteModal.colaborador?.email_login}?
+      </DeleteConfirmationModal>
     </>
   )
 }
