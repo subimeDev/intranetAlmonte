@@ -437,8 +437,13 @@ export async function PUT(
         try {
           await wcClient.get<any>(`orders/${wooId}`)
         } catch (checkError: any) {
-          // Si el pedido no existe en WooCommerce, no intentar actualizarlo
-          if (checkError.status === 404 || checkError.message?.includes('no encontrado') || checkError.message?.includes('no válido')) {
+          // Si el error es por credenciales no configuradas, continuar solo con Strapi
+          const esErrorCredenciales = checkError.message?.includes('credentials are not configured') ||
+                                      checkError.message?.includes('no están configuradas')
+          if (esErrorCredenciales) {
+            console.warn(`[API Pedidos PUT] ⚠️ Credenciales de WooCommerce (${originPlatform}) no configuradas, continuando solo con Strapi`)
+            wooId = null // Marcar como inválido para no intentar actualizar
+          } else if (checkError.status === 404 || checkError.message?.includes('no encontrado') || checkError.message?.includes('no válido')) {
             console.warn(`[API Pedidos PUT] ⚠️ Pedido ${wooId} no existe en WooCommerce (${originPlatform}), omitiendo actualización`)
             wooId = null // Marcar como inválido para no intentar actualizar
           } else {
@@ -492,6 +497,10 @@ export async function PUT(
           console.log('[API Pedidos PUT] ✅ Pedido actualizado en WooCommerce')
         }
       } catch (wooError: any) {
+        // Si el error es por credenciales no configuradas, continuar solo con Strapi
+        const esErrorCredenciales = wooError.message?.includes('credentials are not configured') ||
+                                    wooError.message?.includes('no están configuradas')
+        
         // Si el error es "ID no válido" o "no encontrado", no bloquear la actualización en Strapi
         const esErrorIdInvalido = wooError.message?.includes('ID no válido') || 
                                    wooError.message?.includes('no válido') ||
@@ -499,7 +508,14 @@ export async function PUT(
                                    wooError.details?.code === 'woocommerce_rest_shop_order_invalid_id' ||
                                    wooError.status === 404
         
-        if (esErrorIdInvalido) {
+        if (esErrorCredenciales) {
+          console.warn('[API Pedidos PUT] ⚠️ Credenciales de WooCommerce no configuradas, continuando solo con Strapi:', {
+            originPlatform,
+            error: wooError.message
+          })
+          // No lanzar error, continuar con la actualización en Strapi
+          wooCommercePedido = null
+        } else if (esErrorIdInvalido) {
           console.warn('[API Pedidos PUT] ⚠️ WooCommerce: ID no válido o pedido no encontrado, continuando con actualización en Strapi únicamente:', {
             wooId,
             originPlatform,

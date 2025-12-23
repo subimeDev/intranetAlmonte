@@ -286,7 +286,23 @@ export async function POST(request: NextRequest) {
     } catch (wooError: any) {
       console.error('[API Pedidos POST] ⚠️ Error al crear pedido en WooCommerce:', wooError.message)
       
-      // Si falla WooCommerce, eliminar de Strapi para mantener consistencia
+      // Si el error es por credenciales no configuradas, permitir crear solo en Strapi
+      const esErrorCredenciales = wooError.message?.includes('credentials are not configured') ||
+                                   wooError.message?.includes('no están configuradas')
+      
+      if (esErrorCredenciales) {
+        console.warn('[API Pedidos POST] ⚠️ Credenciales de WooCommerce no configuradas, creando pedido solo en Strapi')
+        return NextResponse.json({
+          success: true,
+          data: {
+            strapi: strapiPedido.data || strapiPedido,
+          },
+          message: 'Pedido creado exitosamente en Strapi (WooCommerce no disponible - credenciales no configuradas)',
+          warning: `WooCommerce ${originPlatform} no está configurado. El pedido se creó solo en Strapi.`
+        })
+      }
+      
+      // Si falla WooCommerce por otro motivo, eliminar de Strapi para mantener consistencia
       try {
         const deleteResponse = await strapiClient.delete<any>(`${pedidoEndpoint}/${documentId}`)
         console.log('[API Pedidos POST] 🗑️ Pedido eliminado de Strapi debido a error en WooCommerce')
