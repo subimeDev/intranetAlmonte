@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
-import wooCommerceClient from '@/lib/woocommerce/client'
+import wooCommerceClient, { createWooCommerceClient } from '@/lib/woocommerce/client'
 
 export const dynamic = 'force-dynamic'
 
 // Función helper para obtener el cliente de WooCommerce según la plataforma
 function getWooCommerceClientForPlatform(platform: string) {
-  // Por ahora usamos el cliente por defecto
-  // TODO: Implementar lógica para seleccionar cliente según platform (woo_moraleja, woo_escolar)
-  // Si hay variables de entorno separadas, crear clientes diferentes aquí
-  return wooCommerceClient
+  if (platform === 'woo_moraleja') {
+    return createWooCommerceClient('woo_moraleja')
+  } else if (platform === 'woo_escolar') {
+    return createWooCommerceClient('woo_escolar')
+  }
+  // Por defecto usar escolar
+  return createWooCommerceClient('woo_escolar')
 }
 
 // Función helper para mapear estado de WooCommerce a estado de Strapi
@@ -59,6 +62,8 @@ function mapWooStatus(strapiStatus: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    // Obtener TODOS los pedidos de ambas plataformas (woo_moraleja y woo_escolar)
+    // No filtrar por originPlatform para mostrar todos
     const response = await strapiClient.get<any>('/api/wo-pedidos?populate=*&pagination[pageSize]=1000')
     
     let items: any[] = []
@@ -72,7 +77,16 @@ export async function GET(request: NextRequest) {
       items = [response]
     }
     
-    console.log('[API GET pedidos] ✅ Items obtenidos:', items.length)
+    // Contar pedidos por plataforma para logging
+    const porPlataforma = items.reduce((acc: any, item: any) => {
+      const attrs = item?.attributes || {}
+      const data = (attrs && Object.keys(attrs).length > 0) ? attrs : item
+      const platform = data?.originPlatform || data?.externalIds?.originPlatform || 'desconocida'
+      acc[platform] = (acc[platform] || 0) + 1
+      return acc
+    }, {})
+    
+    console.log('[API GET pedidos] ✅ Items obtenidos:', items.length, 'Por plataforma:', porPlataforma)
     
     return NextResponse.json({
       success: true,

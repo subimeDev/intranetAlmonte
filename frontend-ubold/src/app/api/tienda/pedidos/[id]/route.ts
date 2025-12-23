@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
-import wooCommerceClient from '@/lib/woocommerce/client'
+import wooCommerceClient, { createWooCommerceClient } from '@/lib/woocommerce/client'
 
 export const dynamic = 'force-dynamic'
 
 // Función helper para obtener el cliente de WooCommerce según la plataforma
 function getWooCommerceClientForPlatform(platform: string) {
-  // Por ahora usamos el cliente por defecto
-  // TODO: Implementar lógica para seleccionar cliente según platform (woo_moraleja, woo_escolar)
-  // Si hay variables de entorno separadas, crear clientes diferentes aquí
-  return wooCommerceClient
+  if (platform === 'woo_moraleja') {
+    return createWooCommerceClient('woo_moraleja')
+  } else if (platform === 'woo_escolar') {
+    return createWooCommerceClient('woo_escolar')
+  }
+  // Por defecto usar escolar
+  return createWooCommerceClient('woo_escolar')
 }
 
 // Función helper para mapear estado de WooCommerce a estado de Strapi
@@ -379,7 +382,24 @@ export async function PUT(
       const attrs = cuponStrapi?.attributes || {}
       const data = (attrs && Object.keys(attrs).length > 0) ? attrs : cuponStrapi
       wooId = data?.wooId || cuponStrapi?.wooId || null
-      originPlatform = body.data.originPlatform || body.data.origin_platform || data?.originPlatform || cuponStrapi?.originPlatform || 'woo_moraleja'
+      
+      // CORRECCIÓN: Buscar originPlatform en todos los lugares posibles
+      // Puede estar en: data.originPlatform, externalIds.originPlatform, o en el objeto raíz
+      const originPlatformFromData = data?.originPlatform || cuponStrapi?.originPlatform
+      const originPlatformFromExternalIds = data?.externalIds?.originPlatform || cuponStrapi?.externalIds?.originPlatform
+      originPlatform = body.data.originPlatform || 
+                      body.data.origin_platform || 
+                      originPlatformFromData || 
+                      originPlatformFromExternalIds || 
+                      'woo_moraleja'
+      
+      console.log('[API Pedidos PUT] 🔍 originPlatform detectado:', {
+        fromBody: body.data.originPlatform || body.data.origin_platform,
+        fromData: originPlatformFromData,
+        fromExternalIds: originPlatformFromExternalIds,
+        final: originPlatform,
+        wooId
+      })
     } catch (error: any) {
       console.warn('[API Pedidos PUT] ⚠️ No se pudo obtener pedido de Strapi:', error.message)
       documentId = id

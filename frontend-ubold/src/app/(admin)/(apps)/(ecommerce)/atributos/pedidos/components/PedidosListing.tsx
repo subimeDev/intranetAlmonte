@@ -94,7 +94,10 @@ const mapStrapiPedidoToPedidoType = (pedido: any): PedidoType => {
   const moneda = getField(data, 'moneda', 'MONEDA') || 'CLP'
   const origen = getField(data, 'origen', 'ORIGEN') || 'woocommerce'
   // originPlatform es un campo directo en Strapi (Enumeration)
-  const originPlatform = getField(data, 'originPlatform', 'origin_platform', 'ORIGIN_PLATFORM') || 'woo_moraleja'
+  // Puede estar en: originPlatform, externalIds.originPlatform, o en el objeto raíz
+  const originPlatformDirect = getField(data, 'originPlatform', 'origin_platform', 'ORIGIN_PLATFORM')
+  const originPlatformFromExternalIds = data?.externalIds?.originPlatform || (data?.externalIds && typeof data.externalIds === 'object' ? (data.externalIds as any).originPlatform : null)
+  const originPlatform = originPlatformDirect || originPlatformFromExternalIds || 'woo_moraleja'
   
   // Obtener nombre del cliente desde billing o cliente
   let nombreCliente = ''
