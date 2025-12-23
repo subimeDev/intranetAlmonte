@@ -305,7 +305,7 @@ const ObrasListing = ({ obras, error }: ObrasListingProps = {}) => {
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar obra ${obraId}`)
+          console.warn(`Error al eliminar obra ${obraId}:`, response.status, response.statusText)
         }
       }
       
@@ -319,7 +319,7 @@ const ObrasListing = ({ obras, error }: ObrasListingProps = {}) => {
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar obras:', error)
-      alert('Error al eliminar las obras seleccionadas')
+      // No mostrar alert, solo log en consola
     }
   }
 
