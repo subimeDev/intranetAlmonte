@@ -28,6 +28,7 @@ function mapEstado(wooStatus: string): string {
 }
 
 // Función helper para mapear estado de español (frontend) a inglés (Strapi/WooCommerce)
+// Esta función SIEMPRE debe devolver un valor en inglés válido para Strapi
 function mapWooStatus(strapiStatus: string): string {
   if (!strapiStatus) {
     console.warn('[mapWooStatus] Estado vacío, usando pending por defecto')
@@ -35,8 +36,17 @@ function mapWooStatus(strapiStatus: string): string {
   }
   
   const statusLower = String(strapiStatus).toLowerCase().trim()
+  
+  // Primero verificar si ya es un estado válido en inglés (para Strapi)
+  const estadosValidosStrapi = ['auto-draft', 'pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed', 'checkout-draft']
+  if (estadosValidosStrapi.includes(statusLower)) {
+    console.log('[mapWooStatus] ✅ Estado ya está en inglés válido:', statusLower)
+    return statusLower
+  }
+  
+  // Si no es válido en inglés, mapear desde español
   const mapping: Record<string, string> = {
-    // Estados en español (del frontend)
+    // Estados en español (del frontend o de Strapi si están mal guardados)
     'pendiente': 'pending',
     'procesando': 'processing',
     'en_espera': 'on-hold',
@@ -45,22 +55,13 @@ function mapWooStatus(strapiStatus: string): string {
     'cancelado': 'cancelled',
     'reembolsado': 'refunded',
     'fallido': 'failed',
-    // Estados en inglés (ya están en el formato correcto)
-    'pending': 'pending',
-    'processing': 'processing',
-    'on-hold': 'on-hold',
+    // Variantes adicionales
     'onhold': 'on-hold', // Variante sin guión
-    'completed': 'completed',
-    'cancelled': 'cancelled',
-    'refunded': 'refunded',
-    'failed': 'failed',
-    'auto-draft': 'auto-draft',
-    'checkout-draft': 'checkout-draft',
   }
   
   const mapeado = mapping[statusLower]
   if (!mapeado) {
-    console.warn('[mapWooStatus] ⚠️ Estado no reconocido:', strapiStatus, '(normalizado:', statusLower, ')', 'usando pending por defecto')
+    console.error('[mapWooStatus] ❌ Estado no reconocido:', strapiStatus, '(normalizado:', statusLower, ')', 'usando pending por defecto')
     return 'pending'
   }
   
