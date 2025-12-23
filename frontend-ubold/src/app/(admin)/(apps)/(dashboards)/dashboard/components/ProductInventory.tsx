@@ -85,7 +85,7 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     columnHelper.accessor('price', {
       cell: ({ row }) => (
         <>
-          <span className="text-muted fs-xs">Price</span>
+          <span className="text-muted fs-xs">Precio</span>
           <h5 className="fs-base mb-0 fw-normal">{row.original.price}</h5>
         </>
       ),
@@ -93,7 +93,7 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     columnHelper.accessor('ratings', {
       cell: ({ row }) => (
         <>
-          <span className="text-muted fs-xs">Ratings</span>
+          <span className="text-muted fs-xs">Calificación</span>
           <h5 className="fs-base mb-0 fw-normal">
             <Rating rating={row.original.ratings} />
             <span className="ms-1">
@@ -109,7 +109,7 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     columnHelper.accessor('status', {
       cell: ({ row }) => (
         <>
-          <span className="text-muted fs-xs">Status</span>
+          <span className="text-muted fs-xs">Estado</span>
           <h5 className="fs-base mb-0 fw-normal">
             <TbCircleFilled className={`fs-xs text-${row.original.statusVariant}`} /> {row.original.status}
           </h5>
@@ -158,21 +158,21 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     <Card>
       <CardHeader className="justify-content-between align-items-center border-dashed">
         <CardTitle as="h4" className="mb-0">
-          Product Inventory
+          Inventario de Productos
         </CardTitle>
         <div className="d-flex gap-2">
           <Link href="/add-product" passHref>
             <Button variant="soft-secondary" size="sm">
-              <TbPlus className="me-1" /> Add Product
+              <TbPlus className="me-1" /> Agregar Producto
             </Button>
           </Link>
           <Button variant="primary" size="sm">
-            <TbFileExport className="me-1" /> Export CSV
+            <TbFileExport className="me-1" /> Exportar CSV
           </Button>
         </div>
       </CardHeader>
       <CardBody className="p-0">
-        <DataTable<ProductType> table={table} emptyMessage="No records found" showHeaders={false} />
+        <DataTable<ProductType> table={table} emptyMessage="No hay productos en el inventario" showHeaders={false} />
       </CardBody>
       {table.getRowModel().rows.length > 0 && (
         <CardFooter className="border-0">
