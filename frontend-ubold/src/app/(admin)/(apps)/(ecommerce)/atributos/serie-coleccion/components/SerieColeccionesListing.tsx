@@ -212,23 +212,6 @@ const SerieColeccionesListing = ({ serieColecciones, error }: SerieColeccionesLi
         </span>
       ),
     }),
-<<<<<<< HEAD:frontend-ubold/src/app/(admin)/(apps)/(ecommerce)/products/etiquetas/components/TagsListing.tsx
-    columnHelper.accessor('estadoPublicacion', {
-      header: 'Estado Publicación',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => {
-        const estado = row.original.estadoPublicacion || 'Pendiente'
-        const badgeClass = estado === 'Publicado' ? 'badge-soft-success' :
-                          estado === 'Pendiente' ? 'badge-soft-warning' :
-                          'badge-soft-secondary'
-        return (
-          <span className={`badge ${badgeClass} fs-xxs`}>
-            {estado}
-          </span>
-        )
-      },
-    }),
     columnHelper.accessor('date', {
       header: 'Fecha',
       cell: ({ row }) => (
