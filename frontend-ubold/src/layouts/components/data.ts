@@ -220,6 +220,7 @@ export const menuItems: MenuItemType[] = [
     key: 'tienda',
     label: 'Tienda',
     icon: TbBasket,
+    roles: ['super_admin', 'encargado_adquisiciones', 'soporte'], // supervisor NO puede ver este menú
     children: [
       { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
       { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
@@ -349,6 +350,7 @@ export const horizontalMenuItems: MenuItemType[] = [
         key: 'tienda',
         label: 'Tienda',
         icon: TbBasket,
+        roles: ['super_admin', 'encargado_adquisiciones', 'soporte'], // supervisor NO puede ver este menú
         children: [
           { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
           { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },

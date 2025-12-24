@@ -189,11 +189,28 @@ const AppMenu = () => {
 
   // Filtrar items del menú según roles
   const filteredMenuItems = useMemo(() => {
-    return menuItems
-      .filter((item) => {
-        // Los títulos siempre se muestran
+    const filtered = menuItems
+      .filter((item, index) => {
+        // Si es un título, verificar si hay al menos un item después (hasta el próximo título) que pase el filtro
         if (item.isTitle) {
-          return true
+          // Buscar el siguiente item que no sea título y que pase el filtro
+          for (let i = index + 1; i < menuItems.length; i++) {
+            const nextItem = menuItems[i]
+            // Si encontramos otro título, ya no hay más items en esta sección
+            if (nextItem.isTitle) {
+              return false
+            }
+            // Verificar si este item pasa el filtro
+            if (nextItem.children) {
+              const filteredChildren = filterChildrenByRole(nextItem.children, userRole)
+              if (filteredChildren.length > 0) {
+                return true
+              }
+            } else if (hasAccess(nextItem, userRole)) {
+              return true
+            }
+          }
+          return false
         }
         // Si tiene children, verificar si alguno tiene acceso
         if (item.children) {
@@ -213,6 +230,7 @@ const AppMenu = () => {
         }
         return item
       })
+    return filtered
   }, [userRole])
 
   return (
