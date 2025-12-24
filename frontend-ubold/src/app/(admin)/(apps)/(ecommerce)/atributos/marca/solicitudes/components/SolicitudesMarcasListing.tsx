@@ -187,23 +187,6 @@ const SolicitudesMarcasListing = ({ solicitudes, error }: SolicitudesMarcasListi
         )
       },
     }),
-<<<<<<< HEAD:frontend-ubold/src/app/(admin)/(apps)/(ecommerce)/products/categorias/components/CategoriesListing.tsx
-    columnHelper.accessor('estadoPublicacion', {
-      header: 'Estado Publicación',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => {
-        const estado = row.original.estadoPublicacion || 'Pendiente'
-        const badgeClass = estado === 'Publicado' ? 'badge-soft-success' :
-                          estado === 'Pendiente' ? 'badge-soft-warning' :
-                          'badge-soft-secondary'
-        return (
-          <span className={`badge ${badgeClass} fs-xxs`}>
-            {estado}
-          </span>
-        )
-      },
-    }),
     columnHelper.accessor('fecha_solicitud', {
       header: 'Fecha de Solicitud',
       cell: ({ row }) => (
