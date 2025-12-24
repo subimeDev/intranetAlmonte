@@ -202,14 +202,27 @@ export async function DELETE(
     console.log('[API /colaboradores/[id] DELETE] Eliminando colaborador:', id)
 
     // Eliminar permanentemente usando delete
-    const response = await strapiClient.delete(
-      `/api/colaboradores/${id}`
-    )
+    // Strapi puede devolver 200 con JSON o 204 sin contenido
+    try {
+      const response = await strapiClient.delete(
+        `/api/colaboradores/${id}`
+      )
 
-    return NextResponse.json({
-      success: true,
-      message: 'Colaborador eliminado permanentemente',
-    }, { status: 200 })
+      // Si la respuesta es exitosa (aunque esté vacía), retornar éxito
+      return NextResponse.json({
+        success: true,
+        message: 'Colaborador eliminado permanentemente',
+      }, { status: 200 })
+    } catch (deleteError: any) {
+      // Si el error es por respuesta vacía pero el status fue 200/204, considerar éxito
+      if (deleteError.status === 200 || deleteError.status === 204) {
+        return NextResponse.json({
+          success: true,
+          message: 'Colaborador eliminado permanentemente',
+        }, { status: 200 })
+      }
+      throw deleteError
+    }
   } catch (error: any) {
     console.error('[API /colaboradores/[id] DELETE] Error:', {
       message: error.message,

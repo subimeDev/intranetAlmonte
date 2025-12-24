@@ -75,11 +75,35 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw error
   }
 
-  const data = await response.json()
+  // Manejar respuestas vacías (204 No Content, común en DELETE)
+  const contentType = response.headers.get('content-type')
+  const contentLength = response.headers.get('content-length')
   
-  // CRÍTICO: NO transformar las keys aquí
-  // Retornar los datos tal cual vienen de Strapi
-  return data
+  // Si no hay contenido o es 204, retornar objeto vacío
+  if (response.status === 204 || contentLength === '0' || !contentType?.includes('application/json')) {
+    return {} as T
+  }
+
+  // Intentar parsear JSON, pero manejar respuestas vacías
+  const text = await response.text()
+  
+  if (!text || text.trim().length === 0) {
+    return {} as T
+  }
+
+  try {
+    const data = JSON.parse(text)
+    // CRÍTICO: NO transformar las keys aquí
+    // Retornar los datos tal cual vienen de Strapi
+    return data
+  } catch (parseError) {
+    // Si falla el parseo pero la respuesta fue exitosa, retornar objeto vacío
+    console.warn('[Strapi Client] ⚠️ No se pudo parsear JSON, pero la respuesta fue exitosa:', {
+      status: response.status,
+      text: text.substring(0, 100),
+    })
+    return {} as T
+  }
 }
 
 // Cliente de Strapi

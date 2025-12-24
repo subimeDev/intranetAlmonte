@@ -236,9 +236,17 @@ const ColaboradoresListing = ({ colaboradores: propsColaboradores, error: propsE
         method: 'DELETE',
       })
 
-      const result = await response.json()
+      // Manejar respuestas vacías (204 No Content)
+      let result: any = {}
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const text = await response.text()
+        if (text && text.trim().length > 0) {
+          result = JSON.parse(text)
+        }
+      }
 
-      if (!response.ok || !result.success) {
+      if (!response.ok || (result.success === false)) {
         throw new Error(result.error || 'Error al eliminar colaborador')
       }
 
