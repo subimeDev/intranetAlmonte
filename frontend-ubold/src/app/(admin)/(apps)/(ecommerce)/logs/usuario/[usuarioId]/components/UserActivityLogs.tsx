@@ -28,6 +28,27 @@ interface ActivityLog {
     user_agent?: string
     metadata?: string
   }
+  // También puede tener las propiedades directamente
+  accion?: string
+  entidad?: string
+  entidad_id?: string
+  descripcion?: string
+  fecha?: string
+  ip_address?: string
+  user_agent?: string
+  metadata?: string
+}
+
+type LogData = {
+  accion: string
+  entidad: string
+  entidad_id?: string
+  descripcion: string
+  fecha: string
+  ip_address?: string
+  user_agent?: string
+  metadata?: string
+  [key: string]: any
 }
 
 interface UsuarioInfo {
@@ -50,10 +71,23 @@ export default function UserActivityLogs({ usuarioId }: UserActivityLogsProps) {
   const router = useRouter()
 
   // Helper para obtener datos del log
-  const getLogData = (log: ActivityLog) => {
+  const getLogData = (log: ActivityLog): LogData => {
     const attrs = log.attributes || {}
     const hasAttributes = log.attributes && Object.keys(log.attributes).length > 0
-    return hasAttributes ? attrs : log
+    if (hasAttributes) {
+      return attrs as LogData
+    }
+    // Si no tiene attributes, devolver el log directamente (puede tener las propiedades en el nivel superior)
+    return {
+      accion: log.accion || '',
+      entidad: log.entidad || '',
+      entidad_id: log.entidad_id,
+      descripcion: log.descripcion || '',
+      fecha: log.fecha || '',
+      ip_address: log.ip_address,
+      user_agent: log.user_agent,
+      metadata: log.metadata,
+    } as LogData
   }
 
   const columns: ColumnDef<ActivityLog>[] = [
