@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
+import { logActivity, createLogDescription } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,14 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('[API GET autores] ✅ Items obtenidos:', items.length)
+    
+    // Registrar log de visualización
+    logActivity(request, {
+      accion: 'ver',
+      entidad: 'autores',
+      descripcion: createLogDescription('ver', 'autores', null, `${items.length} autores`),
+      metadata: { cantidad: items.length },
+    }).catch(() => {})
     
     return NextResponse.json({
       success: true,
@@ -49,14 +58,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // IMPORTANTE: Al crear, siempre se guarda con estado_publicacion = "pendiente" (minúscula)
-    // El estado solo se puede cambiar desde la página de Solicitudes
-    const estadoPublicacion = 'pendiente'
-    
-    console.log('[API Autores POST] 📚 Creando autor en Strapi...')
-    console.log('[API Autores POST] Estado de publicación:', estadoPublicacion, '(siempre pendiente al crear)')
-    
     // Crear en Strapi
+    console.log('[API Autores POST] 📚 Creando autor en Strapi...')
+    
     const autorData: any = {
       data: {
         nombre_completo_autor: body.data.nombre_completo_autor.trim(),
@@ -66,7 +70,6 @@ export async function POST(request: NextRequest) {
         tipo_autor: body.data.tipo_autor || 'Persona',
         website: body.data.website || null,
         pais: body.data.pais || null,
-        estado_publicacion: estadoPublicacion, // Siempre "pendiente" al crear (minúscula para Strapi)
       },
     }
 
@@ -75,20 +78,23 @@ export async function POST(request: NextRequest) {
       autorData.data.foto = body.data.foto
     }
 
-    // IMPORTANTE: Si estado_publicacion es "Publicado", Strapi debería publicarlo automáticamente
-    // y sincronizarlo con WordPress a través de los lifecycles configurados en Strapi
-    // Si es "Pendiente" o "Borrador", solo se guarda en Strapi sin publicar en WordPress
-    
     const response = await strapiClient.post('/api/autores', autorData) as any
     
-    console.log('[API Autores POST] ✅ Autor creado en Strapi:', response.id || response.documentId)
-    console.log('[API Autores POST] Estado: ⏸️ Solo guardado en Strapi (pendiente), no se publica en WordPress')
-    console.log('[API Autores POST] Para publicar, cambiar el estado desde la página de Solicitudes')
+    const autorId = response.data?.documentId || response.data?.id || response.documentId || response.id
+    console.log('[API Autores POST] ✅ Autor creado en Strapi:', autorId)
+    
+    // Registrar log de creación
+    logActivity(request, {
+      accion: 'crear',
+      entidad: 'autor',
+      entidadId: autorId,
+      descripcion: createLogDescription('crear', 'autor', null, `Autor "${body.data.nombre_completo_autor}"`),
+      datosNuevos: { nombre_completo: body.data.nombre_completo_autor, tipo: body.data.tipo_autor },
+    }).catch(() => {})
     
     return NextResponse.json({
       success: true,
-      data: response,
-      message: 'Autor creado en Strapi con estado "pendiente". Para publicar en WordPress, cambia el estado desde Solicitudes.'
+      data: response
     })
   } catch (error: any) {
     console.error('[API Autores POST] ❌ Error:', error.message)

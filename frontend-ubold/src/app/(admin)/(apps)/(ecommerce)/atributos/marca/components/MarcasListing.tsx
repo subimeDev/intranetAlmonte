@@ -30,12 +30,10 @@ type MarcaType = {
   id: number
   name: string
   descripcion: string
-  website: string
   status: 'active' | 'inactive'
   date: string
   time: string
   url: string
-  estadoPublicacion?: 'Publicado' | 'Pendiente' | 'Borrador'
 }
 
 // Helper para obtener campo con múltiples variaciones
@@ -53,19 +51,10 @@ const mapStrapiMarcaToMarcaType = (marca: any): MarcaType => {
   const attrs = marca.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (marca as any)
 
-  // Obtener name (schema real de Strapi usa "name")
-  const nombre = getField(data, 'name', 'nombre_marca', 'nombreMarca', 'nombre', 'NOMBRE_MARCA', 'NAME') || 'Sin nombre'
+  const nombre = getField(data, 'name', 'nombre', 'nombre_marca', 'nombreMarca', 'NOMBRE_MARCA', 'NAME') || 'Sin nombre'
   const descripcion = getField(data, 'descripcion', 'description', 'DESCRIPCION') || ''
-  const website = getField(data, 'website', 'website', 'WEBSITE') || ''
   
   const isPublished = !!(attrs.publishedAt || (marca as any).publishedAt)
-  
-  // Obtener estado_publicacion (Strapi devuelve en minúsculas: "pendiente", "publicado", "borrador")
-  const estadoPublicacionRaw = getField(data, 'estado_publicacion', 'ESTADO_PUBLICACION', 'estadoPublicacion') || 'pendiente'
-  // Normalizar y capitalizar para mostrar (pero Strapi espera minúsculas)
-  const estadoPublicacion = typeof estadoPublicacionRaw === 'string' 
-    ? estadoPublicacionRaw.toLowerCase() 
-    : estadoPublicacionRaw
   
   const createdAt = attrs.createdAt || (marca as any).createdAt || new Date().toISOString()
   const createdDate = new Date(createdAt)
@@ -74,14 +63,10 @@ const mapStrapiMarcaToMarcaType = (marca: any): MarcaType => {
     id: marca.id || marca.documentId || marca.id,
     name: nombre,
     descripcion: descripcion,
-    website: website,
     status: isPublished ? 'active' : 'inactive',
     date: format(createdDate, 'dd MMM, yyyy'),
     time: format(createdDate, 'h:mm a'),
     url: `/atributos/marca/${marca.id || marca.documentId || marca.id}`,
-    estadoPublicacion: (estadoPublicacion === 'publicado' ? 'Publicado' : 
-                       estadoPublicacion === 'borrador' ? 'Borrador' : 
-                       'Pendiente') as 'Publicado' | 'Pendiente' | 'Borrador',
   }
 }
 
@@ -161,18 +146,6 @@ const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
         <span className="text-muted">{row.original.descripcion || '-'}</span>
       ),
     }),
-    columnHelper.accessor('website', {
-      header: 'WEBSITE',
-      cell: ({ row }) => (
-        row.original.website ? (
-          <a href={row.original.website} target="_blank" rel="noopener noreferrer" className="text-primary">
-            {row.original.website}
-          </a>
-        ) : (
-          <span className="text-muted">-</span>
-        )
-      ),
-    }),
     columnHelper.accessor('status', {
       header: 'STATUS',
       filterFn: 'equalsString',
@@ -183,22 +156,6 @@ const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
           {row.original.status === 'active' ? 'Published' : 'Draft'}
         </span>
       ),
-    }),
-    columnHelper.accessor('estadoPublicacion', {
-      header: 'Estado Publicación',
-      filterFn: 'equalsString',
-      enableColumnFilter: true,
-      cell: ({ row }) => {
-        const estado = row.original.estadoPublicacion || 'Pendiente'
-        const badgeClass = estado === 'Publicado' ? 'badge-soft-success' :
-                          estado === 'Pendiente' ? 'badge-soft-warning' :
-                          'badge-soft-secondary'
-        return (
-          <span className={`badge ${badgeClass} fs-xxs`}>
-            {estado}
-          </span>
-        )
-      },
     }),
     {
       header: 'Acciones',
@@ -308,6 +265,7 @@ const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
       for (const marcaId of idsToDelete) {
         const response = await fetch(`/api/tienda/marca/${marcaId}`, {
           method: 'DELETE',
+          credentials: 'include', // Incluir cookies
         })
         if (!response.ok) {
           throw new Error(`Error al eliminar marca ${marcaId}`)
@@ -389,19 +347,6 @@ const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
                   <option value="All">Estado</option>
                   <option value="active">Activo</option>
                   <option value="inactive">Inactivo</option>
-                </select>
-                <LuBox className="app-search-icon text-muted" />
-              </div>
-
-              <div className="app-search">
-                <select
-                  className="form-select form-control my-1 my-md-0"
-                  value={(table.getColumn('estadoPublicacion')?.getFilterValue() as string) ?? 'All'}
-                  onChange={(e) => table.getColumn('estadoPublicacion')?.setFilterValue(e.target.value === 'All' ? undefined : e.target.value)}>
-                  <option value="All">Estado Publicación</option>
-                  <option value="Publicado">Publicado</option>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="Borrador">Borrador</option>
                 </select>
                 <LuBox className="app-search-icon text-muted" />
               </div>

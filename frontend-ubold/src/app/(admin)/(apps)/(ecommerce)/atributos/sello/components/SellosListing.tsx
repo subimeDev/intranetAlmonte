@@ -332,6 +332,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
       for (const selloId of idsToDelete) {
         const response = await fetch(`/api/tienda/sello/${selloId}`, {
           method: 'DELETE',
+          credentials: 'include', // Incluir cookies
         })
         if (!response.ok) {
           console.warn(`Error al eliminar sello ${selloId}:`, response.status, response.statusText)

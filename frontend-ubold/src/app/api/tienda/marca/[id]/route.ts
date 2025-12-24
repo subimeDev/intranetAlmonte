@@ -1,7 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
+import wooCommerceClient from '@/lib/woocommerce/client'
 
 export const dynamic = 'force-dynamic'
+
+// Función helper para obtener el ID del atributo "pa_marca" en WooCommerce
+async function getMarcaAttributeId(): Promise<number | null> {
+  try {
+    const attributes = await wooCommerceClient.get<any[]>('products/attributes', { slug: 'pa_marca' })
+    
+    if (attributes && attributes.length > 0) {
+      return attributes[0].id
+    }
+    
+    const allAttributes = await wooCommerceClient.get<any[]>('products/attributes')
+    const marcaAttribute = allAttributes.find((attr: any) => 
+      attr.slug === 'pa_marca' || 
+      attr.slug === 'marca' ||
+      attr.name?.toLowerCase().includes('marca')
+    )
+    
+    if (marcaAttribute) {
+      return marcaAttribute.id
+    }
+    
+    return null
+  } catch (error: any) {
+    console.error('[API Marca] ❌ Error al obtener ID del atributo:', error.message)
+    return null
+  }
+}
 
 export async function GET(
   request: Request,
@@ -9,6 +37,21 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      console.warn('[API /tienda/marca/[id] GET] ⚠️ Intento de acceso a ruta reservada:', id)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: `Ruta no válida. La ruta /api/tienda/marca/${id} no existe. Use /api/tienda/${id} en su lugar.`,
+          data: null,
+          hint: `Si está buscando ${id}, use el endpoint: /api/tienda/${id}`,
+        },
+        { status: 404 }
+      )
+    }
     
     console.log('[API /tienda/marca/[id] GET] Obteniendo marca:', {
       id,
@@ -134,15 +177,22 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      return NextResponse.json(
+        { success: false, error: `Ruta no válida. Use /api/tienda/${id} en su lugar.` },
+        { status: 404 }
+      )
+    }
+    
     console.log('[API Marca DELETE] 🗑️ Eliminando marca:', id)
 
     const marcaEndpoint = '/api/marcas'
     
-    // Primero obtener la marca de Strapi para obtener el documentId y verificar estado_publicacion
-    let marcaStrapi: any = null
+    // Primero obtener la marca de Strapi para obtener el documentId
     let documentId: string | null = null
-    let estadoPublicacion: string | null = null
-    
     try {
       const marcaResponse = await strapiClient.get<any>(`${marcaEndpoint}?filters[id][$eq]=${id}&populate=*`)
       let marcas: any[] = []
@@ -153,44 +203,57 @@ export async function DELETE(
       } else if (marcaResponse.data) {
         marcas = [marcaResponse.data]
       }
-      marcaStrapi = marcas[0]
+      const marcaStrapi = marcas[0]
       documentId = marcaStrapi?.documentId || marcaStrapi?.data?.documentId || id
-      
-      if (marcaStrapi) {
-        const attrs = marcaStrapi.attributes || {}
-        const data = (attrs && Object.keys(attrs).length > 0) ? attrs : marcaStrapi
-        estadoPublicacion = data.estado_publicacion || data.estadoPublicacion || null
-        
-        console.log('[API Marca DELETE] Estado de publicación:', estadoPublicacion)
-        
-        // Normalizar estado a minúsculas para comparación
-        if (estadoPublicacion) {
-          estadoPublicacion = estadoPublicacion.toLowerCase()
-        }
-      }
     } catch (error: any) {
       console.warn('[API Marca DELETE] ⚠️ No se pudo obtener marca de Strapi:', error.message)
       documentId = id
     }
 
+    // Obtener el ID del atributo
+    const attributeId = await getMarcaAttributeId()
+
+    // Buscar en WooCommerce por slug (documentId)
+    let woocommerceId: string | null = null
+    if (documentId && attributeId) {
+      try {
+        console.log('[API Marca DELETE] 🔍 Buscando término en WooCommerce por slug:', documentId)
+        const wcTerms = await wooCommerceClient.get<any[]>(
+          `products/attributes/${attributeId}/terms`,
+          { slug: documentId.toString() }
+        )
+        if (wcTerms && wcTerms.length > 0) {
+          woocommerceId = wcTerms[0].id.toString()
+          console.log('[API Marca DELETE] ✅ Término encontrado en WooCommerce por slug:', woocommerceId)
+        }
+      } catch (searchError: any) {
+        console.warn('[API Marca DELETE] ⚠️ No se pudo buscar por slug en WooCommerce:', searchError.message)
+      }
+    }
+
+    // Eliminar en WooCommerce primero si tenemos el ID
+    let wooCommerceDeleted = false
+    if (woocommerceId && attributeId) {
+      try {
+        console.log('[API Marca DELETE] 🛒 Eliminando término en WooCommerce:', woocommerceId)
+        await wooCommerceClient.delete<any>(`products/attributes/${attributeId}/terms/${woocommerceId}`, true)
+        wooCommerceDeleted = true
+        console.log('[API Marca DELETE] ✅ Término eliminado en WooCommerce')
+      } catch (wooError: any) {
+        console.error('[API Marca DELETE] ⚠️ Error al eliminar en WooCommerce (no crítico):', wooError.message)
+      }
+    }
+
     // Eliminar en Strapi usando documentId si está disponible
-    // El lifecycle de Strapi verifica estado_publicacion y solo elimina de WooCommerce si estaba "publicado"
     const strapiEndpoint = documentId ? `${marcaEndpoint}/${documentId}` : `${marcaEndpoint}/${id}`
     console.log('[API Marca DELETE] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
 
     const response = await strapiClient.delete<any>(strapiEndpoint)
-    
-    if (estadoPublicacion === 'publicado') {
-      console.log('[API Marca DELETE] ✅ Marca eliminada en Strapi. El lifecycle eliminará de WooCommerce si estaba publicado.')
-    } else {
-      console.log('[API Marca DELETE] ✅ Marca eliminada en Strapi (solo Strapi, no estaba publicada en WooCommerce)')
-    }
+    console.log('[API Marca DELETE] ✅ Marca eliminada en Strapi')
 
     return NextResponse.json({
       success: true,
-      message: estadoPublicacion === 'publicado' 
-        ? 'Marca eliminada exitosamente en Strapi. El lifecycle eliminará de WooCommerce.' 
-        : 'Marca eliminada exitosamente en Strapi',
+      message: 'Marca eliminada exitosamente' + (wooCommerceDeleted ? ' en WooCommerce y Strapi' : ' en Strapi'),
       data: response
     })
 
@@ -215,6 +278,16 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      return NextResponse.json(
+        { success: false, error: `Ruta no válida. Use /api/tienda/${id} en su lugar.` },
+        { status: 404 }
+      )
+    }
+    
     const body = await request.json()
     console.log('[API Marca PUT] ✏️ Actualizando marca:', id, body)
 
@@ -240,16 +313,61 @@ export async function PUT(
       documentId = id
     }
 
+    // Obtener el ID del atributo
+    const attributeId = await getMarcaAttributeId()
+
+    // Buscar en WooCommerce por slug (documentId)
+    let woocommerceId: string | null = null
+    if (documentId && attributeId) {
+      try {
+        console.log('[API Marca PUT] 🔍 Buscando término en WooCommerce por slug:', documentId)
+        const wcTerms = await wooCommerceClient.get<any[]>(
+          `products/attributes/${attributeId}/terms`,
+          { slug: documentId.toString() }
+        )
+        if (wcTerms && wcTerms.length > 0) {
+          woocommerceId = wcTerms[0].id.toString()
+          console.log('[API Marca PUT] ✅ Término encontrado en WooCommerce por slug:', woocommerceId)
+        }
+      } catch (searchError: any) {
+        console.warn('[API Marca PUT] ⚠️ No se pudo buscar por slug en WooCommerce:', searchError.message)
+      }
+    }
+
+    // Actualizar en WooCommerce primero si tenemos el ID
+    let wooCommerceTerm = null
+    if (woocommerceId && attributeId) {
+      try {
+        console.log('[API Marca PUT] 🛒 Actualizando término en WooCommerce:', woocommerceId)
+        
+        const wooCommerceTermData: any = {}
+        if (body.data.name || body.data.nombre_marca || body.data.nombreMarca || body.data.nombre) {
+          wooCommerceTermData.name = (body.data.name || body.data.nombre_marca || body.data.nombreMarca || body.data.nombre).trim()
+        }
+        if (body.data.descripcion !== undefined || body.data.description !== undefined) {
+          wooCommerceTermData.description = body.data.descripcion || body.data.description || ''
+        }
+
+        wooCommerceTerm = await wooCommerceClient.put<any>(
+          `products/attributes/${attributeId}/terms/${woocommerceId}`,
+          wooCommerceTermData
+        )
+        console.log('[API Marca PUT] ✅ Término actualizado en WooCommerce')
+      } catch (wooError: any) {
+        console.error('[API Marca PUT] ⚠️ Error al actualizar en WooCommerce (no crítico):', wooError.message)
+      }
+    }
+
     // Actualizar en Strapi usando documentId si está disponible
     const strapiEndpoint = documentId ? `${marcaEndpoint}/${documentId}` : `${marcaEndpoint}/${id}`
     console.log('[API Marca PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
 
-    // El schema de Strapi para marca usa: name* (Text), descripcion (Text), imagen (Media)
+    // El schema de Strapi para marca usa: name* (Text), descripcion, imagen, marca_padre, marcas_hijas, externalIds
     const marcaData: any = {
       data: {}
     }
 
-    // Aceptar diferentes formatos del formulario pero guardar según schema real (usa "name")
+    // Aceptar diferentes formatos del formulario pero guardar según schema real (usar 'name')
     if (body.data.name) marcaData.data.name = body.data.name.trim()
     if (body.data.nombre_marca) marcaData.data.name = body.data.nombre_marca.trim()
     if (body.data.nombreMarca) marcaData.data.name = body.data.nombreMarca.trim()
@@ -258,23 +376,34 @@ export async function PUT(
     if (body.data.descripcion !== undefined) marcaData.data.descripcion = body.data.descripcion?.trim() || null
     if (body.data.description !== undefined) marcaData.data.descripcion = body.data.description?.trim() || null
 
-    // Media: solo el ID (o null para eliminar)
+    // Media: solo el ID (o null para eliminar) - usar 'imagen' según schema
     if (body.data.imagen !== undefined) {
       marcaData.data.imagen = body.data.imagen || null
     }
-
-    // Estado de publicación - IMPORTANTE: Strapi espera valores en minúsculas
-    if (body.data.estado_publicacion !== undefined) {
-      // Normalizar a minúsculas para Strapi: "pendiente", "publicado", "borrador"
-      const estadoNormalizado = typeof body.data.estado_publicacion === 'string' 
-        ? body.data.estado_publicacion.toLowerCase() 
-        : body.data.estado_publicacion
-      marcaData.data.estado_publicacion = estadoNormalizado
-      console.log('[API Marca PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
+    if (body.data.logo !== undefined) {
+      marcaData.data.imagen = body.data.logo || null
     }
 
-    // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
-    // No necesitamos actualizar WooCommerce directamente aquí
+    // Manejar marca_padre (manyToOne relation)
+    if (body.data.marca_padre !== undefined) {
+      marcaData.data.marca_padre = body.data.marca_padre || null
+    }
+
+    // Manejar marcas_hijas (oneToMany relation)
+    if (body.data.marcas_hijas !== undefined) {
+      marcaData.data.marcas_hijas = body.data.marcas_hijas && body.data.marcas_hijas.length > 0 ? body.data.marcas_hijas : []
+    }
+
+    // Estado de publicación
+    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
+      marcaData.data.estado_publicacion = body.estado_publicacion
+    }
+    if (body.data?.estado_publicacion !== undefined && body.data.estado_publicacion !== '') {
+      marcaData.data.estado_publicacion = body.data.estado_publicacion
+    }
+
+    // No guardamos woocommerce_id en Strapi porque no existe en el schema
+    // El match se hace usando documentId como slug en WooCommerce
 
     const strapiResponse = await strapiClient.put<any>(strapiEndpoint, marcaData)
     console.log('[API Marca PUT] ✅ Marca actualizada en Strapi')
@@ -282,9 +411,10 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: {
+        woocommerce: wooCommerceTerm,
         strapi: strapiResponse.data || strapiResponse,
       },
-      message: 'Marca actualizada exitosamente en Strapi'
+      message: 'Marca actualizada exitosamente' + (wooCommerceTerm ? ' en WooCommerce y Strapi' : ' en Strapi')
     })
 
   } catch (error: any) {

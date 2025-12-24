@@ -49,6 +49,7 @@ import {
   LuSparkles,
   LuTable,
   LuUsers,
+  LuFileText,
 } from 'react-icons/lu'
 
 type UserDropdownItemType = {
@@ -165,7 +166,43 @@ export const menuItems: MenuItemType[] = [
     label: 'Ecommerce',
     icon: LuShoppingBag,
     children: [
-      // { key: 'categories', label: 'Categories', url: '/categories' },
+      {
+        key: 'products',
+        label: 'Products',
+        children: [
+          { key: 'product-list', label: 'Listing', url: '/products' },
+          { key: 'product-grid', label: 'Product Grid', url: '/products-grid' },
+          { key: 'product-details', label: 'Product Details', url: '/products/1' },
+          { key: 'add-product', label: 'Add Product', url: '/add-product' },
+          // Nota: Las páginas de categorías y etiquetas fueron movidas a /atributos
+          // { key: 'all-categories', label: 'Todas las Categorías', url: '/products/categorias' },
+          // { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
+          // { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
+          // { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
+          {
+            key: 'atributos',
+            label: 'Atributos',
+            children: [
+              { key: 'all-autores', label: 'Todos los Autores', url: '/atributos/autores' },
+              { key: 'add-autor', label: 'Agregar Autor', url: '/atributos/autores/agregar' },
+              { key: 'solicitudes-autores', label: 'Solicitudes de Autores', url: '/atributos/autores/solicitudes' },
+              { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
+              { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
+              { key: 'solicitudes-obras', label: 'Solicitudes de Obras', url: '/atributos/obras/solicitudes' },
+              { key: 'all-sellos', label: 'Todos los Sellos', url: '/atributos/sello' },
+              { key: 'add-sello', label: 'Agregar Sello', url: '/atributos/sello/agregar' },
+              { key: 'solicitudes-sellos', label: 'Solicitudes de Sellos', url: '/atributos/sello/solicitudes' },
+              { key: 'all-marcas', label: 'Todas las Marcas', url: '/atributos/marca' },
+              { key: 'add-marca', label: 'Agregar Marca', url: '/atributos/marca/agregar' },
+              { key: 'solicitudes-marcas', label: 'Solicitudes de Marcas', url: '/atributos/marca/solicitudes' },
+              { key: 'all-serie-colecciones', label: 'Todas las Series/Colecciones', url: '/atributos/serie-coleccion' },
+              { key: 'add-serie-coleccion', label: 'Agregar Serie/Colección', url: '/atributos/serie-coleccion/agregar' },
+            ],
+          },
+          { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+        ],
+      },
+      { key: 'categories', label: 'Categories', url: '/categories' },
       {
         key: 'orders',
         label: 'Pedidos',
@@ -198,6 +235,7 @@ export const menuItems: MenuItemType[] = [
   { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
   { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
   { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
+  { key: 'logs', label: 'Logs', icon: LuFileText, url: '/logs' },
   { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
   {
     key: 'equipos',
@@ -309,6 +347,42 @@ export const horizontalMenuItems: MenuItemType[] = [
         label: 'Ecommerce',
         icon: TbBasket,
         children: [
+          {
+            key: 'products',
+            label: 'Products',
+            children: [
+              { key: 'product-list', label: 'Listing', url: '/products' },
+              { key: 'product-grid', label: 'Product Grid', url: '/products-grid' },
+              { key: 'product-details', label: 'Product Details', url: '/products/1' },
+              { key: 'add-product', label: 'Add Product', url: '/add-product' },
+              // Nota: Las páginas de categorías y etiquetas fueron movidas a /atributos
+              // { key: 'all-categories', label: 'Todas las Categorías', url: '/products/categorias' },
+              // { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
+              // { key: 'all-tags', label: 'Todas las Etiquetas', url: '/products/etiquetas' },
+              // { key: 'add-tag', label: 'Agregar Etiqueta', url: '/products/etiquetas/agregar' },
+              {
+                key: 'atributos',
+                label: 'Atributos',
+                children: [
+                  { key: 'all-autores', label: 'Todos los Autores', url: '/atributos/autores' },
+                  { key: 'add-autor', label: 'Agregar Autor', url: '/atributos/autores/agregar' },
+                  { key: 'solicitudes-autores', label: 'Solicitudes de Autores', url: '/atributos/autores/solicitudes' },
+                  { key: 'all-obras', label: 'Todas las Obras', url: '/atributos/obras' },
+                  { key: 'add-obra', label: 'Agregar Obra', url: '/atributos/obras/agregar' },
+                  { key: 'solicitudes-obras', label: 'Solicitudes de Obras', url: '/atributos/obras/solicitudes' },
+                  { key: 'all-sellos', label: 'Todos los Sellos', url: '/atributos/sello' },
+                  { key: 'add-sello', label: 'Agregar Sello', url: '/atributos/sello/agregar' },
+                  { key: 'solicitudes-sellos', label: 'Solicitudes de Sellos', url: '/atributos/sello/solicitudes' },
+                  { key: 'all-marcas', label: 'Todas las Marcas', url: '/atributos/marca' },
+                  { key: 'add-marca', label: 'Agregar Marca', url: '/atributos/marca/agregar' },
+                  { key: 'solicitudes-marcas', label: 'Solicitudes de Marcas', url: '/atributos/marca/solicitudes' },
+                  { key: 'all-serie-colecciones', label: 'Todas las Series/Colecciones', url: '/atributos/serie-coleccion' },
+                  { key: 'add-serie-coleccion', label: 'Agregar Serie/Colección', url: '/atributos/serie-coleccion/agregar' },
+                ],
+              },
+              { key: 'product-requests', label: 'Solicitudes de Productos', url: '/products/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+            ],
+          },
           { key: 'categories', label: 'Categories', url: '/categories' },
           {
             key: 'orders',
