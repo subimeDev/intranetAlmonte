@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     }
     
     if (activo !== null && activo !== undefined && activo !== '') {
-      const isActivo = activo === 'true' || activo === true
+      const isActivo = activo === 'true'
       url += `&filters[activo][$eq]=${isActivo}`
     }
     
