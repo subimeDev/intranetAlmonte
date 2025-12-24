@@ -24,6 +24,7 @@ import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
 import TablePagination from '@/components/table/TablePagination'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo para la tabla
 type SelloType = {
@@ -119,6 +120,9 @@ const columnHelper = createColumnHelper<SelloType>()
 
 const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
   const router = useRouter()
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
   
   // Mapear sellos de Strapi al formato SelloType si están disponibles
   const mappedSellos = useMemo(() => {
@@ -238,16 +242,18 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -399,7 +405,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

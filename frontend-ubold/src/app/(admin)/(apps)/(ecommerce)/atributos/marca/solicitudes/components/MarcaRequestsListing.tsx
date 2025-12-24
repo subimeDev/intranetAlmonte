@@ -25,6 +25,7 @@ import ChangeStatusModal from '@/components/table/ChangeStatusModal'
 import TablePagination from '@/components/table/TablePagination'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo extendido para marcas con estado_publicacion
 type MarcaTypeExtended = {
@@ -208,17 +209,19 @@ const MarcaRequestsListing = ({ marcas, error }: MarcaRequestsListingProps = {})
             }}>
             <TbCheck className="fs-lg" />
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            title="Eliminar"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              title="Eliminar"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -383,7 +386,7 @@ const MarcaRequestsListing = ({ marcas, error }: MarcaRequestsListingProps = {})
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

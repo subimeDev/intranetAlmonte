@@ -28,6 +28,7 @@ import { toPascalCase } from '@/helpers/casing'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 interface Categoria {
   id: number
@@ -161,6 +162,9 @@ const columnHelper = createColumnHelper<CategoryType>()
 
 const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) => {
   const router = useRouter()
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
   
   // Mapear categorías de Strapi al formato CategoryType si están disponibles
   const mappedCategories = useMemo(() => {
@@ -322,16 +326,18 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -489,7 +495,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

@@ -164,3 +164,4 @@ export function getRolLabel(rol?: string): string {
   return rol ? labels[rol] || rol : 'Soporte'
 }
 
+

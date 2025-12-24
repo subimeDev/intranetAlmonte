@@ -25,6 +25,7 @@ import ChangeStatusModal from '@/components/table/ChangeStatusModal'
 import TablePagination from '@/components/table/TablePagination'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo extendido para etiquetas con estado_publicacion
 type EtiquetaTypeExtended = {
@@ -106,6 +107,9 @@ const columnHelper = createColumnHelper<EtiquetaTypeExtended>()
 
 const EtiquetaRequestsListing = ({ etiquetas, error }: EtiquetaRequestsListingProps = {}) => {
   const router = useRouter()
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
   
   const mappedEtiquetas = useMemo(() => {
     if (etiquetas && etiquetas.length > 0) {
@@ -220,17 +224,19 @@ const EtiquetaRequestsListing = ({ etiquetas, error }: EtiquetaRequestsListingPr
             }}>
             <TbCheck className="fs-lg" />
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            title="Eliminar"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              title="Eliminar"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -395,7 +401,7 @@ const EtiquetaRequestsListing = ({ etiquetas, error }: EtiquetaRequestsListingPr
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

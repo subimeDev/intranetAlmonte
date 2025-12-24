@@ -169,16 +169,18 @@ export const menuItems: MenuItemType[] = [
       {
         key: 'orders',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'orders-list', label: 'Pedidos', url: '/orders' },
           { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
         ],
       },
-      { key: 'customers', label: 'Clientes', url: '/customers' },
-      { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
+      { key: 'customers', label: 'Clientes', url: '/customers', roles: ['super_admin', 'supervisor', 'soporte'] },
+      { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes', roles: ['super_admin', 'supervisor', 'soporte'] },
       {
         key: 'cupones',
         label: 'Cupones',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
           { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
@@ -187,6 +189,7 @@ export const menuItems: MenuItemType[] = [
       {
         key: 'pedidos',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
           { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
@@ -231,6 +234,7 @@ export const menuItems: MenuItemType[] = [
       {
         key: 'tienda-pedidos',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
           { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
@@ -313,16 +317,18 @@ export const horizontalMenuItems: MenuItemType[] = [
           {
             key: 'orders',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'orders-list', label: 'Pedidos', url: '/orders' },
               { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
             ],
           },
-          { key: 'customers', label: 'Clientes', url: '/customers' },
-          { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
+          { key: 'customers', label: 'Clientes', url: '/customers', roles: ['super_admin', 'supervisor', 'soporte'] },
+          { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes', roles: ['super_admin', 'supervisor', 'soporte'] },
           {
             key: 'cupones',
             label: 'Cupones',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
               { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
@@ -331,6 +337,7 @@ export const horizontalMenuItems: MenuItemType[] = [
           {
             key: 'pedidos',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
               { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
@@ -356,6 +363,7 @@ export const horizontalMenuItems: MenuItemType[] = [
           {
             key: 'tienda-pedidos',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
               { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },

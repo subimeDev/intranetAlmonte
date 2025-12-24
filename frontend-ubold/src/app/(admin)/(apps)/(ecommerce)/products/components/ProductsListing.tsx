@@ -29,6 +29,7 @@ import { toPascalCase } from '@/helpers/casing'
 import { productData, type ProductType } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo extendido para productos que pueden tener imagen como URL o StaticImageData
 type ProductTypeExtended = Omit<ProductType, 'image'> & {
@@ -156,6 +157,10 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
 const columnHelper = createColumnHelper<ProductTypeExtended>()
 
 const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+
   // Mapear productos de Strapi al formato ProductType si están disponibles
   const mappedProducts = useMemo(() => {
     if (productos && productos.length > 0) {
@@ -333,16 +338,18 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -529,7 +536,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>
