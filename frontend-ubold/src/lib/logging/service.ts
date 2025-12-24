@@ -135,6 +135,12 @@ export async function logActivity(
     const ipAddress = getClientIP(request)
     const userAgent = getUserAgent(request)
 
+    // Obtener cookies y token para logging de debug
+    const colaboradorCookie = request.cookies.get('colaboradorData')?.value || 
+                              request.cookies.get('colaborador')?.value
+    const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
+                  request.cookies.get('auth_token')?.value
+
     // Preparar datos para Strapi
     const logData: any = {
       accion: params.accion,
