@@ -59,7 +59,18 @@ export async function GET(request: Request) {
       )
     }
 
-    const colaborador = Array.isArray(response.data) ? response.data[0] : response.data
+    const colaboradorRaw = Array.isArray(response.data) ? response.data[0] : response.data
+    
+    // Extraer campos del colaborador (pueden venir en attributes si tiene draft/publish)
+    const colaboradorAttrs = colaboradorRaw.attributes || colaboradorRaw
+    const colaborador = {
+      id: colaboradorRaw.id,
+      email_login: colaboradorAttrs.email_login || colaboradorRaw.email_login,
+      rol: colaboradorAttrs.rol || colaboradorRaw.rol || 'soporte',
+      activo: colaboradorAttrs.activo !== undefined ? colaboradorAttrs.activo : colaboradorRaw.activo,
+      persona: colaboradorAttrs.persona?.data || colaboradorRaw.persona?.data || colaboradorAttrs.persona || colaboradorRaw.persona || null,
+      usuario: colaboradorAttrs.usuario?.data || colaboradorRaw.usuario?.data || colaboradorAttrs.usuario || colaboradorRaw.usuario || null,
+    }
 
     return NextResponse.json({ colaborador }, { status: 200 })
   } catch (error: any) {
