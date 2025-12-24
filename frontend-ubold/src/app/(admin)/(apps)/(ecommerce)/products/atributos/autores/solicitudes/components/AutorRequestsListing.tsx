@@ -151,6 +151,7 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
   // Estado para el modal de cambio de estado
   const [showChangeStatusModal, setShowChangeStatusModal] = useState(false)
   const [selectedAutor, setSelectedAutor] = useState<AutorTypeExtended | null>(null)
+  const [statusAction, setStatusAction] = useState<'approve' | 'reject'>('approve')
 
   const columns: ColumnDef<AutorTypeExtended, any>[] = [
     {
@@ -288,6 +289,7 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
             title="Cambiar Estado"
             onClick={() => {
               setSelectedAutor(row.original)
+              setStatusAction('approve')
               setShowChangeStatusModal(true)
             }}>
             <TbCheck className="fs-lg" />
@@ -401,10 +403,11 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
     }
   }
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async () => {
     if (!selectedAutor?.strapiId) return
 
-    // IMPORTANTE: Strapi espera valores en minúsculas: "pendiente", "publicado", "borrador"
+    // Determinar el nuevo estado basado en la acción
+    const newStatus = statusAction === 'approve' ? 'publicado' : 'rechazado'
     const newStatusLower = newStatus.toLowerCase()
 
     try {
@@ -431,6 +434,8 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
         )
       )
       console.log(`[AutorRequestsListing] Estado de autor ${selectedAutor.strapiId} actualizado a ${newStatus}`)
+      setShowChangeStatusModal(false)
+      setSelectedAutor(null)
     } catch (err: any) {
       console.error('[AutorRequestsListing] Error al cambiar estado:', err)
       alert(`Error al cambiar estado: ${err.message}`)
@@ -560,15 +565,15 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
           />
 
           {selectedAutor && (
-            <ChangeStatusModal
+            <ConfirmStatusModal
               show={showChangeStatusModal}
               onHide={() => {
                 setShowChangeStatusModal(false)
                 setSelectedAutor(null)
               }}
               onConfirm={handleStatusChange}
-              currentStatus={selectedAutor.estadoPublicacion || 'Pendiente'}
-              productName={selectedAutor.name || 'Autor'}
+              action={statusAction}
+              itemName={selectedAutor.name || 'autor'}
             />
           )}
         </Card>
