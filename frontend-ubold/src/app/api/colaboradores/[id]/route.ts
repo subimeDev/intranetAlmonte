@@ -31,8 +31,9 @@ export async function GET(
   try {
     const { id } = await params
 
+    // Usar fields específicos para persona para evitar errores con campos que no existen (tags, etc)
     const response = await strapiClient.get<StrapiResponse<StrapiEntity<ColaboradorAttributes>>>(
-      `/api/colaboradores/${id}?populate[persona]=*&populate[usuario]=*`
+      `/api/colaboradores/${id}?populate[persona][fields]=rut,nombres,primer_apellido,segundo_apellido,nombre_completo&populate[usuario]=*`
     )
 
     return NextResponse.json({

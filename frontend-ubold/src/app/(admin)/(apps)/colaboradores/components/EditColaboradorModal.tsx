@@ -37,8 +37,6 @@ const EditColaboradorModal = ({ show, onHide, colaborador, onSuccess }: EditCola
   const [formData, setFormData] = useState({
     email_login: '',
     rol: '',
-    rol_principal: '',
-    rol_operativo: '',
     activo: true,
   })
 
@@ -52,8 +50,6 @@ const EditColaboradorModal = ({ show, onHide, colaborador, onSuccess }: EditCola
       setFormData({
         email_login: data.email_login || colaborador.email_login || '',
         rol: data.rol || colaborador.rol || '',
-        rol_principal: data.rol_principal || colaborador.rol_principal || '',
-        rol_operativo: data.rol_operativo || colaborador.rol_operativo || '',
         activo: data.activo !== undefined ? data.activo : (colaborador.activo !== undefined ? colaborador.activo : true),
       })
     }
@@ -89,8 +85,6 @@ const EditColaboradorModal = ({ show, onHide, colaborador, onSuccess }: EditCola
       const colaboradorData: any = {
         email_login: formData.email_login.trim(),
         rol: formData.rol || null,
-        rol_principal: formData.rol_principal || null,
-        rol_operativo: formData.rol_operativo || null,
         activo: formData.activo,
       }
 
@@ -165,27 +159,6 @@ const EditColaboradorModal = ({ show, onHide, colaborador, onSuccess }: EditCola
             </FormSelect>
           </FormGroup>
 
-          <FormGroup className="mb-3">
-            <FormLabel>Rol Principal</FormLabel>
-            <FormControl
-              type="text"
-              placeholder="Rol principal"
-              value={formData.rol_principal}
-              onChange={(e) => handleFieldChange('rol_principal', e.target.value)}
-              disabled={loading}
-            />
-          </FormGroup>
-
-          <FormGroup className="mb-3">
-            <FormLabel>Rol Operativo</FormLabel>
-            <FormControl
-              type="text"
-              placeholder="Rol operativo"
-              value={formData.rol_operativo}
-              onChange={(e) => handleFieldChange('rol_operativo', e.target.value)}
-              disabled={loading}
-            />
-          </FormGroup>
 
           <FormGroup className="mb-3">
             <FormCheck

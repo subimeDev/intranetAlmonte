@@ -49,8 +49,6 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
   const [formData, setFormData] = useState({
     email_login: colaboradorData?.email_login || '',
     rol: colaboradorData?.rol || '',
-    rol_principal: colaboradorData?.rol_principal || '',
-    rol_operativo: colaboradorData?.rol_operativo || '',
     activo: colaboradorData?.activo !== undefined ? colaboradorData.activo : true,
   })
 
@@ -59,8 +57,6 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
       setFormData({
         email_login: colaboradorData.email_login || '',
         rol: colaboradorData.rol || '',
-        rol_principal: colaboradorData.rol_principal || '',
-        rol_operativo: colaboradorData.rol_operativo || '',
         activo: colaboradorData.activo !== undefined ? colaboradorData.activo : true,
       })
     }
@@ -97,8 +93,6 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
       const colaboradorUpdateData: any = {
         email_login: formData.email_login.trim(),
         rol: formData.rol || null,
-        rol_principal: formData.rol_principal || null,
-        rol_operativo: formData.rol_operativo || null,
         activo: formData.activo,
       }
 
@@ -195,31 +189,6 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
               </FormGroup>
             </Col>
 
-            <Col md={6}>
-              <FormGroup className="mb-3">
-                <FormLabel>Rol Principal</FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Rol principal"
-                  value={formData.rol_principal}
-                  onChange={(e) => handleFieldChange('rol_principal', e.target.value)}
-                  disabled={loading}
-                />
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup className="mb-3">
-                <FormLabel>Rol Operativo</FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Rol operativo"
-                  value={formData.rol_operativo}
-                  onChange={(e) => handleFieldChange('rol_operativo', e.target.value)}
-                  disabled={loading}
-                />
-              </FormGroup>
-            </Col>
 
             <Col md={12}>
               <FormGroup className="mb-3">

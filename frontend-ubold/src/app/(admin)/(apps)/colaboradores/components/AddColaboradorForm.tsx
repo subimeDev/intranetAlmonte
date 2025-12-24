@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, FormSelect, Alert, FormCheck } from 'react-bootstrap'
-import { LuSave, LuX } from 'react-icons/lu'
+import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, FormSelect, Alert, FormCheck, InputGroup } from 'react-bootstrap'
+import { LuSave, LuX, LuEye, LuEyeOff } from 'react-icons/lu'
+import { useState } from 'react'
 
 const ROLES = [
   'super_admin',
@@ -17,11 +18,11 @@ const AddColaboradorForm = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email_login: '',
+    password: '',
     rol: '',
-    rol_principal: '',
-    rol_operativo: '',
     activo: true,
     persona: null as string | null,
     usuario: null as string | null,
@@ -52,12 +53,16 @@ const AddColaboradorForm = () => {
         throw new Error('El email_login no tiene un formato válido')
       }
 
+      // Validar contraseña
+      if (!formData.password || formData.password.trim().length < 6) {
+        throw new Error('La contraseña es obligatoria y debe tener al menos 6 caracteres')
+      }
+
       // Preparar datos para Strapi
       const colaboradorData: any = {
         email_login: formData.email_login.trim(),
+        password: formData.password,
         rol: formData.rol || null,
-        rol_principal: formData.rol_principal || null,
-        rol_operativo: formData.rol_operativo || null,
         activo: formData.activo,
         ...(formData.persona && { persona: formData.persona }),
         ...(formData.usuario && { usuario: formData.usuario }),
@@ -129,6 +134,34 @@ const AddColaboradorForm = () => {
 
             <Col md={6}>
               <FormGroup className="mb-3">
+                <FormLabel>
+                  Contraseña <span className="text-danger">*</span>
+                </FormLabel>
+                <InputGroup>
+                  <FormControl
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => handleFieldChange('password', e.target.value)}
+                    required
+                    disabled={loading}
+                    minLength={6}
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
+                    type="button"
+                  >
+                    {showPassword ? <LuEyeOff /> : <LuEye />}
+                  </Button>
+                </InputGroup>
+                <small className="text-muted">Mínimo 6 caracteres</small>
+              </FormGroup>
+            </Col>
+
+            <Col md={6}>
+              <FormGroup className="mb-3">
                 <FormLabel>Rol</FormLabel>
                 <FormSelect
                   value={formData.rol}
@@ -142,32 +175,6 @@ const AddColaboradorForm = () => {
                     </option>
                   ))}
                 </FormSelect>
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup className="mb-3">
-                <FormLabel>Rol Principal</FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Rol principal"
-                  value={formData.rol_principal}
-                  onChange={(e) => handleFieldChange('rol_principal', e.target.value)}
-                  disabled={loading}
-                />
-              </FormGroup>
-            </Col>
-
-            <Col md={6}>
-              <FormGroup className="mb-3">
-                <FormLabel>Rol Operativo</FormLabel>
-                <FormControl
-                  type="text"
-                  placeholder="Rol operativo"
-                  value={formData.rol_operativo}
-                  onChange={(e) => handleFieldChange('rol_operativo', e.target.value)}
-                  disabled={loading}
-                />
               </FormGroup>
             </Col>
 

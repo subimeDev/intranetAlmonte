@@ -23,7 +23,8 @@ export async function GET(request: Request) {
     const page = searchParams.get('page') || '1'
     const pageSize = searchParams.get('pageSize') || '50'
 
-    let url = `/api/colaboradores?populate[persona]=*&populate[usuario]=*&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=createdAt:desc`
+    // Usar fields específicos para persona para evitar errores con campos que no existen (tags, etc)
+    let url = `/api/colaboradores?populate[persona][fields]=rut,nombres,primer_apellido,segundo_apellido,nombre_completo&populate[usuario]=*&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=createdAt:desc`
     
     if (email) {
       url += `&filters[email_login][$contains]=${encodeURIComponent(email)}`
@@ -96,6 +97,17 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validar contraseña si se proporciona
+    if (body.password && body.password.trim().length < 6) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'La contraseña debe tener al menos 6 caracteres',
+        },
+        { status: 400 }
+      )
+    }
+
     // Preparar datos para Strapi
     // Solo enviar campos que existen en el modelo de Strapi
     const colaboradorData: any = {
@@ -103,6 +115,7 @@ export async function POST(request: Request) {
         email_login: body.email_login.trim(),
         rol: body.rol || null,
         activo: body.activo !== undefined ? body.activo : true,
+        ...(body.password && { password: body.password }),
         ...(body.persona && { persona: body.persona }),
         ...(body.usuario && { usuario: body.usuario }),
       },

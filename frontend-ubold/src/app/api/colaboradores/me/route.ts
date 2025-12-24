@@ -46,7 +46,8 @@ export async function GET(request: Request) {
     const user = await userResponse.json()
 
     // Buscar el colaborador vinculado a este usuario
-    const colaboradorUrl = `/api/colaboradores?filters[usuario][id][$eq]=${user.id}&populate[persona]=*&populate[usuario]=*`
+    // Usar fields específicos para persona para evitar errores con campos que no existen (tags, etc)
+    const colaboradorUrl = `/api/colaboradores?filters[usuario][id][$eq]=${user.id}&populate[persona][fields]=rut,nombres,primer_apellido,segundo_apellido,nombre_completo&populate[usuario]=*`
     
     const response = await strapiClient.get<StrapiResponse<StrapiEntity<ColaboradorAttributes>>>(
       colaboradorUrl
