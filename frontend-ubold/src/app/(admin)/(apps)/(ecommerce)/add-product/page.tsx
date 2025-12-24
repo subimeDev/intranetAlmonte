@@ -83,6 +83,11 @@ export default function AddProductPage() {
     portada_libro: null as File | null,
   })
 
+  // Memoizar la función onImageChange para evitar loops infinitos
+  const handleImageChange = useCallback((file: File | null) => {
+    setFormData(prev => ({ ...prev, portada_libro: file }))
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -107,6 +112,7 @@ export default function AddProductPage() {
         
         const uploadResponse = await fetch('/api/tienda/upload', {
           method: 'POST',
+          credentials: 'include', // Incluir cookies
           body: uploadFormData,
         })
         
@@ -213,6 +219,7 @@ export default function AddProductPage() {
 
       const response = await fetch('/api/tienda/productos', {
         method: 'POST',
+        credentials: 'include', // Incluir cookies
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend)
       })
@@ -355,7 +362,7 @@ export default function AddProductPage() {
             </FormGroup>
 
             <ProductImage 
-              onImageChange={(file) => setFormData(prev => ({ ...prev, portada_libro: file }))}
+              onImageChange={handleImageChange}
             />
           </CardBody>
         </Card>

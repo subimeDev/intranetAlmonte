@@ -309,6 +309,7 @@ const ObrasListing = ({ obras, error }: ObrasListingProps = {}) => {
       for (const obraId of idsToDelete) {
         const response = await fetch(`/api/tienda/obras/${obraId}`, {
           method: 'DELETE',
+          credentials: 'include', // Incluir cookies
         })
         if (!response.ok) {
           console.warn(`Error al eliminar obra ${obraId}:`, response.status, response.statusText)
@@ -482,4 +483,6 @@ const ObrasListing = ({ obras, error }: ObrasListingProps = {}) => {
 }
 
 export default ObrasListing
+
+
 

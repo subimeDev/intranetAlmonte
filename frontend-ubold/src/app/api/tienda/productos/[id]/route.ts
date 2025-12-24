@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
+import { logActivity, createLogDescription } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,26 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada (categorias, etiquetas, etc.)
+    // Esto previene que rutas como /api/tienda/productos/categorias sean tratadas como IDs de producto
+    const reservedWords = ['categorias', 'etiquetas', 'marcas', 'autores', 'obras', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      console.warn('[API /tienda/productos/[id] GET] ⚠️ Intento de acceso a ruta reservada:', {
+        id,
+        rutaCorrecta: `/api/tienda/${id}`,
+        mensaje: 'Esta ruta no es válida para productos. Use la ruta correcta para este recurso.'
+      })
+      return NextResponse.json(
+        { 
+          success: false,
+          error: `Ruta no válida. La ruta /api/tienda/productos/${id} no existe. Use /api/tienda/${id} en su lugar.`,
+          data: null,
+          hint: `Si está buscando ${id}, use el endpoint: /api/tienda/${id}`,
+        },
+        { status: 404 }
+      )
+    }
     
     console.log('[API /tienda/productos/[id] GET] Obteniendo producto:', {
       id,
@@ -55,6 +76,18 @@ export async function GET(
             productoId: producto.id,
             documentId: producto.documentId,
           })
+          
+          // Registrar log de visualización
+          const attrs = producto.attributes || {}
+          const data = (attrs && Object.keys(attrs).length > 0) ? attrs : producto
+          const nombreProducto = data.nombre_libro || data.isbn_libro || id
+          
+          logActivity(request as any, {
+            accion: 'ver',
+            entidad: 'producto',
+            entidadId: id,
+            descripcion: createLogDescription('ver', 'producto', nombreProducto),
+          }).catch(() => {})
           
           return NextResponse.json({
             success: true,
@@ -399,6 +432,11 @@ export async function PUT(
     console.log('[API PUT] 📤 Datos finales a enviar:', JSON.stringify(updateData, null, 2))
     console.log('[API PUT] ✅ Todos los campos en minúsculas')
 
+    // Guardar datos anteriores para el log
+    const attrsAnteriores = producto.attributes || {}
+    const datosAnteriores = (attrsAnteriores && Object.keys(attrsAnteriores).length > 0) ? attrsAnteriores : producto
+    const nombreAnterior = datosAnteriores.nombre_libro || datosAnteriores.isbn_libro || id
+    
     // Actualizar
     const updateResponse = await strapiClient.put<any>(
       `/api/libros/${producto.documentId}`,
@@ -406,6 +444,17 @@ export async function PUT(
     )
 
     console.log('[API PUT] ✅ Actualización exitosa')
+    
+    // Registrar log de actualización
+    const nombreNuevo = updateData.data.nombre_libro || nombreAnterior
+    logActivity(request, {
+      accion: 'actualizar',
+      entidad: 'producto',
+      entidadId: producto.documentId || id,
+      descripcion: createLogDescription('actualizar', 'producto', nombreNuevo, `Producto "${nombreNuevo}"`),
+      datosAnteriores: datosAnteriores ? { nombre: nombreAnterior } : undefined,
+      datosNuevos: updateData.data,
+    }).catch(() => {})
 
     return NextResponse.json({
       success: true,

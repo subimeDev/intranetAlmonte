@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
+import { logActivity, createLogDescription } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,14 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('[API GET autores] ✅ Items obtenidos:', items.length)
+    
+    // Registrar log de visualización
+    logActivity(request, {
+      accion: 'ver',
+      entidad: 'autores',
+      descripcion: createLogDescription('ver', 'autores', null, `${items.length} autores`),
+      metadata: { cantidad: items.length },
+    }).catch(() => {})
     
     return NextResponse.json({
       success: true,
@@ -81,9 +90,23 @@ export async function POST(request: NextRequest) {
     
     const response = await strapiClient.post('/api/autores', autorData) as any
     
+<<<<<<< HEAD
     console.log('[API Autores POST] ✅ Autor creado en Strapi:', response.id || response.documentId)
     console.log('[API Autores POST] Estado: ⏸️ Solo guardado en Strapi (pendiente), no se publica en WordPress')
     console.log('[API Autores POST] Para publicar, cambiar el estado desde la página de Solicitudes')
+=======
+    const autorId = response.data?.documentId || response.data?.id || response.documentId || response.id
+    console.log('[API Autores POST] ✅ Autor creado en Strapi:', autorId)
+    
+    // Registrar log de creación
+    logActivity(request, {
+      accion: 'crear',
+      entidad: 'autor',
+      entidadId: autorId,
+      descripcion: createLogDescription('crear', 'autor', null, `Autor "${body.data.nombre_completo_autor}"`),
+      datosNuevos: { nombre_completo: body.data.nombre_completo_autor, tipo: body.data.tipo_autor },
+    }).catch(() => {})
+>>>>>>> origin/matiRama2
     
     return NextResponse.json({
       success: true,

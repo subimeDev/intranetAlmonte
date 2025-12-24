@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+<<<<<<< HEAD
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -103,3 +104,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
+=======
+>>>>>>> origin/matiRama2

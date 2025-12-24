@@ -1,16 +1,11 @@
 import { Container } from 'react-bootstrap'
-import { headers } from 'next/headers'
-import type { Metadata } from 'next'
+import { headers, cookies } from 'next/headers'
 
 import ProductsListing from '@/app/(admin)/(apps)/(ecommerce)/products/components/ProductsListing'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic'
-
-export const metadata: Metadata = {
-  title: 'Todos los Productos',
-}
 
 export default async function Page() {
   let productos: any[] = []
@@ -24,8 +19,17 @@ export default async function Page() {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
     const baseUrl = `${protocol}://${host}`
     
+    // Obtener cookies del servidor para pasarlas al fetch interno
+    const cookieStore = await cookies()
+    const cookieString = cookieStore.getAll()
+      .map(cookie => `${cookie.name}=${cookie.value}`)
+      .join('; ')
+    
     const response = await fetch(`${baseUrl}/api/tienda/productos`, {
       cache: 'no-store', // Forzar fetch dinámico
+      headers: {
+        'Cookie': cookieString, // Pasar cookies al fetch interno
+      },
     })
     
     const data = await response.json()
@@ -49,7 +53,7 @@ export default async function Page() {
 
   return (
     <Container fluid>
-      <PageBreadcrumb title="Todos los Productos" subtitle="Ecommerce" />
+      <PageBreadcrumb title="Products" subtitle="Ecommerce" />
       <ProductsListing productos={productos} error={error} />
     </Container>
   )

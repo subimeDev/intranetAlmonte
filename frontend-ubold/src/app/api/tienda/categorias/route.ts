@@ -3,23 +3,6 @@ import strapiClient from '@/lib/strapi/client'
 
 export const dynamic = 'force-dynamic'
 
-// Función helper para encontrar el endpoint correcto
-async function findCategoriaEndpoint(): Promise<string> {
-  const endpoints = ['/api/categorias-producto', '/api/categoria-productos', '/api/categorias']
-  
-  for (const endpoint of endpoints) {
-    try {
-      await strapiClient.get<any>(`${endpoint}?pagination[pageSize]=1`)
-      return endpoint
-    } catch {
-      continue
-    }
-  }
-  
-  // Si ninguno funciona, usar el primero por defecto
-  return endpoints[0]
-}
-
 export async function GET(request: NextRequest) {
   try {
     // PROBAR estos nombres en orden hasta encontrar el correcto
@@ -71,6 +54,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+<<<<<<< HEAD
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -144,3 +128,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
+=======
+>>>>>>> origin/matiRama2

@@ -10,6 +10,21 @@ export async function GET(
   try {
     const { id } = await params
     
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      console.warn('[API /tienda/marca/[id] GET] ⚠️ Intento de acceso a ruta reservada:', id)
+      return NextResponse.json(
+        { 
+          success: false,
+          error: `Ruta no válida. La ruta /api/tienda/marca/${id} no existe. Use /api/tienda/${id} en su lugar.`,
+          data: null,
+          hint: `Si está buscando ${id}, use el endpoint: /api/tienda/${id}`,
+        },
+        { status: 404 }
+      )
+    }
+    
     console.log('[API /tienda/marca/[id] GET] Obteniendo marca:', {
       id,
       esNumerico: !isNaN(parseInt(id)),
@@ -150,6 +165,16 @@ export async function DELETE(
     }
 
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      return NextResponse.json(
+        { success: false, error: `Ruta no válida. Use /api/tienda/${id} en su lugar.` },
+        { status: 404 }
+      )
+    }
+    
     console.log('[API Marca DELETE] 🗑️ Eliminando marca:', id)
 
     const marcaEndpoint = '/api/marcas'
@@ -231,6 +256,16 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
+    
+    // Validar que el ID no sea una palabra reservada
+    const reservedWords = ['productos', 'categorias', 'etiquetas', 'pedidos', 'facturas', 'obras', 'autores', 'sellos', 'serie-coleccion']
+    if (reservedWords.includes(id.toLowerCase())) {
+      return NextResponse.json(
+        { success: false, error: `Ruta no válida. Use /api/tienda/${id} en su lugar.` },
+        { status: 404 }
+      )
+    }
+    
     const body = await request.json()
     console.log('[API Marca PUT] ✏️ Actualizando marca:', id, body)
 
@@ -259,10 +294,24 @@ export async function PUT(
           ? allResponse 
           : (allResponse.data && Array.isArray(allResponse.data) ? allResponse.data : [])
         
+<<<<<<< HEAD
         marcaStrapi = allMarcas.find((m: any) => 
           m.id?.toString() === id || 
           m.documentId === id ||
           (m.attributes && (m.attributes.id?.toString() === id || m.attributes.documentId === id))
+=======
+        const wooCommerceTermData: any = {}
+        if (body.data.name || body.data.nombre_marca || body.data.nombreMarca || body.data.nombre) {
+          wooCommerceTermData.name = (body.data.name || body.data.nombre_marca || body.data.nombreMarca || body.data.nombre).trim()
+        }
+        if (body.data.descripcion !== undefined || body.data.description !== undefined) {
+          wooCommerceTermData.description = body.data.descripcion || body.data.description || ''
+        }
+
+        wooCommerceTerm = await wooCommerceClient.put<any>(
+          `products/attributes/${attributeId}/terms/${woocommerceId}`,
+          wooCommerceTermData
+>>>>>>> origin/matiRama2
         )
       } catch (searchError: any) {
         console.error('[API Marca PUT] Error en búsqueda alternativa:', searchError.message)
@@ -276,6 +325,7 @@ export async function PUT(
       }, { status: 404 })
     }
 
+<<<<<<< HEAD
     // En Strapi v4, usar documentId (string) para actualizar, no el id numérico
     const marcaDocumentId = marcaStrapi.documentId || marcaStrapi.data?.documentId || marcaStrapi.id?.toString() || id
     console.log('[API Marca PUT] Usando documentId para actualizar:', marcaDocumentId)
@@ -286,11 +336,18 @@ export async function PUT(
     console.log('[API Marca PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId: marcaDocumentId, id })
 
     // El schema de Strapi para marca usa: name* (Text), descripcion (Text), imagen (Media)
+=======
+    // El schema de Strapi para marca usa: name* (Text), descripcion, imagen, marca_padre, marcas_hijas, externalIds
+>>>>>>> origin/matiRama2
     const marcaData: any = {
       data: {}
     }
 
+<<<<<<< HEAD
     // Aceptar diferentes formatos del formulario pero guardar según schema real (usa "name")
+=======
+    // Aceptar diferentes formatos del formulario pero guardar según schema real (usar 'name')
+>>>>>>> origin/matiRama2
     if (body.data.name) marcaData.data.name = body.data.name.trim()
     if (body.data.nombre_marca) marcaData.data.name = body.data.nombre_marca.trim()
     if (body.data.nombreMarca) marcaData.data.name = body.data.nombreMarca.trim()
@@ -299,9 +356,36 @@ export async function PUT(
     if (body.data.descripcion !== undefined) marcaData.data.descripcion = body.data.descripcion?.trim() || null
     if (body.data.description !== undefined) marcaData.data.descripcion = body.data.description?.trim() || null
 
+<<<<<<< HEAD
     // Media: solo el ID (o null para eliminar)
     if (body.data.imagen !== undefined) {
       marcaData.data.imagen = body.data.imagen || null
+=======
+    // Media: solo el ID (o null para eliminar) - usar 'imagen' según schema
+    if (body.data.imagen !== undefined) {
+      marcaData.data.imagen = body.data.imagen || null
+    }
+    if (body.data.logo !== undefined) {
+      marcaData.data.imagen = body.data.logo || null
+    }
+
+    // Manejar marca_padre (manyToOne relation)
+    if (body.data.marca_padre !== undefined) {
+      marcaData.data.marca_padre = body.data.marca_padre || null
+    }
+
+    // Manejar marcas_hijas (oneToMany relation)
+    if (body.data.marcas_hijas !== undefined) {
+      marcaData.data.marcas_hijas = body.data.marcas_hijas && body.data.marcas_hijas.length > 0 ? body.data.marcas_hijas : []
+    }
+
+    // Estado de publicación
+    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
+      marcaData.data.estado_publicacion = body.estado_publicacion
+    }
+    if (body.data?.estado_publicacion !== undefined && body.data.estado_publicacion !== '') {
+      marcaData.data.estado_publicacion = body.data.estado_publicacion
+>>>>>>> origin/matiRama2
     }
 
     // Estado de publicación - IMPORTANTE: Strapi espera valores en minúsculas

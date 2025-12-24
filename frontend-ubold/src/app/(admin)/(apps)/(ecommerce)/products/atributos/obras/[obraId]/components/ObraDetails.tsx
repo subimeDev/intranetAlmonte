@@ -123,6 +123,7 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
       
       const response = await fetch(url, {
         method: 'PUT',
+        credentials: 'include', // Incluir cookies
         headers: {
           'Content-Type': 'application/json',
         },
@@ -322,4 +323,6 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
 }
 
 export default ObraDetails
+
+
 

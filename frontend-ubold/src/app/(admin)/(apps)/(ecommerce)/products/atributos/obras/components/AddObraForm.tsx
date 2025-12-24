@@ -56,6 +56,7 @@ const AddObraForm = () => {
       // Crear la obra
       const response = await fetch('/api/tienda/obras', {
         method: 'POST',
+        credentials: 'include', // Incluir cookies
         headers: {
           'Content-Type': 'application/json',
         },
@@ -176,4 +177,6 @@ const AddObraForm = () => {
 }
 
 export default AddObraForm
+
+
 

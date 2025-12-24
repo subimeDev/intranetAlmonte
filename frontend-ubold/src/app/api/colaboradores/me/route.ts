@@ -46,8 +46,7 @@ export async function GET(request: Request) {
     const user = await userResponse.json()
 
     // Buscar el colaborador vinculado a este usuario
-    // Usar fields específicos para persona para evitar errores con campos que no existen (tags, etc)
-    const colaboradorUrl = `/api/colaboradores?filters[usuario][id][$eq]=${user.id}&populate[persona][fields]=rut,nombres,primer_apellido,segundo_apellido,nombre_completo&populate[usuario]=*`
+    const colaboradorUrl = `/api/colaboradores?filters[usuario][id][$eq]=${user.id}&populate[persona]=*&populate[usuario]=*`
     
     const response = await strapiClient.get<StrapiResponse<StrapiEntity<ColaboradorAttributes>>>(
       colaboradorUrl
@@ -60,19 +59,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const colaboradorRaw = Array.isArray(response.data) ? response.data[0] : response.data
-    const colaboradorRawAny = colaboradorRaw as any // Cast para acceder a campos que pueden estar en el nivel superior
-    
-    // Extraer campos del colaborador (pueden venir en attributes si tiene draft/publish)
-    const colaboradorAttrs = colaboradorRawAny.attributes || colaboradorRawAny
-    const colaborador = {
-      id: colaboradorRawAny.id,
-      email_login: colaboradorAttrs.email_login || colaboradorRawAny.email_login,
-      rol: colaboradorAttrs.rol || colaboradorRawAny.rol || 'soporte',
-      activo: colaboradorAttrs.activo !== undefined ? colaboradorAttrs.activo : colaboradorRawAny.activo,
-      persona: colaboradorAttrs.persona?.data || colaboradorRawAny.persona?.data || colaboradorAttrs.persona || colaboradorRawAny.persona || null,
-      usuario: colaboradorAttrs.usuario?.data || colaboradorRawAny.usuario?.data || colaboradorAttrs.usuario || colaboradorRawAny.usuario || null,
-    }
+    const colaborador = Array.isArray(response.data) ? response.data[0] : response.data
 
     return NextResponse.json({ colaborador }, { status: 200 })
   } catch (error: any) {
@@ -91,5 +78,7 @@ export async function GET(request: Request) {
     )
   }
 }
+
+
 
 
