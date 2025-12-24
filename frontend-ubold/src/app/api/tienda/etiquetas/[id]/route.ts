@@ -163,7 +163,7 @@ export async function DELETE(
     if (colaboradorCookie) {
       try {
         const colaborador = JSON.parse(colaboradorCookie)
-        if (colaborador.rol === 'encargado_adquisiciones') {
+        if (colaborador.rol !== 'super_admin') {
           return NextResponse.json({
             success: false,
             error: 'No tienes permisos para eliminar etiquetas'

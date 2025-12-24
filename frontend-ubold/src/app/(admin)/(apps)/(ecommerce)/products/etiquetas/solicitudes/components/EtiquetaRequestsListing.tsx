@@ -109,7 +109,7 @@ const EtiquetaRequestsListing = ({ etiquetas, error }: EtiquetaRequestsListingPr
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   const mappedEtiquetas = useMemo(() => {
     if (etiquetas && etiquetas.length > 0) {

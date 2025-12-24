@@ -122,7 +122,7 @@ const SellosListing = ({ sellos, error }: SellosListingProps = {}) => {
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear sellos de Strapi al formato SelloType si están disponibles
   const mappedSellos = useMemo(() => {

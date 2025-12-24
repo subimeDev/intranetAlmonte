@@ -136,7 +136,7 @@ const AutorRequestsListing = ({ autores, error }: AutorRequestsListingProps = {}
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   const mappedAutores = useMemo(() => {
     if (autores && autores.length > 0) {

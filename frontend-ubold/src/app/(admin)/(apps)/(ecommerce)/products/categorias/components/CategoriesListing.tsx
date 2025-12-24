@@ -164,7 +164,7 @@ const CategoriesListing = ({ categorias, error }: CategoriesListingProps = {}) =
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear categorías de Strapi al formato CategoryType si están disponibles
   const mappedCategories = useMemo(() => {

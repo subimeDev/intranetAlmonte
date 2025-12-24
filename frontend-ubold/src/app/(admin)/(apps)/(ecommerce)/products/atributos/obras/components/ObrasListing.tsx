@@ -105,7 +105,7 @@ const ObrasListing = ({ obras, error }: ObrasListingProps = {}) => {
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear obras de Strapi al formato ObraType si están disponibles
   const mappedObras = useMemo(() => {

@@ -97,7 +97,7 @@ const MarcasListing = ({ marcas, error }: MarcasListingProps = {}) => {
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   const mappedMarcas = useMemo(() => {
     if (marcas && marcas.length > 0) {

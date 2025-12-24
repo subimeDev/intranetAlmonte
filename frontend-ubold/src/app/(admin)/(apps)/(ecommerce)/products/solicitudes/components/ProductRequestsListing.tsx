@@ -150,7 +150,7 @@ const columnHelper = createColumnHelper<ProductTypeExtended>()
 const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProps = {}) => {
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
 
   const mappedProducts = useMemo(() => {
     if (productos && productos.length > 0) {

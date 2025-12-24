@@ -142,7 +142,7 @@ const CategoriaRequestsListing = ({ categorias, error }: CategoriaRequestsListin
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   const mappedCategorias = useMemo(() => {
     if (categorias && categorias.length > 0) {

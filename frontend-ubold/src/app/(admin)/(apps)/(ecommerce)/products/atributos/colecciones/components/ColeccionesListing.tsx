@@ -118,7 +118,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
   const router = useRouter()
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear colecciones de Strapi al formato ColeccionType si están disponibles
   const mappedColecciones = useMemo(() => {

@@ -159,7 +159,7 @@ const columnHelper = createColumnHelper<ProductTypeExtended>()
 const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
   // Obtener rol del usuario autenticado
   const { colaborador } = useAuth()
-  const canDelete = colaborador?.rol !== 'encargado_adquisiciones'
+  const canDelete = colaborador?.rol === 'super_admin'
 
   // Mapear productos de Strapi al formato ProductType si están disponibles
   const mappedProducts = useMemo(() => {
