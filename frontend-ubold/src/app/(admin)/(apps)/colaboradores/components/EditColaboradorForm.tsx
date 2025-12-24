@@ -44,7 +44,8 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
   }
 
   const colaboradorData = getColaboradorData()
-  const colaboradorId = propsColaborador?.id || propsColaborador?.documentId
+  // Obtener el ID correcto (documentId si existe, sino id)
+  const colaboradorId = (propsColaborador as any)?.documentId || propsColaborador?.id
 
   const [formData, setFormData] = useState({
     email_login: colaboradorData?.email_login || '',
@@ -71,7 +72,11 @@ const EditColaboradorForm = ({ colaborador: propsColaborador, error: propsError 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!colaboradorId) return
+    
+    if (!colaboradorId) {
+      setError('No se pudo obtener el ID del colaborador')
+      return
+    }
 
     setLoading(true)
     setError(null)

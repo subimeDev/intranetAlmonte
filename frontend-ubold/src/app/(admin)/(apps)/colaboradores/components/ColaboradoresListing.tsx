@@ -217,9 +217,18 @@ const ColaboradoresListing = ({ colaboradores: propsColaboradores, error: propsE
   const handleDelete = async () => {
     if (!deleteModal.colaborador) return
 
+    // Obtener el ID correcto (documentId si existe, sino id)
+    const colaboradorId = deleteModal.colaborador.documentId || deleteModal.colaborador.id
+    
+    if (!colaboradorId) {
+      setError('No se pudo obtener el ID del colaborador')
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await fetch(`/api/colaboradores/${deleteModal.colaborador.id}`, {
+      const response = await fetch(`/api/colaboradores/${colaboradorId}`, {
         method: 'DELETE',
       })
 
@@ -229,9 +238,18 @@ const ColaboradoresListing = ({ colaboradores: propsColaboradores, error: propsE
         throw new Error(result.error || 'Error al eliminar colaborador')
       }
 
-      // Recargar la página
-      router.refresh()
+      // Actualizar la lista localmente removiendo el colaborador eliminado
+      setColaboradores(prev => prev.filter(c => {
+        const cId = (c as any).documentId || c.id
+        return cId !== colaboradorId
+      }))
+      
+      // Cerrar modal y limpiar error
       setDeleteModal({ open: false, colaborador: null })
+      setError(null)
+      
+      // Opcional: recargar la página para obtener datos actualizados
+      router.refresh()
     } catch (err: any) {
       setError(err.message || 'Error al eliminar colaborador')
     } finally {

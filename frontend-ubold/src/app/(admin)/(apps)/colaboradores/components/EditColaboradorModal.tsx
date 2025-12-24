@@ -88,8 +88,15 @@ const EditColaboradorModal = ({ show, onHide, colaborador, onSuccess }: EditCola
         activo: formData.activo,
       }
 
+      // Obtener el ID correcto (documentId si existe, sino id)
+      const colaboradorId = (colaborador as any).documentId || colaborador.id
+      
+      if (!colaboradorId) {
+        throw new Error('No se pudo obtener el ID del colaborador')
+      }
+
       // Actualizar el colaborador
-      const response = await fetch(`/api/colaboradores/${colaborador.id}`, {
+      const response = await fetch(`/api/colaboradores/${colaboradorId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
