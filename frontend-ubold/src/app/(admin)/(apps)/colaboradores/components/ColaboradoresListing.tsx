@@ -236,17 +236,29 @@ const ColaboradoresListing = ({ colaboradores: propsColaboradores, error: propsE
         method: 'DELETE',
       })
 
-      // Manejar respuestas vacías (204 No Content)
-      let result: any = {}
-      const contentType = response.headers.get('content-type')
-      if (contentType && contentType.includes('application/json')) {
-        const text = await response.text()
-        if (text && text.trim().length > 0) {
-          result = JSON.parse(text)
+      // Manejar respuestas vacías (204 No Content) o con JSON
+      let result: any = { success: true } // Por defecto éxito si no hay error
+      
+      if (response.ok) {
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const text = await response.text()
+            if (text && text.trim().length > 0) {
+              result = JSON.parse(text)
+            }
+          } catch (parseError) {
+            // Si falla el parseo pero la respuesta fue OK, considerar éxito
+            console.warn('[ColaboradoresListing] Respuesta OK pero sin JSON válido, considerando éxito')
+            result = { success: true }
+          }
+        } else {
+          // Respuesta 204 No Content o sin content-type JSON - considerar éxito
+          result = { success: true }
         }
       }
 
-      if (!response.ok || (result.success === false)) {
+      if (!response.ok || result.success === false) {
         throw new Error(result.error || 'Error al eliminar colaborador')
       }
 
