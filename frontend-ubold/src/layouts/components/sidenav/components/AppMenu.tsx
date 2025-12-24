@@ -171,13 +171,6 @@ const AppMenu = () => {
   const [openMenuKey, setOpenMenuKey] = useState<string | null>(null)
   const { colaborador } = useAuth()
   const userRole = colaborador?.rol
-  
-  // Debug temporal
-  useEffect(() => {
-    console.log('[AppMenu DEBUG] colaborador completo:', colaborador)
-    console.log('[AppMenu DEBUG] userRole:', userRole)
-    console.log('[AppMenu DEBUG] typeof userRole:', typeof userRole)
-  }, [colaborador, userRole])
 
   const scrollToActiveLink = () => {
     const activeItem: HTMLAnchorElement | null = document.querySelector('.side-nav-link.active')
