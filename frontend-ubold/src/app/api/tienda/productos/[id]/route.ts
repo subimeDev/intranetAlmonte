@@ -344,12 +344,22 @@ export async function PUT(
       updateData.data.estado_edicion = body.estado_edicion
     }
 
-    // Estado de publicación - IMPORTANTE: Strapi espera valores en minúsculas
-    if (body.estado_publicacion !== undefined && body.estado_publicacion !== '') {
-      // Normalizar a minúsculas para Strapi: "pendiente", "publicado", "borrador"
-      const estadoNormalizado = typeof body.estado_publicacion === 'string' 
-        ? body.estado_publicacion.toLowerCase() 
-        : body.estado_publicacion
+    // Estado de publicación - IMPORTANTE: Strapi espera valores con mayúscula inicial
+    // Puede venir en body.estado_publicacion o body.data.estado_publicacion
+    const estadoPublicacionInput = body.data?.estado_publicacion !== undefined ? body.data.estado_publicacion : body.estado_publicacion
+    
+    if (estadoPublicacionInput !== undefined && estadoPublicacionInput !== '') {
+      // Normalizar a formato con mayúscula inicial para Strapi: "Publicado", "Pendiente", "Borrador"
+      let estadoNormalizado: string
+      if (typeof estadoPublicacionInput === 'string') {
+        const estadoLower = estadoPublicacionInput.toLowerCase()
+        estadoNormalizado = estadoLower === 'publicado' ? 'Publicado' :
+                           estadoLower === 'pendiente' ? 'Pendiente' :
+                           estadoLower === 'borrador' ? 'Borrador' :
+                           estadoPublicacionInput // Si ya viene correcto, mantenerlo
+      } else {
+        estadoNormalizado = estadoPublicacionInput
+      }
       updateData.data.estado_publicacion = estadoNormalizado
       console.log('[API PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
     }
@@ -410,4 +420,117 @@ export async function PUT(
       details: error.details
     }, { status: 500 })
   }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Verificar rol del usuario
+    const colaboradorCookie = request.cookies.get('auth_colaborador')?.value
+    if (colaboradorCookie) {
+      try {
+        const colaborador = JSON.parse(colaboradorCookie)
+        if (colaborador.rol !== 'super_admin') {
+          return NextResponse.json({
+            success: false,
+            error: 'No tienes permisos para eliminar productos'
+          }, { status: 403 })
+        }
+      } catch (e) {
+        // Si hay error parseando, continuar (podría ser que no esté autenticado)
+      }
+    }
+
+    const { id } = await params
+    console.log('[API Productos DELETE] 🗑️ Eliminando producto:', id)
+
+    const productoEndpoint = '/api/libros'
+
+    // Primero obtener el producto de Strapi para verificar estado_publicacion
+    let productoStrapi: any = null
+    
+    try {
+      const productoResponse = await strapiClient.get<any>(`${productoEndpoint}?filters[id][$eq]=${id}&populate=*`)
+      let productos: any[] = []
+      if (Array.isArray(productoResponse)) {
+        productos = productoResponse
+      } else if (productoResponse.data && Array.isArray(productoResponse.data)) {
+        productos = productoResponse.data
+      } else if (productoResponse.data) {
+        productos = [productoResponse.data]
+      }
+      productoStrapi = productos[0]
+    } catch (error: any) {
+      // Si falla, intentar obtener todas y buscar
+      console.warn('[API Productos DELETE] ⚠️ No se pudo obtener producto de Strapi, intentando búsqueda alternativa:', error.message)
+      try {
+        const allResponse = await strapiClient.get<any>(`${productoEndpoint}?populate=*&pagination[pageSize]=1000`)
+        const allProductos = Array.isArray(allResponse) 
+          ? allResponse 
+          : (allResponse.data && Array.isArray(allResponse.data) ? allResponse.data : [])
+        
+        productoStrapi = allProductos.find((p: any) => 
+          p.id?.toString() === id || 
+          p.documentId === id ||
+          (p.attributes && (p.attributes.id?.toString() === id || p.attributes.documentId === id))
+        )
+      } catch (searchError: any) {
+        console.error('[API Productos DELETE] Error en búsqueda alternativa:', searchError.message)
+      }
+    }
+
+    if (!productoStrapi) {
+      return NextResponse.json({
+        success: false,
+        error: 'Producto no encontrado'
+      }, { status: 404 })
+    }
+
+    // Obtener estado_publicacion del producto
+    const attrs = productoStrapi.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (productoStrapi as any)
+    let estadoPublicacion = getField(data, 'estado_publicacion', 'estadoPublicacion', 'ESTADO_PUBLICACION') || ''
+    
+    // Normalizar estado a minúsculas para comparación
+    if (estadoPublicacion) {
+      estadoPublicacion = estadoPublicacion.toLowerCase()
+    }
+
+    // En Strapi v4, usar documentId (string) para eliminar, no el id numérico
+    const productoDocumentId = productoStrapi.documentId || productoStrapi.data?.documentId || productoStrapi.id?.toString() || id
+    console.log('[API Productos DELETE] Usando documentId para eliminar:', productoDocumentId)
+
+    await strapiClient.delete(`/api/libros/${productoDocumentId}`)
+    
+    if (estadoPublicacion === 'publicado') {
+      console.log('[API Productos DELETE] ✅ Producto eliminado en Strapi. El lifecycle eliminará de WooCommerce si estaba publicado.')
+    } else {
+      console.log('[API Productos DELETE] ✅ Producto eliminado en Strapi (solo Strapi, no estaba publicada en WooCommerce)')
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: estadoPublicacion === 'publicado' 
+        ? 'Producto eliminado exitosamente en Strapi. El lifecycle eliminará de WooCommerce.' 
+        : 'Producto eliminado exitosamente en Strapi'
+    })
+  } catch (error: any) {
+    console.error('[API Productos DELETE] ❌ Error:', error.message)
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Error al eliminar el producto'
+    }, { status: 500 })
+  }
+}
+
+// Helper para obtener campo con múltiples variaciones
+function getField(obj: any, ...fieldNames: string[]): any {
+  for (const fieldName of fieldNames) {
+    if (obj[fieldName] !== undefined && obj[fieldName] !== null && obj[fieldName] !== '') {
+      return obj[fieldName]
+    }
+  }
+  return undefined
 }

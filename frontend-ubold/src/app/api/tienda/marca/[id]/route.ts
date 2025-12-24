@@ -133,6 +133,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Verificar rol del usuario
+    const colaboradorCookie = request.cookies.get('auth_colaborador')?.value
+    if (colaboradorCookie) {
+      try {
+        const colaborador = JSON.parse(colaboradorCookie)
+        if (colaborador.rol !== 'super_admin') {
+          return NextResponse.json({
+            success: false,
+            error: 'No tienes permisos para eliminar marcas'
+          }, { status: 403 })
+        }
+      } catch (e) {
+        // Si hay error parseando, continuar (podría ser que no esté autenticado)
+      }
+    }
+
     const { id } = await params
     console.log('[API Marca DELETE] 🗑️ Eliminando marca:', id)
 
@@ -221,8 +237,8 @@ export async function PUT(
     const marcaEndpoint = '/api/marcas'
     
     // Primero obtener la marca de Strapi para obtener el documentId
-    let marcaStrapi: any
-    let documentId: string | null = null
+    let marcaStrapi: any = null
+    
     try {
       const marcaResponse = await strapiClient.get<any>(`${marcaEndpoint}?filters[id][$eq]=${id}&populate=*`)
       let marcas: any[] = []
@@ -234,15 +250,40 @@ export async function PUT(
         marcas = [marcaResponse.data]
       }
       marcaStrapi = marcas[0]
-      documentId = marcaStrapi?.documentId || marcaStrapi?.data?.documentId || id
     } catch (error: any) {
-      console.warn('[API Marca PUT] ⚠️ No se pudo obtener marca de Strapi:', error.message)
-      documentId = id
+      // Si falla, intentar obtener todas y buscar
+      console.warn('[API Marca PUT] ⚠️ No se pudo obtener marca de Strapi, intentando búsqueda alternativa:', error.message)
+      try {
+        const allResponse = await strapiClient.get<any>(`${marcaEndpoint}?populate=*&pagination[pageSize]=1000`)
+        const allMarcas = Array.isArray(allResponse) 
+          ? allResponse 
+          : (allResponse.data && Array.isArray(allResponse.data) ? allResponse.data : [])
+        
+        marcaStrapi = allMarcas.find((m: any) => 
+          m.id?.toString() === id || 
+          m.documentId === id ||
+          (m.attributes && (m.attributes.id?.toString() === id || m.attributes.documentId === id))
+        )
+      } catch (searchError: any) {
+        console.error('[API Marca PUT] Error en búsqueda alternativa:', searchError.message)
+      }
     }
 
-    // Actualizar en Strapi usando documentId si está disponible
-    const strapiEndpoint = documentId ? `${marcaEndpoint}/${documentId}` : `${marcaEndpoint}/${id}`
-    console.log('[API Marca PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
+    if (!marcaStrapi) {
+      return NextResponse.json({
+        success: false,
+        error: 'Marca no encontrada'
+      }, { status: 404 })
+    }
+
+    // En Strapi v4, usar documentId (string) para actualizar, no el id numérico
+    const marcaDocumentId = marcaStrapi.documentId || marcaStrapi.data?.documentId || marcaStrapi.id?.toString() || id
+    console.log('[API Marca PUT] Usando documentId para actualizar:', marcaDocumentId)
+
+    // Actualizar en Strapi usando documentId
+    // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+    const strapiEndpoint = `${marcaEndpoint}/${marcaDocumentId}`
+    console.log('[API Marca PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId: marcaDocumentId, id })
 
     // El schema de Strapi para marca usa: name* (Text), descripcion (Text), imagen (Media)
     const marcaData: any = {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, FormSelect, Alert, FormCheck, InputGroup } from 'react-bootstrap'
+import { Card, CardHeader, CardBody, Form, Button, Row, Col, FormGroup, FormLabel, FormControl, Alert, FormCheck, InputGroup } from 'react-bootstrap'
 import { LuSave, LuX, LuEye, LuEyeOff } from 'react-icons/lu'
 
 const ROLES = [
@@ -162,7 +162,8 @@ const AddColaboradorForm = () => {
             <Col md={6}>
               <FormGroup className="mb-3">
                 <FormLabel>Rol</FormLabel>
-                <FormSelect
+                <FormControl
+                  as="select"
                   value={formData.rol}
                   onChange={(e) => handleFieldChange('rol', e.target.value)}
                   disabled={loading}
@@ -173,7 +174,7 @@ const AddColaboradorForm = () => {
                       {rol}
                     </option>
                   ))}
-                </FormSelect>
+                </FormControl>
               </FormGroup>
             </Col>
 
