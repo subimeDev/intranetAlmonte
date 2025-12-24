@@ -56,12 +56,28 @@ export async function POST(request: Request) {
 
     const data = await loginResponse.json()
 
+    // Extraer campos del colaborador (pueden venir en attributes si tiene draft/publish)
+    const colaboradorRaw = data.colaborador
+    let colaborador = colaboradorRaw
+    if (colaboradorRaw) {
+      const colaboradorRawAny = colaboradorRaw as any
+      const colaboradorAttrs = colaboradorRawAny.attributes || colaboradorRawAny
+      colaborador = {
+        id: colaboradorRawAny.id,
+        email_login: colaboradorAttrs.email_login || colaboradorRawAny.email_login,
+        rol: colaboradorAttrs.rol || colaboradorRawAny.rol || 'soporte',
+        activo: colaboradorAttrs.activo !== undefined ? colaboradorAttrs.activo : colaboradorRawAny.activo,
+        persona: colaboradorAttrs.persona?.data || colaboradorRawAny.persona?.data || colaboradorAttrs.persona || colaboradorRawAny.persona || null,
+        usuario: colaboradorAttrs.usuario?.data || colaboradorRawAny.usuario?.data || colaboradorAttrs.usuario || colaboradorRawAny.usuario || null,
+      }
+    }
+
     return NextResponse.json(
       {
         message: 'Login exitoso',
         jwt: data.jwt,
         usuario: data.usuario,
-        colaborador: data.colaborador,
+        colaborador: colaborador,
       },
       { status: 200 }
     )
