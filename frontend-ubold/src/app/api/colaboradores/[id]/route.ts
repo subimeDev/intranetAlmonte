@@ -32,7 +32,7 @@ export async function GET(
     const { id } = await params
 
     const response = await strapiClient.get<StrapiResponse<StrapiEntity<ColaboradorAttributes>>>(
-      `/api/colaboradores/${id}?populate[persona]=*&populate[empresa]=*&populate[usuario]=*`
+      `/api/colaboradores/${id}?populate[persona]=*&populate[usuario]=*`
     )
 
     return NextResponse.json({
@@ -69,16 +69,38 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Validaciones básicas
+    if (!body.email_login || !body.email_login.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'El email_login es obligatorio',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email_login.trim())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'El email_login no tiene un formato válido',
+        },
+        { status: 400 }
+      )
+    }
+
     // Preparar datos para Strapi
     const colaboradorData: any = {
       data: {
-        email_login: body.email_login,
+        email_login: body.email_login.trim(),
         rol: body.rol || null,
         rol_principal: body.rol_principal || null,
         rol_operativo: body.rol_operativo || null,
         activo: body.activo !== undefined ? body.activo : true,
         ...(body.persona && { persona: body.persona }),
-        ...(body.empresa && { empresa: body.empresa }),
         ...(body.usuario && { usuario: body.usuario }),
       },
     }

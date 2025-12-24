@@ -23,14 +23,15 @@ export async function GET(request: Request) {
     const page = searchParams.get('page') || '1'
     const pageSize = searchParams.get('pageSize') || '50'
 
-    let url = `/api/colaboradores?populate[persona]=*&populate[empresa]=*&populate[usuario]=*&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=createdAt:desc`
+    let url = `/api/colaboradores?populate[persona]=*&populate[usuario]=*&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=createdAt:desc`
     
     if (email) {
       url += `&filters[email_login][$contains]=${encodeURIComponent(email)}`
     }
     
-    if (activo !== null && activo !== undefined) {
-      url += `&filters[activo][$eq]=${activo === 'true'}`
+    if (activo !== null && activo !== undefined && activo !== '') {
+      const isActivo = activo === 'true' || activo === true
+      url += `&filters[activo][$eq]=${isActivo}`
     }
     
     if (rol) {
@@ -73,11 +74,23 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     // Validaciones básicas
-    if (!body.email_login) {
+    if (!body.email_login || !body.email_login.trim()) {
       return NextResponse.json(
         {
           success: false,
           error: 'El email_login es obligatorio',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email_login.trim())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'El email_login no tiene un formato válido',
         },
         { status: 400 }
       )
@@ -92,7 +105,6 @@ export async function POST(request: Request) {
         rol_operativo: body.rol_operativo || null,
         activo: body.activo !== undefined ? body.activo : true,
         ...(body.persona && { persona: body.persona }),
-        ...(body.empresa && { empresa: body.empresa }),
         ...(body.usuario && { usuario: body.usuario }),
       },
     }
