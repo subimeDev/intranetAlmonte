@@ -34,6 +34,13 @@ COPY frontend-ubold/src ./src
 COPY frontend-ubold/public ./public
 COPY frontend-ubold/fix-server.js ./
 COPY frontend-ubold/server.js ./
+# Asegurar que TypeScript esté instalado y disponible antes del build
+RUN if ! npm list typescript > /dev/null 2>&1; then \
+      echo "Instalando TypeScript..." && \
+      npm install --save-dev typescript@^5.8.3; \
+    fi && \
+    node -e "require('typescript'); console.log('TypeScript disponible')" && \
+    ls -la node_modules/typescript/package.json
 # Construir la aplicación con optimizaciones (NODE_ENV se establece solo para el build)
 RUN NODE_ENV=production npm run build
 # Ejecutar postbuild para copiar archivos estáticos
