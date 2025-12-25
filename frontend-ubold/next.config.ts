@@ -37,7 +37,13 @@ const nextConfig: NextConfig = {
   // Optimizaciones experimentales
   experimental: {
     optimizePackageImports: ['@tanstack/react-table', 'react-bootstrap', 'date-fns'],
+    // Optimizar compilación
+    webpackBuildWorker: true,
   },
+  // Optimizaciones de build
+  swcMinify: true,
+  // Reducir tamaño del bundle
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;
