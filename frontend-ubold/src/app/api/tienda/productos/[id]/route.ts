@@ -254,6 +254,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Logging de cookies recibidas
+    const colaboradorCookie = request.cookies.get('colaboradorData')?.value
+    console.log('[API PUT /tienda/productos/[id]] 🔍 Cookies recibidas:', {
+      tieneColaboradorData: !!colaboradorCookie,
+      valorPreview: colaboradorCookie?.substring(0, 200) || 'no hay',
+      todasLasCookies: request.cookies.getAll().map(c => c.name).join(', '),
+    })
+    
     const { id } = await params
     const body = await request.json()
 
@@ -436,6 +444,12 @@ export async function PUT(
     
     // Registrar log de actualización
     const nombreNuevo = updateData.data.nombre_libro || nombreAnterior
+    console.log('[API PUT] 📝 Llamando logActivity con request:', {
+      tieneCookies: !!request.cookies.get('colaboradorData')?.value,
+      url: request.url,
+      method: request.method,
+    })
+    
     logActivity(request, {
       accion: 'actualizar',
       entidad: 'producto',
@@ -443,7 +457,9 @@ export async function PUT(
       descripcion: createLogDescription('actualizar', 'producto', nombreNuevo, `Producto "${nombreNuevo}"`),
       datosAnteriores: datosAnteriores ? { nombre: nombreAnterior } : undefined,
       datosNuevos: updateData.data,
-    }).catch(() => {})
+    }).catch((error) => {
+      console.error('[API PUT] ❌ Error al registrar log:', error)
+    })
 
     return NextResponse.json({
       success: true,
