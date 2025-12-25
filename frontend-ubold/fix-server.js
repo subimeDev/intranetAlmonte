@@ -24,9 +24,22 @@ if (!fs.existsSync(serverPath)) {
   process.exit(1)
 }
 
-// 1. Modificar el servidor para escuchar en 0.0.0.0
+// 1. Modificar el servidor para escuchar en 0.0.0.0 y configurar variables de entorno
 let serverCode = fs.readFileSync(serverPath, 'utf8')
 const originalCode = serverCode
+
+// Agregar configuración de variables de entorno al inicio del archivo si no existe
+if (!serverCode.includes('process.env.HOSTNAME')) {
+  const envConfig = `
+// Configuración para Railway/Docker - agregado por fix-server.js
+process.env.HOSTNAME = process.env.HOSTNAME || '0.0.0.0'
+process.env.PORT = process.env.PORT || process.env.PORT || '3000'
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
+`
+  // Insertar después de la primera línea (shebang o primera línea de código)
+  const firstLineEnd = serverCode.indexOf('\n') + 1
+  serverCode = serverCode.slice(0, firstLineEnd) + envConfig + serverCode.slice(firstLineEnd)
+}
 
 // Reemplazar localhost y 127.0.0.1 con 0.0.0.0
 serverCode = serverCode.replace(/localhost/g, '0.0.0.0')

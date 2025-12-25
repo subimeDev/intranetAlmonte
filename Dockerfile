@@ -70,8 +70,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copiar solo archivos necesarios para producción
 # El postbuild ya copió static y public dentro de standalone
+# Copiar todo el contenido de standalone (que ya incluye server.js, .next, public, node_modules)
+# El server.js de Next.js ya está dentro de standalone y fue modificado por fix-server.js para escuchar en 0.0.0.0
 COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/server.js ./server.js
+# El server.js de Next.js (modificado) ahora está en /app/server.js y se ejecuta directamente
 
 # Cambiar ownership
 RUN chown -R nextjs:nodejs /app
