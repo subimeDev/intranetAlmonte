@@ -53,10 +53,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copiar solo archivos necesarios para producción
-# Next.js standalone ya incluye lo necesario, pero necesitamos copiar static y public
+# El postbuild ya copió static y public dentro de standalone
 COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/server.js ./server.js
 
 # Cambiar ownership
