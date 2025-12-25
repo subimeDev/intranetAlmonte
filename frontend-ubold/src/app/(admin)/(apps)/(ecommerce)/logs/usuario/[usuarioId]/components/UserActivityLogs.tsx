@@ -90,6 +90,33 @@ export default function UserActivityLogs({ usuarioId }: UserActivityLogsProps) {
     }
   }
 
+  // Helper para extraer email del usuario de un log
+  const getUsuarioEmail = (log: ActivityLog): string => {
+    const data = getLogData(log)
+    const usuario = data.usuario
+    
+    if (!usuario) {
+      return 'Usuario Anónimo'
+    }
+    
+    // Manejar diferentes estructuras de Strapi
+    let usuarioData: any = null
+    if (usuario.data) {
+      // Strapi puede devolver usuario.data.attributes o usuario.data directamente
+      usuarioData = usuario.data.attributes || usuario.data
+    } else if (usuario.attributes) {
+      usuarioData = usuario.attributes
+    } else if (typeof usuario === 'object') {
+      usuarioData = usuario
+    }
+    
+    if (usuarioData) {
+      return usuarioData.email_login || usuarioData.email || 'Sin email'
+    }
+    
+    return 'Usuario Anónimo'
+  }
+
   const columns: ColumnDef<ActivityLog>[] = [
     columnHelper.accessor((row) => {
       const data = getLogData(row)
@@ -166,6 +193,25 @@ export default function UserActivityLogs({ usuarioId }: UserActivityLogsProps) {
       cell: ({ row }) => {
         const data = getLogData(row.original)
         return <span className="text-muted small">{data.ip_address || '-'}</span>
+      },
+    }),
+    columnHelper.accessor((row) => {
+      return getUsuarioEmail(row)
+    }, {
+      id: 'usuario_email',
+      header: 'Usuario / Email',
+      cell: ({ row }) => {
+        const email = getUsuarioEmail(row.original)
+        const data = getLogData(row.original)
+        const usuario = data.usuario
+        const esAnonimo = !usuario || email === 'Usuario Anónimo'
+        
+        return (
+          <div className={esAnonimo ? 'text-muted' : ''}>
+            <LuMail className="me-1" size={14} />
+            {email}
+          </div>
+        )
       },
     }),
   ]

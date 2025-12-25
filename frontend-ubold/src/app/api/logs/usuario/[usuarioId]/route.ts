@@ -121,8 +121,9 @@ export async function GET(
       })
     } else {
       // Usuario normal - buscar por ID de usuario
+      // Populate específico para traer email_login del colaborador
       response = await strapiClient.get<any>(
-        `/api/activity-logs?filters[usuario][id][$eq]=${usuarioId}&populate[usuario][populate]=*&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=${sortField}:${sortOrder}`
+        `/api/activity-logs?filters[usuario][id][$eq]=${usuarioId}&populate[usuario][fields]=email_login&populate[usuario][populate][persona][fields]=nombres,primer_apellido,segundo_apellido,nombre_completo&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=${sortField}:${sortOrder}`
       )
     }
 
