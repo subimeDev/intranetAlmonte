@@ -17,9 +17,12 @@ FROM base AS deps
 # Copiar solo archivos de dependencias
 COPY frontend-ubold/package*.json ./
 # Instalar TODAS las dependencias (incluyendo devDependencies para el build)
-# No usar NODE_ENV=production aquí para que se instalen devDependencies
-RUN npm ci --prefer-offline --no-audit --legacy-peer-deps || \
+# Asegurar que NODE_ENV no esté en production para instalar devDependencies
+RUN unset NODE_ENV && \
+    npm ci --prefer-offline --no-audit --legacy-peer-deps --include=dev || \
     npm install --prefer-offline --no-audit --legacy-peer-deps
+# Verificar que TypeScript se instaló
+RUN npm list typescript || (echo "ERROR: TypeScript no instalado" && exit 1)
 
 # Etapa de build
 FROM base AS builder
