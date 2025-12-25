@@ -107,8 +107,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Agrupar logs por usuario y obtener el último acceso
-    const usuariosMap = new Map<number, {
+    // Agrupar logs por EMAIL del usuario (no por ID)
+    // Esto asegura que todos los logs del mismo email se agrupen juntos
+    const usuariosMap = new Map<string, {
       id: number
       nombre: string
       usuario: string
@@ -117,9 +118,12 @@ export async function GET(request: NextRequest) {
       totalAcciones: number
     }>()
 
-    // Mapa temporal para rastrear IPs que ya tienen usuario asociado
+    // Mapa temporal para rastrear IPs que ya tienen email asociado
     // Esto evita crear usuarios anónimos si ya existe un usuario real con esa IP
-    const ipToUsuarioId = new Map<string, number>()
+    const ipToEmail = new Map<string, string>()
+    
+    // Mapa para mantener el ID del usuario asociado a cada email
+    const emailToId = new Map<string, number>()
 
     console.log('[API /logs/usuarios] 🔍 Procesando logs, total:', logs.length)
     
@@ -266,25 +270,35 @@ export async function GET(request: NextRequest) {
       const fechaLog = logData.fecha || logData.createdAt
       const ipAddress = logData.ip_address || 'desconocido'
 
-      // Registrar la IP con este usuarioId para evitar crear usuarios anónimos después
-      if (ipAddress !== 'desconocido') {
-        ipToUsuarioId.set(ipAddress, usuarioId)
+      // Usar email como clave de agrupación (no ID)
+      // Si no hay email, usar el ID como fallback
+      const emailKey = emailLogin && emailLogin !== 'Sin usuario' && emailLogin !== 'Sin email' 
+        ? emailLogin.toLowerCase().trim() 
+        : `id_${usuarioId}`
+      
+      // Registrar la IP con este email para evitar crear usuarios anónimos después
+      if (ipAddress !== 'desconocido' && emailKey && !emailKey.startsWith('id_')) {
+        ipToEmail.set(ipAddress, emailKey)
+        emailToId.set(emailKey, usuarioId)
       }
 
-      // Si el usuario ya existe, actualizar último acceso si es más reciente
-      if (usuariosMap.has(usuarioId)) {
-        const usuarioExistente = usuariosMap.get(usuarioId)!
+      // Si el usuario ya existe (por email), actualizar último acceso si es más reciente
+      if (usuariosMap.has(emailKey)) {
+        const usuarioExistente = usuariosMap.get(emailKey)!
         usuarioExistente.totalAcciones++
+        // Actualizar ID al del log más reciente (usar el ID del log con fecha más reciente)
         if (fechaLog && (!usuarioExistente.ultimoAcceso || new Date(fechaLog) > new Date(usuarioExistente.ultimoAcceso))) {
           usuarioExistente.ultimoAcceso = fechaLog
+          // Si este log es más reciente, usar su ID
+          usuarioExistente.id = usuarioId
         }
       } else {
-        // Crear nuevo usuario
-        usuariosMap.set(usuarioId, {
+        // Crear nuevo usuario agrupado por email
+        usuariosMap.set(emailKey, {
           id: usuarioId,
           nombre,
           usuario: emailLogin,
-          email,
+          email: emailLogin,
           ultimoAcceso: fechaLog || null,
           totalAcciones: 1,
         })
@@ -305,11 +319,11 @@ export async function GET(request: NextRequest) {
       const userAgent = logData.user_agent || 'desconocido'
       const fechaLog = logData.fecha || logData.createdAt
       
-      // Si esta IP ya está asociada a un usuario real, agregar el log a ese usuario
-      if (ipToUsuarioId.has(ipAddress)) {
-        const usuarioIdReal = ipToUsuarioId.get(ipAddress)!
-        if (usuariosMap.has(usuarioIdReal)) {
-          const usuarioExistente = usuariosMap.get(usuarioIdReal)!
+      // Si esta IP ya está asociada a un email de usuario real, agregar el log a ese usuario
+      if (ipToEmail.has(ipAddress)) {
+        const emailUsuario = ipToEmail.get(ipAddress)!
+        if (usuariosMap.has(emailUsuario)) {
+          const usuarioExistente = usuariosMap.get(emailUsuario)!
           usuarioExistente.totalAcciones++
           if (fechaLog && (!usuarioExistente.ultimoAcceso || new Date(fechaLog) > new Date(usuarioExistente.ultimoAcceso))) {
             usuarioExistente.ultimoAcceso = fechaLog
@@ -318,26 +332,29 @@ export async function GET(request: NextRequest) {
         return // No crear usuario anónimo, ya está asociado a un usuario real
       }
       
-      // Solo crear usuario anónimo si la IP no está asociada a ningún usuario real
-      const ipHash = ipAddress.split('').reduce((acc: number, char: string) => {
-        return ((acc << 5) - acc) + char.charCodeAt(0)
-      }, 0)
-      const usuarioId = -Math.abs(ipHash) // ID negativo para usuarios anónimos
+      // Solo crear usuario anónimo si la IP no está asociada a ningún email de usuario real
+      // Usar IP como clave para agrupar usuarios anónimos por IP
+      const ipKey = `anonimo_${ipAddress}`
       
       // Si el usuario anónimo ya existe, actualizar último acceso
-      if (usuariosMap.has(usuarioId)) {
-        const usuarioExistente = usuariosMap.get(usuarioId)!
+      if (usuariosMap.has(ipKey)) {
+        const usuarioExistente = usuariosMap.get(ipKey)!
         usuarioExistente.totalAcciones++
         if (fechaLog && (!usuarioExistente.ultimoAcceso || new Date(fechaLog) > new Date(usuarioExistente.ultimoAcceso))) {
           usuarioExistente.ultimoAcceso = fechaLog
         }
       } else {
         // Crear nuevo usuario anónimo solo si no hay usuario real con esa IP
-        usuariosMap.set(usuarioId, {
+        const ipHash = ipAddress.split('').reduce((acc: number, char: string) => {
+          return ((acc << 5) - acc) + char.charCodeAt(0)
+        }, 0)
+        const usuarioId = -Math.abs(ipHash) // ID negativo para usuarios anónimos
+        
+        usuariosMap.set(ipKey, {
           id: usuarioId,
           nombre: `Usuario Anónimo (${ipAddress === 'desconocido' ? 'Sin IP' : ipAddress})`,
           usuario: ipAddress,
-          email: userAgent.substring(0, 50) + (userAgent.length > 50 ? '...' : ''),
+          email: ipAddress, // Mostrar IP como email para usuarios anónimos
           ultimoAcceso: fechaLog || null,
           totalAcciones: 1,
         })
