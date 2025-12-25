@@ -11,24 +11,33 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV CI=true
 
 # Etapa de dependencias (mejor cache)
 FROM base AS deps
 # Copiar solo archivos de dependencias
 COPY frontend-ubold/package*.json ./
-# Instalar dependencias con cache optimizado
-RUN npm ci --prefer-offline --no-audit --legacy-peer-deps --silent || \
-    npm install --prefer-offline --no-audit --legacy-peer-deps --silent
+# Instalar dependencias con cache optimizado (sin --silent para ver progreso)
+RUN npm ci --prefer-offline --no-audit --legacy-peer-deps || \
+    npm install --prefer-offline --no-audit --legacy-peer-deps
 
 # Etapa de build
 FROM base AS builder
 # Copiar dependencias instaladas
 COPY --from=deps /app/node_modules ./node_modules
-# Copiar archivos necesarios para el build
-# Usar .dockerignore para excluir node_modules y otros archivos innecesarios
-COPY frontend-ubold/ ./
+# Copiar archivos necesarios para el build (evitar copiar todo)
+COPY frontend-ubold/package*.json ./
+COPY frontend-ubold/next.config.ts ./
+COPY frontend-ubold/tsconfig.json ./
+COPY frontend-ubold/middleware.ts ./
+COPY frontend-ubold/src ./src
+COPY frontend-ubold/public ./public
+COPY frontend-ubold/fix-server.js ./
+COPY frontend-ubold/server.js ./
 # Construir la aplicación con optimizaciones
 RUN npm run build
+# Ejecutar postbuild para copiar archivos estáticos
+RUN npm run postbuild || echo "Postbuild skipped"
 
 # Etapa de producción
 FROM base AS runner
