@@ -40,9 +40,7 @@ const nextConfig: NextConfig = {
     // Optimizar compilación
     webpackBuildWorker: true,
   },
-  // Optimizaciones de build
-  swcMinify: true,
-  // Reducir tamaño del bundle
+  // Reducir tamaño del bundle (SWC minify es el default en Next.js 16)
   productionBrowserSourceMaps: false,
 };
 
