@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
       addDebugLog(`[API /logs/usuarios] 🔗 URL de Strapi: ${strapiUrl}`)
       addDebugLog(`[API /logs/usuarios] 🔗 Endpoint completo: ${strapiUrl}/api/activity-logs?...`)
       
-      // Populate completo del usuario con persona para obtener email_login y nombre
-      // IMPORTANTE: Usar populate[usuario]=* para obtener todos los campos del colaborador
+      // Populate del usuario con persona para obtener email_login y nombre
+      // IMPORTANTE: Especificar solo los campos que existen en persona para evitar errores con relaciones inexistentes (como tags)
       logsResponse = await strapiClient.get<any>(
-        `/api/activity-logs?populate[usuario][populate][persona]=*&populate[usuario][fields]=email_login,id,documentId&pagination[pageSize]=10000&sort=fecha:desc`
+        `/api/activity-logs?populate[usuario][fields]=email_login,id,documentId&populate[usuario][populate][persona][fields]=nombres,primer_apellido,segundo_apellido,nombre_completo&pagination[pageSize]=10000&sort=fecha:desc`
       )
       addDebugLog('[API /logs/usuarios] ✅ Respuesta de Strapi recibida')
     } catch (strapiError: any) {
