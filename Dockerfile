@@ -1,16 +1,19 @@
-# Usar imagen base de Node.js 20.9.0 o superior
-FROM node:20.9.0-alpine AS base
+# Usar imagen base de Node.js 20.9.0 (slim en lugar de alpine para mejor compatibilidad de memoria)
+FROM node:20.9.0-slim AS base
 
-# Instalar solo lo necesario para build
-RUN apk add --no-cache libc6-compat
+# Instalar dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Establecer directorio de trabajo
 WORKDIR /app
 
 # Variables de entorno base
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=6144 --no-warnings"
 ENV CI=true
+# NODE_ENV se establece solo en la etapa de build y runner, no en base
 
 # Etapa de dependencias (mejor cache)
 FROM base AS deps
@@ -18,8 +21,10 @@ FROM base AS deps
 COPY frontend-ubold/package*.json ./
 # Instalar TODAS las dependencias (incluyendo devDependencies para el build)
 # Asegurar que NODE_ENV no esté en production para instalar devDependencies
-RUN unset NODE_ENV && \
+# Usar NODE_OPTIONS para evitar problemas de memoria durante npm ci
+RUN NODE_OPTIONS="--max-old-space-size=6144" \
     npm ci --prefer-offline --no-audit --legacy-peer-deps --include=dev || \
+    NODE_OPTIONS="--max-old-space-size=6144" \
     npm install --prefer-offline --no-audit --legacy-peer-deps
 # Verificar que TypeScript se instaló
 RUN npm list typescript || (echo "ERROR: TypeScript no instalado" && exit 1)
@@ -44,8 +49,9 @@ RUN if ! npm list typescript > /dev/null 2>&1; then \
     fi && \
     node -e "require('typescript'); console.log('TypeScript disponible')" && \
     ls -la node_modules/typescript/package.json
-# Construir la aplicación con optimizaciones (NODE_ENV se establece solo para el build)
-RUN NODE_ENV=production npm run build
+# Construir la aplicación con optimizaciones de memoria
+# Usar NODE_OPTIONS explícitamente para asegurar suficiente memoria
+RUN NODE_OPTIONS="--max-old-space-size=6144" NODE_ENV=production npm run build
 # Ejecutar postbuild para copiar archivos estáticos
 RUN npm run postbuild || echo "Postbuild skipped"
 
