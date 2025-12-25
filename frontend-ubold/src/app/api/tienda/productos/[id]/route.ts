@@ -542,9 +542,7 @@ export async function DELETE(
 
     await strapiClient.delete(`/api/libros/${productoDocumentId}`)
     
-    // Registrar log de eliminación
-    const attrs = productoStrapi.attributes || {}
-    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : productoStrapi
+    // Registrar log de eliminación (reutilizando las variables attrs y data ya definidas arriba)
     const nombreProducto = data.nombre_libro || data.isbn_libro || id
     
     logActivity(request, {
