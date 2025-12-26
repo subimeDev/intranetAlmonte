@@ -34,8 +34,25 @@ export async function GET(request: NextRequest) {
     const colaboradorIdNum = parseInt(colaboradorId!, 10)
     const remitenteIdNum = parseInt(remitenteId!, 10)
     
+    console.log('[API /chat/mensajes GET] 📥 Obteniendo mensajes:', {
+      remitenteId: remitenteIdNum,
+      colaboradorId: colaboradorIdNum,
+      tieneUltimaFecha: !!ultimaFecha,
+      ultimaFecha: ultimaFecha?.substring(0, 20),
+    })
+    
     // Obtener mensajes usando el servicio modular
     const allMessages = await getChatMessages(remitenteIdNum, colaboradorIdNum, ultimaFecha)
+    
+    console.log('[API /chat/mensajes GET] ✅ Mensajes obtenidos:', {
+      total: allMessages.length,
+      primeros: allMessages.slice(0, 3).map(m => ({
+        id: m.id,
+        remitente_id: m.remitente_id,
+        cliente_id: m.cliente_id,
+        texto: m.texto?.substring(0, 30),
+      }))
+    })
     
     return NextResponse.json({ data: allMessages, meta: {} }, { status: 200 })
   } catch (error: any) {
@@ -71,8 +88,16 @@ export async function POST(request: NextRequest) {
     const colaboradorIdNum = parseInt(String(colaborador_id), 10)
     const remitenteIdNum = parseInt(String(remitente_id), 10)
     
+    console.log('[API /chat/mensajes POST] 📤 Enviando mensaje:', {
+      texto: texto.substring(0, 50),
+      remitente_id: remitenteIdNum,
+      colaborador_id: colaboradorIdNum,
+    })
+    
     // Enviar mensaje usando el servicio modular
     const response = await sendChatMessage(texto, remitenteIdNum, colaboradorIdNum)
+    
+    console.log('[API /chat/mensajes POST] ✅ Mensaje enviado exitosamente')
     
     // Retornar el mensaje guardado en el formato esperado por el cliente
     const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
