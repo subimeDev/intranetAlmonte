@@ -177,7 +177,62 @@ const Page = () => {
       return
     }
 
-    // Función para cargar mensajes (declarada primero)
+    // Calcular nombre del canal primero (necesario para Pusher y para verificar si ya estamos suscritos)
+    const remitenteIdNum = parseInt(String(currentUserId), 10)
+    const colaboradorIdNum = parseInt(String(currentContact.id), 10)
+    const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
+    const currentChannelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
+    
+    // Verificar si ya estamos suscritos al canal correcto
+    if (pusherChannelRef.current) {
+      const oldChannelName = pusherChannelRef.current.name
+      if (oldChannelName !== currentChannelName) {
+        // Canal diferente, limpiar y resuscribirse
+        pusherChannelRef.current.unbind_all()
+        pusherChannelRef.current.unsubscribe()
+        pusherChannelRef.current = null
+      } else {
+        // Mismo canal, no hacer nada - ya estamos suscritos
+        console.error('[Chat] ✅ Ya suscrito al canal correcto, no re-suscribiendo')
+        // Solo cargar mensajes iniciales si no hay mensajes
+        if (messages.length === 0) {
+          // Declarar función antes de usarla
+          const cargarMensajes = async (soloNuevos: boolean = false) => {
+            try {
+              const query = new URLSearchParams({
+                colaborador_id: currentContact.id,
+                remitente_id: currentUserId,
+              })
+              const url = `/api/chat/mensajes?${query.toString()}`
+              const response = await fetch(url)
+              if (!response.ok) return
+              const data = await response.json()
+              const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
+              if (mensajesData.length > 0) {
+                const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
+                  const mensajeAttrs = mensaje.attributes || mensaje
+                  const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
+                  const fechaObj = new Date(fecha)
+                  return {
+                    id: String(mensaje.id || mensajeAttrs.id),
+                    senderId: String(mensajeAttrs.remitente_id || mensaje.remitente_id || 1),
+                    text: mensajeAttrs.texto || mensaje.texto || '',
+                    time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+                  }
+                })
+                setMessages(mensajesMapeados)
+              }
+            } catch (err) {
+              console.error('Error al cargar mensajes:', err)
+            }
+          }
+          cargarMensajes(false)
+        }
+        return
+      }
+    }
+
+    // Función para cargar mensajes (declarada después de verificar canal)
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
         // Log para debugging (usar error para que siempre se vea)
