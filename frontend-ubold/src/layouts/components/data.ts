@@ -197,7 +197,7 @@ export const menuItems: MenuItemType[] = [
   },
   { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
   { key: 'logs', label: 'Logs', icon: LuFileText, url: '/logs', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
-  // { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
+  { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
   // { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
   // { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
   { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
