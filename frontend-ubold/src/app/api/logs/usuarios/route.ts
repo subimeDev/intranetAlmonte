@@ -420,8 +420,26 @@ export async function GET(request: NextRequest) {
     addDebugLog(`[API /logs/usuarios] 📊 Total de logs procesados: ${logs.length}`)
     addDebugLog(`[API /logs/usuarios] 📊 Logs con usuario válido: ${Array.from(usuariosMap.keys()).length}`)
     
+    // Listar todos los emails encontrados para debug
+    const emailsEncontrados = Array.from(usuariosMap.keys()).filter(key => !key.startsWith('id_') && !key.startsWith('anonimo_'))
+    addDebugLog(`[API /logs/usuarios] 📧 Emails encontrados: ${emailsEncontrados.join(', ')}`)
+    
+    // Verificar si hay logs con usuario null
+    const logsSinUsuario = logs.filter((log: any) => {
+      const logData = log.attributes || log
+      return !logData.usuario
+    }).length
+    addDebugLog(`[API /logs/usuarios] ⚠️ Logs sin usuario (null): ${logsSinUsuario}`)
+
     if (usuarios.length > 0) {
       addDebugLog(`[API /logs/usuarios] 🔍 Primer usuario:\n${JSON.stringify(usuarios[0], null, 2)}`)
+      // Buscar específicamente holanda@holanda.com
+      const holandaUsuario = usuarios.find(u => u.email?.toLowerCase().includes('holanda'))
+      if (holandaUsuario) {
+        addDebugLog(`[API /logs/usuarios] ✅ Usuario holanda@holanda.com encontrado: ${JSON.stringify(holandaUsuario, null, 2)}`)
+      } else {
+        addDebugLog(`[API /logs/usuarios] ⚠️ Usuario holanda@holanda.com NO encontrado en la lista`)
+      }
     } else {
       addDebugLog('[API /logs/usuarios] ⚠️ No se pudieron agrupar usuarios. Revisar logs anteriores.')
     }
