@@ -177,11 +177,28 @@ const Page = () => {
       return
     }
 
-    // Limpiar suscripción anterior si existe
+    // Limpiar suscripción anterior solo si cambió el contacto o usuario
+    const remitenteIdNum = parseInt(String(currentUserId), 10)
+    const colaboradorIdNum = parseInt(String(currentContact.id), 10)
+    const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
+    const currentChannelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
+    
     if (pusherChannelRef.current) {
-      pusherChannelRef.current.unbind_all()
-      pusherChannelRef.current.unsubscribe()
-      pusherChannelRef.current = null
+      const oldChannelName = pusherChannelRef.current.name
+      if (oldChannelName !== currentChannelName) {
+        // Canal diferente, limpiar y resuscribirse
+        pusherChannelRef.current.unbind_all()
+        pusherChannelRef.current.unsubscribe()
+        pusherChannelRef.current = null
+      } else {
+        // Mismo canal, no hacer nada - ya estamos suscritos
+        console.error('[Chat] ✅ Ya suscrito al canal correcto, no re-suscribiendo')
+        // Solo cargar mensajes iniciales si no hay mensajes
+        if (messages.length === 0) {
+          cargarMensajes(false)
+        }
+        return
+      }
     }
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
@@ -378,21 +395,16 @@ const Page = () => {
     // Configurar Pusher para recibir mensajes en tiempo real
     const pusher = getPusherClient()
     if (pusher) {
-      // Crear nombre de canal único para esta conversación (ordenado para que ambos usuarios usen el mismo)
-      const remitenteIdNum = parseInt(String(currentUserId), 10)
-      const colaboradorIdNum = parseInt(String(currentContact.id), 10)
-      const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
-      const channelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
-      
-      console.error('[Chat] 📡 Suscribiéndose a canal Pusher:', channelName)
+      // Usar el channelName ya calculado arriba
+      console.error('[Chat] 📡 Suscribiéndose a canal Pusher:', currentChannelName)
       
       // Suscribirse al canal privado
-      const channel = pusher.subscribe(channelName)
+      const channel = pusher.subscribe(currentChannelName)
       pusherChannelRef.current = channel
       
       // Escuchar cuando la suscripción sea exitosa
       channel.bind('pusher:subscription_succeeded', () => {
-        console.error('[Chat] ✅ Suscrito exitosamente a canal Pusher:', channelName)
+        console.error('[Chat] ✅ Suscrito exitosamente a canal Pusher:', currentChannelName)
       })
       
       // Escuchar nuevos mensajes en tiempo real
@@ -451,11 +463,16 @@ const Page = () => {
         // Agregar mensaje al estado (evitando duplicados y removiendo temporales)
         setMessages((prev) => {
           // Verificar si el mensaje ya existe
-          const existe = prev.some((m) => m.id === nuevoMensaje.id)
+          const existe = prev.some((m) => m.id === nuevoMensaje.id || (m.id.startsWith('temp-') && m.text === nuevoMensaje.text))
           if (existe) {
             console.error('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
-            // Aún así, remover temporales
-            return prev.filter((m) => !m.id.startsWith('temp-'))
+            // Remover temporales que coincidan con este mensaje real
+            return prev.filter((m) => {
+              if (m.id.startsWith('temp-') && m.text === nuevoMensaje.text) {
+                return false // Remover temporal que coincide
+              }
+              return m.id !== nuevoMensaje.id // Mantener otros, pero no duplicar este
+            })
           }
           
           // Remover mensajes temporales y agregar el nuevo
@@ -469,6 +486,7 @@ const Page = () => {
             return idA - idB
           })
           
+          console.error('[Chat] ✅ Mensaje agregado al estado. Total mensajes:', todos.length)
           return todos
         })
         
