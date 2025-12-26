@@ -30,17 +30,17 @@ export function buildChatQueries(
   let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorId}&filters[cliente_id][$eq]=${remitenteId}&sort=fecha:asc&pagination[pageSize]=1000`
 
   // Aplicar filtro de fecha a ambas queries para polling eficiente
-  // Esto captura mensajes nuevos en ambas direcciones
+  // Esto captura mensajes nuevos en ambas direcciones (enviados y recibidos)
   if (ultimaFecha) {
     try {
       const fechaLimite = new Date(ultimaFecha)
-      // Restar 10 segundos para asegurar que no se pierdan mensajes por diferencias de tiempo
-      fechaLimite.setSeconds(fechaLimite.getSeconds() - 10)
+      // El margen ya viene aplicado desde el frontend, solo usar la fecha tal cual
       const fechaISO = encodeURIComponent(fechaLimite.toISOString())
       query1 += `&filters[fecha][$gt]=${fechaISO}`
       query2 += `&filters[fecha][$gt]=${fechaISO}`
     } catch (e) {
-      // Ignorar error de fecha y continuar sin filtro
+      // Ignorar error de fecha y continuar sin filtro para no perder mensajes
+      console.warn('[Chat Service] Error al procesar fecha límite, continuando sin filtro:', e)
     }
   }
 

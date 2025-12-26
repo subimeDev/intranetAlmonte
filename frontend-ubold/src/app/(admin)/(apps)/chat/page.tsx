@@ -157,8 +157,9 @@ const Page = () => {
         })
 
         if (soloNuevos && lastMessageDate) {
-          // Aumentar margen a 5 segundos para asegurar que se capturen mensajes nuevos
-          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 5000).toISOString()
+          // Aumentar margen a 10 segundos para asegurar que se capturen mensajes nuevos
+          // Esto es crítico para que los mensajes aparezcan entre cuentas diferentes
+          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 10000).toISOString()
           query.append('ultima_fecha', fechaConMargen)
         }
 
@@ -236,13 +237,27 @@ const Page = () => {
           setMessages(sinTemporales)
         }
 
-        // Actualizar última fecha solo si hay mensajes nuevos
+        // Actualizar última fecha siempre (incluso si no hay mensajes nuevos)
+        // Esto asegura que el polling funcione correctamente
         if (mensajesMapeados.length > 0) {
-          const ultimoMensaje = mensajesData[mensajesData.length - 1]
-          const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt
+          // Encontrar el mensaje más reciente por fecha
+          const mensajeMasReciente = mensajesConFecha.reduce((masReciente, actual) => {
+            const fechaMasReciente = new Date(masReciente.fechaOriginal).getTime()
+            const fechaActual = new Date(actual.fechaOriginal).getTime()
+            return fechaActual > fechaMasReciente ? actual : masReciente
+          })
+          
+          const ultimaFecha = mensajeMasReciente.fechaOriginal
           if (ultimaFecha) {
             setLastMessageDate(ultimaFecha)
           }
+        } else if (!soloNuevos && lastMessageDate) {
+          // Si no hay mensajes y es carga inicial, mantener la fecha anterior
+          // Esto evita que el polling se rompa
+        } else if (!lastMessageDate) {
+          // Si nunca ha habido una fecha, usar la fecha actual menos 1 minuto para asegurar que se capturen mensajes recientes
+          const fechaInicial = new Date(Date.now() - 60000).toISOString()
+          setLastMessageDate(fechaInicial)
         }
 
         // Scroll solo si hay cambios
@@ -258,13 +273,14 @@ const Page = () => {
       }
     }
 
-    // Cargar mensajes iniciales
+    // Cargar mensajes iniciales sin filtro de fecha
     cargarMensajes(false)
     
-    // Configurar polling cada 3 segundos (más eficiente que 1 segundo)
+    // Configurar polling cada 2 segundos para mejor sincronización entre cuentas
+    // Esto es crítico para que los mensajes aparezcan rápidamente en ambas cuentas
     pollingIntervalRef.current = setInterval(() => {
       cargarMensajes(true)
-    }, 3000)
+    }, 2000)
 
     return () => {
       if (pollingIntervalRef.current) {
