@@ -353,35 +353,62 @@ const ProductRequestsListing = ({ solicitudes, error }: ProductRequestsListingPr
     if (!pendingId) return
     
     try {
-      console.log('[ProductRequestsListing] Aprobando solicitud:', pendingId)
+      console.log('[ProductRequestsListing] ==========================================')
+      console.log('[ProductRequestsListing] 🚀 Aprobando solicitud:', pendingId)
+      console.log('[ProductRequestsListing] Cambiando estado a: Publicado')
+      
+      const payload = {
+        data: {
+          estado_publicacion: 'Publicado', // CRÍTICO: Debe ser "Publicado" con mayúscula inicial
+        },
+      }
+      
+      console.log('[ProductRequestsListing] 📦 Payload a enviar:', JSON.stringify(payload, null, 2))
+      
       const response = await fetch(`/api/tienda/productos/${pendingId}`, {
         method: 'PUT',
         credentials: 'include', // Incluir cookies
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          data: {
-            estado_publicacion: 'publicado',
-          },
-        }),
+        body: JSON.stringify(payload),
       })
+      
+      console.log('[ProductRequestsListing] 📥 Respuesta recibida. Status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('[ProductRequestsListing] ❌ Error en respuesta:', errorData)
         throw new Error(errorData.error || 'Error al aprobar la solicitud')
       }
 
+      const result = await response.json()
+      console.log('[ProductRequestsListing] ✅ Solicitud aprobada exitosamente')
+      console.log('[ProductRequestsListing] 📊 Resultado:', {
+        success: result.success,
+        productoId: result.data?.id || result.data?.documentId,
+        estado: result.data?.attributes?.estado_publicacion || result.data?.estado_publicacion,
+      })
+      console.log('[ProductRequestsListing] ==========================================')
+      
       // Actualizar estado local
       setData((old) => old.map(item => 
         item.id === pendingId ? { ...item, estado: 'aprobada' as const } : item
       ))
       
+      // Mostrar mensaje de éxito
+      alert('✅ Solicitud aprobada exitosamente. El producto se sincronizará con WordPress automáticamente si tiene canales asignados.')
+      
       router.refresh()
     } catch (error: any) {
-      console.error('Error al aprobar solicitud:', error)
-      alert(error.message || 'Error al aprobar la solicitud')
+      console.error('[ProductRequestsListing] ❌ Error al aprobar solicitud:', error)
+      console.error('[ProductRequestsListing] Error completo:', {
+        message: error.message,
+        stack: error.stack,
+      })
+      alert(`❌ Error al aprobar la solicitud: ${error.message || 'Error desconocido'}`)
     } finally {
+      setShowConfirmModal(false)
       setPendingId(null)
     }
   }
