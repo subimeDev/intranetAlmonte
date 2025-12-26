@@ -62,6 +62,7 @@ const Page = () => {
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<Channel | null>(null)
+  const allChannelsRef = useRef<Map<string, Channel>>(new Map())
 
   // Cargar contactos
   useEffect(() => {
@@ -315,7 +316,7 @@ const Page = () => {
       }, 100)
     })
 
-    // Cleanup
+    // Cleanup solo del canal de la conversación actual
     return () => {
       if (channelRef.current) {
         channelRef.current.unbind_all()
@@ -324,6 +325,18 @@ const Page = () => {
       }
     }
   }, [currentContact, currentUserId])
+
+  // Cleanup de todos los canales cuando el componente se desmonta
+  useEffect(() => {
+    return () => {
+      allChannelsRef.current.forEach((channel, channelName) => {
+        console.error('[Chat] 🔌 Desuscribiéndose de canal global:', channelName)
+        channel.unbind_all()
+        channel.unsubscribe()
+      })
+      allChannelsRef.current.clear()
+    }
+  }, [])
 
   // Enviar mensaje
   const handleSendMessage = async () => {
