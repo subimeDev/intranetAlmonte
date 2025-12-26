@@ -223,18 +223,30 @@ const Page = () => {
     const channelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
 
     // Suscribirse al canal
+    console.log('[Chat] 📡 Suscribiéndose a canal Pusher:', channelName)
     const channel = pusher.subscribe(channelName)
     channelRef.current = channel
 
+    // Escuchar cuando la suscripción sea exitosa
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('[Chat] ✅ Suscrito exitosamente a canal:', channelName)
+    })
+
+    // Escuchar errores de suscripción
+    channel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[Chat] ❌ Error al suscribirse a canal:', channelName, error)
+    })
+
     // Escuchar nuevos mensajes
     channel.bind('new-message', (data: any) => {
-      console.log('[Chat] 📨 Mensaje recibido vía Pusher:', {
+      console.error('[Chat] 📨 Mensaje recibido vía Pusher:', {
         id: data.id,
         remitente_id: data.remitente_id,
         cliente_id: data.cliente_id,
         texto: data.texto?.substring(0, 30),
         currentUserId,
         currentContactId: currentContact.id,
+        channelName,
       })
 
       // Validar que el mensaje sea para esta conversación
@@ -243,21 +255,31 @@ const Page = () => {
       const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
       const currentContactIdNum = parseInt(String(currentContact.id || ''), 10)
 
+      console.error('[Chat] 🔍 Validando mensaje:', {
+        mensajeRemitenteId,
+        mensajeClienteId,
+        currentUserIdNum,
+        currentContactIdNum,
+        esRemitente: mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum,
+        esCliente: mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum,
+      })
+
       const esParaEstaConversacion = 
         (mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum) ||
         (mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum)
 
       if (!esParaEstaConversacion) {
-        console.log('[Chat] ⚠️ Mensaje ignorado - no es para esta conversación:', {
+        console.error('[Chat] ⚠️ Mensaje ignorado - no es para esta conversación:', {
           mensajeRemitenteId,
           mensajeClienteId,
           currentUserIdNum,
           currentContactIdNum,
+          esParaEstaConversacion,
         })
         return
       }
 
-      console.log('[Chat] ✅ Mensaje válido, agregando a la conversación')
+      console.error('[Chat] ✅ Mensaje válido, agregando a la conversación')
 
       const nuevoMensaje: MessageType = {
         id: String(data.id),
@@ -269,7 +291,7 @@ const Page = () => {
       setMessages((prev) => {
         // Evitar duplicados
         if (prev.some((m) => m.id === nuevoMensaje.id)) {
-          console.log('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
+          console.error('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
           return prev
         }
         const nuevos = [...prev, nuevoMensaje]
@@ -278,7 +300,7 @@ const Page = () => {
           const idB = parseInt(b.id) || 0
           return idA - idB
         })
-        console.log('[Chat] ✅ Mensaje agregado. Total:', nuevos.length)
+        console.error('[Chat] ✅ Mensaje agregado al estado. Total mensajes:', nuevos.length, 'ID:', nuevoMensaje.id)
         return nuevos
       })
 
