@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "node scripts/fix-bootstrap-variables.js",
+    "postinstall": "node scripts/fix-bootstrap-variables.js || echo 'Script fix-bootstrap-variables.js skipped'",
     "postbuild": "node fix-server.js",
     "start": "node server.js",
     "lint": "eslint",
