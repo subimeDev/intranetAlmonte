@@ -151,6 +151,14 @@ const Page = () => {
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
+        // Log para debugging
+        console.log('[Chat] 🔄 Cargando mensajes:', {
+          soloNuevos,
+          currentUserId,
+          currentContactId: currentContact.id,
+          lastMessageDate,
+        })
+
         const query = new URLSearchParams({
           colaborador_id: currentContact.id,
           remitente_id: currentUserId,
@@ -161,6 +169,9 @@ const Page = () => {
           // Esto es crítico para que los mensajes aparezcan entre cuentas diferentes
           const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 10000).toISOString()
           query.append('ultima_fecha', fechaConMargen)
+          console.log('[Chat] ⏰ Filtro de fecha aplicado:', { lastMessageDate, fechaConMargen })
+        } else if (soloNuevos) {
+          console.log('[Chat] ⚠️ Polling sin lastMessageDate - cargando todos los mensajes')
         }
 
         const response = await fetch(`/api/chat/mensajes?${query.toString()}`)
@@ -174,19 +185,33 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
+        console.log('[Chat] 📨 Mensajes recibidos del API:', {
+          total: mensajesData.length,
+          primeros: mensajesData.slice(0, 3).map((m: any) => ({
+            id: m.id || m.attributes?.id,
+            remitente_id: m.remitente_id || m.attributes?.remitente_id,
+            cliente_id: m.cliente_id || m.attributes?.cliente_id,
+            texto: (m.texto || m.attributes?.texto || '').substring(0, 30),
+          }))
+        })
+
         // Mapear mensajes manteniendo referencia a los datos originales para ordenar por fecha
         interface MensajeConFecha extends MessageType {
           fechaOriginal: string
         }
         
         const mensajesConFecha: MensajeConFecha[] = mensajesData.map((mensaje: any) => {
-          const texto = mensaje.texto || mensaje.attributes?.texto || ''
-          const remitenteId = mensaje.remitente_id || mensaje.attributes?.remitente_id || 1
-          const fecha = mensaje.fecha || mensaje.attributes?.fecha || mensaje.createdAt || Date.now()
+          // Extraer datos - pueden venir en attributes o directamente
+          const mensajeAttrs = mensaje.attributes || mensaje
+          const texto = mensajeAttrs.texto || mensaje.texto || ''
+          const remitenteId = mensajeAttrs.remitente_id || mensaje.remitente_id || 1
+          const clienteId = mensajeAttrs.cliente_id || mensaje.cliente_id
+          const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
           const fechaObj = new Date(fecha)
+          const mensajeId = mensaje.id || mensajeAttrs.id
 
           return {
-            id: String(mensaje.id || mensaje.attributes?.id || ''),
+            id: String(mensajeId),
             senderId: String(remitenteId),
             text: texto,
             time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
@@ -302,6 +327,15 @@ const Page = () => {
     const textoOriginal = messageText // Guardar para restaurar en caso de error
     const remitenteIdNum = parseInt(currentUserId, 10)
     const colaboradorIdNum = parseInt(currentContact.id, 10)
+    
+    // Log para debugging
+    console.log('[Chat] 📤 Enviando mensaje desde frontend:', {
+      texto: texto.substring(0, 50),
+      remitenteIdNum,
+      colaboradorIdNum,
+      currentUserId,
+      currentContactId: currentContact.id,
+    })
     
     // Crear mensaje temporal (optimistic update)
     const mensajeTemporal: MessageType = {
