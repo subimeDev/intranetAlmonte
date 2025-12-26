@@ -440,11 +440,11 @@ export default function LogsList() {
                 <div className="text-muted">
                   <div>No hay logs de [LOGGING] aún.</div>
                   <div className="mt-2">
-                    <strong>Para generar logs:</strong>
+                    <strong>Para generar logs REALES:</strong>
                     <ol className="mt-2 mb-0" style={{ fontSize: '11px' }}>
                       <li>Edita un producto (cambia el nombre y guarda)</li>
-                      <li>Haz clic en "Actualizar" para ver los logs</li>
-                      <li>Los logs se capturan del servidor en tiempo real</li>
+                      <li>Haz clic en "Actualizar" para ver los logs reales</li>
+                      <li>Los logs se capturan automáticamente del servidor</li>
                     </ol>
                   </div>
                 </div>

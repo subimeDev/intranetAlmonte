@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserFromRequest } from '@/lib/logging'
+import { logStorage } from '@/lib/logging/logStorage'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,26 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const logs: string[] = []
   
+  // PRIMERO: Obtener logs reales del almacenamiento
+  const realLogs = logStorage.getLogsByPrefix('[LOGGING]')
+  
+  // Si hay logs reales, usarlos
+  if (realLogs.length > 0) {
+    const formattedLogs = realLogs.map(log => {
+      const timestamp = new Date(log.timestamp).toLocaleTimeString('es-CL')
+      return `[${timestamp}] ${log.message}${log.data ? ' ' + JSON.stringify(log.data, null, 2) : ''}`
+    })
+    
+    return NextResponse.json({
+      success: true,
+      logs: formattedLogs,
+      source: 'real',
+      count: realLogs.length,
+      message: 'Logs reales capturados del sistema de logging',
+    })
+  }
+  
+  // Si no hay logs reales, hacer simulación (fallback)
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString('es-CL')
     logs.push(`[${timestamp}] ${message}`)
@@ -99,7 +120,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       logs: logs,
-      message: 'Logs de debug del sistema de logging',
+      source: 'simulation',
+      message: 'Logs simulados (no hay logs reales aún). Edita un producto para generar logs reales.',
     })
   } catch (error: any) {
     addLog('[LOGGING] ❌ ERROR GENERAL: ' + error.message)
