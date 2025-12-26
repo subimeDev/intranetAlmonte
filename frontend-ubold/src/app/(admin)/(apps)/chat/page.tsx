@@ -239,18 +239,43 @@ const Page = () => {
         })
 
         const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
+          // Extraer datos del mensaje de forma más robusta
           const mensajeAttrs = mensaje.attributes || mensaje
           const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
           const fechaObj = new Date(fecha)
           
-          // Normalizar remitente_id a string de forma explícita
-          const remitenteIdOriginal = mensajeAttrs.remitente_id || mensaje.remitente_id
-          const remitenteIdNormalizado = remitenteIdOriginal ? String(remitenteIdOriginal).trim() : ''
+          // Extraer remitente_id de múltiples ubicaciones posibles
+          let remitenteIdOriginal: any = null
+          if (mensajeAttrs.remitente_id !== undefined && mensajeAttrs.remitente_id !== null) {
+            remitenteIdOriginal = mensajeAttrs.remitente_id
+          } else if (mensaje.remitente_id !== undefined && mensaje.remitente_id !== null) {
+            remitenteIdOriginal = mensaje.remitente_id
+          } else if (mensaje.data?.remitente_id !== undefined && mensaje.data?.remitente_id !== null) {
+            remitenteIdOriginal = mensaje.data.remitente_id
+          }
+          
+          // Normalizar a string de forma explícita
+          const remitenteIdNormalizado = remitenteIdOriginal !== null && remitenteIdOriginal !== undefined 
+            ? String(remitenteIdOriginal).trim() 
+            : ''
+
+          // Log detallado para cada mensaje al mapearlo
+          console.error('[Chat] 📝 Mapeando mensaje desde API:', {
+            mensajeId: mensaje.id || mensajeAttrs.id,
+            mensajeRaw: JSON.stringify(mensaje).substring(0, 300),
+            mensajeAttrsRaw: JSON.stringify(mensajeAttrs).substring(0, 300),
+            remitente_id_original: remitenteIdOriginal,
+            remitente_id_tipo: typeof remitenteIdOriginal,
+            remitente_id_normalizado: remitenteIdNormalizado,
+            cliente_id: mensajeAttrs.cliente_id || mensaje.cliente_id || mensaje.data?.cliente_id,
+            currentUserId,
+            texto: (mensajeAttrs.texto || mensaje.texto || mensaje.data?.texto || '').substring(0, 30),
+          })
 
           return {
-            id: String(mensaje.id || mensajeAttrs.id),
+            id: String(mensaje.id || mensajeAttrs.id || mensaje.data?.id),
             senderId: remitenteIdNormalizado,
-            text: mensajeAttrs.texto || mensaje.texto || '',
+            text: mensajeAttrs.texto || mensaje.texto || mensaje.data?.texto || '',
             time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           }
         })
@@ -354,14 +379,20 @@ const Page = () => {
       // Normalizar remitente_id a string de forma explícita
       const remitenteIdNormalizado = String(data.remitente_id || '').trim()
       
-      console.error('[Chat] 📝 Creando nuevo mensaje:', {
+      // Log MUY detallado del mensaje recibido vía Pusher
+      console.error('[Chat] 📝 Creando nuevo mensaje desde Pusher:', {
+        dataRaw: JSON.stringify(data).substring(0, 300),
         id: String(data.id),
         remitente_id_original: data.remitente_id,
         remitente_id_tipo: typeof data.remitente_id,
         remitente_id_normalizado: remitenteIdNormalizado,
+        cliente_id_original: data.cliente_id,
+        cliente_id_tipo: typeof data.cliente_id,
         currentUserId,
         currentUserIdType: typeof currentUserId,
+        currentContactId: currentContact.id,
         esDelUsuarioActual: remitenteIdNormalizado === String(currentUserId || ''),
+        comparacion: `${remitenteIdNormalizado} === ${String(currentUserId || '')} = ${remitenteIdNormalizado === String(currentUserId || '')}`,
       })
 
       const nuevoMensaje: MessageType = {
@@ -612,18 +643,25 @@ const Page = () => {
                                           messageSenderId !== '' && 
                                           messageSenderId === currentUserIdStr
 
-                  // Log de depuración para cada mensaje
+                  // Log MUY detallado de depuración para cada mensaje
                   if (typeof window !== 'undefined') {
                     console.error('[Chat] 🎨 Renderizando mensaje:', {
+                      mensajeCompleto: JSON.stringify(message),
                       id: message.id,
                       senderId: messageSenderId,
+                      senderIdOriginal: message.senderId,
                       senderIdType: typeof message.senderId,
                       currentUserId: currentUserIdStr,
+                      currentUserIdOriginal: currentUserId,
                       currentUserIdType: typeof currentUserId,
                       isFromCurrentUser,
                       tieneCurrentContact: !!currentContact,
+                      currentContactId: currentContact?.id,
                       texto: message.text?.substring(0, 30),
                       comparacion: `${messageSenderId} === ${currentUserIdStr} = ${messageSenderId === currentUserIdStr}`,
+                      longitudSenderId: messageSenderId.length,
+                      longitudCurrentUserId: currentUserIdStr.length,
+                      sonIguales: messageSenderId === currentUserIdStr,
                     })
                   }
 
