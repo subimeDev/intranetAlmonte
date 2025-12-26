@@ -29,16 +29,18 @@ export function buildChatQueries(
   let query1 = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteId}&filters[cliente_id][$eq]=${colaboradorId}&sort=fecha:asc&pagination[pageSize]=1000`
   let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorId}&filters[cliente_id][$eq]=${remitenteId}&sort=fecha:asc&pagination[pageSize]=1000`
 
-  // Agregar filtro de fecha solo a query1 (mensajes que yo envié) para polling
-  // Query2 (mensajes recibidos) NO usa filtro de fecha para asegurar que se obtengan todos
+  // Aplicar filtro de fecha a ambas queries para polling eficiente
+  // Esto captura mensajes nuevos en ambas direcciones
   if (ultimaFecha) {
     try {
       const fechaLimite = new Date(ultimaFecha)
-      fechaLimite.setSeconds(fechaLimite.getSeconds() - 2)
+      // Restar 10 segundos para asegurar que no se pierdan mensajes por diferencias de tiempo
+      fechaLimite.setSeconds(fechaLimite.getSeconds() - 10)
       const fechaISO = encodeURIComponent(fechaLimite.toISOString())
       query1 += `&filters[fecha][$gt]=${fechaISO}`
+      query2 += `&filters[fecha][$gt]=${fechaISO}`
     } catch (e) {
-      // Ignorar error de fecha
+      // Ignorar error de fecha y continuar sin filtro
     }
   }
 

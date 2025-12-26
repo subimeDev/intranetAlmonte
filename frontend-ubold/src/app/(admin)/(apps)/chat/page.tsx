@@ -309,60 +309,62 @@ const Page = () => {
         mensajeGuardado = data?.attributes || data || null
       }
       
-      // Forzar recarga de mensajes después de un breve delay para obtener el mensaje real
-      setTimeout(async () => {
-        try {
-          const query = new URLSearchParams({
-            colaborador_id: currentContact.id,
-            remitente_id: currentUserId,
+      // Forzar recarga inmediata de mensajes para obtener el mensaje real y asegurar sincronización
+      // Esto es crítico para que el mensaje aparezca en ambas cuentas
+      try {
+        const query = new URLSearchParams({
+          colaborador_id: currentContact.id,
+          remitente_id: currentUserId,
+        })
+        
+        const reloadResponse = await fetch(`/api/chat/mensajes?${query.toString()}`)
+        if (reloadResponse.ok) {
+          const reloadData = await reloadResponse.json()
+          const mensajesData = Array.isArray(reloadData.data) ? reloadData.data : (reloadData.data ? [reloadData.data] : [])
+          
+          const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
+            const textoMsg = mensaje.texto || ''
+            const remitenteIdMsg = mensaje.remitente_id || 1
+            const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
+            
+            return {
+              id: String(mensaje.id),
+              senderId: String(remitenteIdMsg),
+              text: textoMsg,
+              time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+            }
           })
           
-          const reloadResponse = await fetch(`/api/chat/mensajes?${query.toString()}`)
-          if (reloadResponse.ok) {
-            const reloadData = await reloadResponse.json()
-            const mensajesData = Array.isArray(reloadData.data) ? reloadData.data : (reloadData.data ? [reloadData.data] : [])
-            
-            const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-              const textoMsg = mensaje.texto || ''
-              const remitenteIdMsg = mensaje.remitente_id || 1
-              const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
-              
-              return {
-                id: String(mensaje.id),
-                senderId: String(remitenteIdMsg),
-                text: textoMsg,
-                time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-              }
-            })
-            
-            // Ordenar por ID
-            mensajesMapeados.sort((a, b) => {
-              const idA = parseInt(a.id) || 0
-              const idB = parseInt(b.id) || 0
-              return idA - idB
-            })
-            
-            // Remover mensaje temporal y actualizar con los reales
-            setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
-            
-            // Actualizar última fecha
-            if (mensajesMapeados.length > 0) {
-              const ultimoMensaje = mensajesData[mensajesData.length - 1]
-              const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt
-              if (ultimaFecha) {
-                setLastMessageDate(ultimaFecha)
-              }
+          // Ordenar por fecha (más confiable que por ID)
+          mensajesMapeados.sort((a, b) => {
+            // Buscar la fecha en los mensajes originales
+            const msgA = mensajesData.find((m: any) => String(m.id || m.attributes?.id) === a.id)
+            const msgB = mensajesData.find((m: any) => String(m.id || m.attributes?.id) === b.id)
+            const fechaA = msgA?.fecha || msgA?.createdAt || msgA?.attributes?.fecha || '0'
+            const fechaB = msgB?.fecha || msgB?.createdAt || msgB?.attributes?.fecha || '0'
+            return new Date(fechaA).getTime() - new Date(fechaB).getTime()
+          })
+          
+          // Remover mensajes temporales y actualizar con los reales
+          setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
+          
+          // Actualizar última fecha para el polling
+          if (mensajesMapeados.length > 0) {
+            const ultimoMensaje = mensajesData[mensajesData.length - 1]
+            const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt || ultimoMensaje?.attributes?.fecha
+            if (ultimaFecha) {
+              setLastMessageDate(ultimaFecha)
             }
-            
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }, 100)
           }
-        } catch (reloadErr) {
-          console.error('Error al recargar mensajes:', reloadErr)
-          // Si falla la recarga, mantener el mensaje temporal
+          
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+          }, 100)
         }
-      }, 500)
+      } catch (reloadErr) {
+        console.error('Error al recargar mensajes después de enviar:', reloadErr)
+        // Si falla, el polling capturará el mensaje en los próximos 3 segundos
+      }
       
     } catch (err: any) {
       console.error('Error al enviar mensaje:', err)
@@ -516,7 +518,7 @@ const Page = () => {
                           <div>
                             <div className="chat-message py-2 px-3 bg-warning-subtle rounded">{message.text}</div>
                             <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
-                              <TbClock /> {message.time}
+                              {message.time}
                             </div>
                           </div>
                         </div>
@@ -528,7 +530,7 @@ const Page = () => {
                           <div>
                             <div className="chat-message py-2 px-3 bg-info-subtle rounded">{message.text}</div>
                             <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
-                              <TbClock /> {message.time}
+                              {message.time}
                             </div>
                           </div>
                           {currentUserData.avatar ? (
