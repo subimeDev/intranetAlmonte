@@ -165,14 +165,30 @@ const Page = () => {
           remitente_id: currentUserId,
         })
 
-        // IMPORTANTE: Solo aplicar filtro de fecha si es polling Y tenemos una fecha válida
-        // Si no hay lastMessageDate, cargar todos los mensajes (solo en polling, no en carga inicial)
-        // Aplicar filtro de fecha SOLO si es polling Y tenemos una fecha válida
-        // Si no hay lastMessageDate, cargar TODOS los mensajes (sin filtro)
+        // IMPORTANTE: Solo aplicar filtro de fecha en polling Y si tenemos una fecha válida
+        // El margen de 30 segundos asegura que no se pierdan mensajes por diferencias de tiempo entre servidor y cliente
+        // PERO: Si es la primera carga o no hay lastMessageDate, cargar TODOS los mensajes (sin filtro)
         if (soloNuevos && lastMessageDate) {
-          // Margen de 30 segundos para asegurar que no se pierdan mensajes por diferencias de tiempo
-          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 30000).toISOString()
-          query.append('ultima_fecha', fechaConMargen)
+          try {
+            const fechaLastMessage = new Date(lastMessageDate)
+            if (!isNaN(fechaLastMessage.getTime())) {
+              // Margen de 60 segundos (aumentado) para asegurar que no se pierdan mensajes
+              // Esto es crítico cuando hay diferencias de tiempo entre servidor y cliente
+              const fechaConMargen = new Date(fechaLastMessage.getTime() - 60000).toISOString()
+              query.append('ultima_fecha', fechaConMargen)
+              console.error('[Chat] ⏰ Filtro de fecha aplicado:', { 
+                lastMessageDate, 
+                fechaConMargen,
+                diferenciaSegundos: (fechaLastMessage.getTime() - new Date(fechaConMargen).getTime()) / 1000
+              })
+            } else {
+              console.error('[Chat] ⚠️ lastMessageDate inválida, sin filtro:', lastMessageDate)
+            }
+          } catch (e) {
+            console.error('[Chat] ⚠️ Error al procesar lastMessageDate, sin filtro:', e)
+          }
+        } else if (soloNuevos) {
+          console.error('[Chat] ⚠️ Polling sin lastMessageDate - cargando todos los mensajes')
         }
 
         const url = `/api/chat/mensajes?${query.toString()}`
