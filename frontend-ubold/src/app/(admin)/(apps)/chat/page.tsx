@@ -44,6 +44,18 @@ const Page = () => {
   const { colaborador, persona } = useAuth()
   const currentUserId = colaborador?.id ? String(colaborador.id) : null
 
+  // Log de depuración para currentUserId
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.error('[Chat] 👤 currentUserId establecido:', {
+        currentUserId,
+        colaboradorId: colaborador?.id,
+        colaboradorIdType: typeof colaborador?.id,
+        tieneColaborador: !!colaborador,
+      })
+    }
+  }, [currentUserId, colaborador?.id])
+
   const currentUserData = {
     id: currentUserId || '1',
     name: persona ? (persona.nombre_completo || `${persona.nombres || ''} ${persona.primer_apellido || ''}`.trim() || 'Usuario') : 'Usuario',
@@ -230,10 +242,14 @@ const Page = () => {
           const mensajeAttrs = mensaje.attributes || mensaje
           const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
           const fechaObj = new Date(fecha)
+          
+          // Normalizar remitente_id a string de forma explícita
+          const remitenteIdOriginal = mensajeAttrs.remitente_id || mensaje.remitente_id
+          const remitenteIdNormalizado = remitenteIdOriginal ? String(remitenteIdOriginal).trim() : ''
 
           return {
             id: String(mensaje.id || mensajeAttrs.id),
-            senderId: String(mensajeAttrs.remitente_id || mensaje.remitente_id || 1),
+            senderId: remitenteIdNormalizado,
             text: mensajeAttrs.texto || mensaje.texto || '',
             time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           }
@@ -335,9 +351,22 @@ const Page = () => {
 
       console.error('[Chat] ✅ Mensaje válido, agregando a la conversación')
 
+      // Normalizar remitente_id a string de forma explícita
+      const remitenteIdNormalizado = String(data.remitente_id || '').trim()
+      
+      console.error('[Chat] 📝 Creando nuevo mensaje:', {
+        id: String(data.id),
+        remitente_id_original: data.remitente_id,
+        remitente_id_tipo: typeof data.remitente_id,
+        remitente_id_normalizado: remitenteIdNormalizado,
+        currentUserId,
+        currentUserIdType: typeof currentUserId,
+        esDelUsuarioActual: remitenteIdNormalizado === String(currentUserId || ''),
+      })
+
       const nuevoMensaje: MessageType = {
         id: String(data.id),
-        senderId: String(data.remitente_id),
+        senderId: remitenteIdNormalizado,
         text: data.texto || '',
         time: new Date(data.fecha || Date.now()).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
       }
@@ -574,19 +603,27 @@ const Page = () => {
             {messages.length > 0 ? (
               <>
                 {messages.map((message) => {
-                  const messageSenderId = String(message.senderId || '')
-                  const currentUserIdStr = currentUserId ? String(currentUserId) : ''
-                  const isFromCurrentUser = currentUserIdStr !== '' && messageSenderId === currentUserIdStr
+                  // Normalizar IDs a strings para comparación consistente
+                  const messageSenderId = String(message.senderId || '').trim()
+                  const currentUserIdStr = (currentUserId ? String(currentUserId) : '').trim()
+                  
+                  // Comparación estricta de strings
+                  const isFromCurrentUser = currentUserIdStr !== '' && 
+                                          messageSenderId !== '' && 
+                                          messageSenderId === currentUserIdStr
 
                   // Log de depuración para cada mensaje
                   if (typeof window !== 'undefined') {
                     console.error('[Chat] 🎨 Renderizando mensaje:', {
                       id: message.id,
                       senderId: messageSenderId,
+                      senderIdType: typeof message.senderId,
                       currentUserId: currentUserIdStr,
+                      currentUserIdType: typeof currentUserId,
                       isFromCurrentUser,
                       tieneCurrentContact: !!currentContact,
                       texto: message.text?.substring(0, 30),
+                      comparacion: `${messageSenderId} === ${currentUserIdStr} = ${messageSenderId === currentUserIdStr}`,
                     })
                   }
 
