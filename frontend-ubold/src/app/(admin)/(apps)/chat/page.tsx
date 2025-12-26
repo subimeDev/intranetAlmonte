@@ -38,6 +38,8 @@ import {
   TbVideo,
 } from 'react-icons/tb'
 import { useAuth } from '@/hooks/useAuth'
+import getPusherClient from '@/lib/pusher/client'
+import type { Channel } from 'pusher-js'
 
 const Page = () => {
   const { colaborador, persona } = useAuth()
@@ -79,7 +81,7 @@ const Page = () => {
   const [error, setError] = useState<string | null>(null)
   const [lastMessageDate, setLastMessageDate] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pusherChannelRef = useRef<Channel | null>(null)
 
   // Cargar contactos
   useEffect(() => {
@@ -153,18 +155,25 @@ const Page = () => {
     cargarContactos()
   }, [currentUserId]) // Agregar currentUserId como dependencia
 
-  // Cargar mensajes y polling
+  // Cargar mensajes iniciales y configurar Pusher
   useEffect(() => {
     if (!currentContact || !currentUserId) {
       setMessages([])
       setLastMessageDate(null)
+      // Desuscribirse del canal si existe
+      if (pusherChannelRef.current) {
+        pusherChannelRef.current.unbind_all()
+        pusherChannelRef.current.unsubscribe()
+        pusherChannelRef.current = null
+      }
       return
     }
 
-    // Limpiar intervalo anterior si existe
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
+    // Limpiar suscripción anterior si existe
+    if (pusherChannelRef.current) {
+      pusherChannelRef.current.unbind_all()
+      pusherChannelRef.current.unsubscribe()
+      pusherChannelRef.current = null
     }
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
@@ -358,16 +367,118 @@ const Page = () => {
     // Cargar mensajes iniciales SIN filtro de fecha (cargar todos)
     cargarMensajes(false)
     
-    // Configurar polling cada 2 segundos
-    // IMPORTANTE: El polling solo filtra por fecha si hay mensajes previos y lastMessageDate
-    pollingIntervalRef.current = setInterval(() => {
-      cargarMensajes(true)
-    }, 2000)
+    // Configurar Pusher para recibir mensajes en tiempo real
+    const pusher = getPusherClient()
+    if (pusher) {
+      // Crear nombre de canal único para esta conversación (ordenado para que ambos usuarios usen el mismo)
+      const remitenteIdNum = parseInt(String(currentUserId), 10)
+      const colaboradorIdNum = parseInt(String(currentContact.id), 10)
+      const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
+      const channelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
+      
+      console.error('[Chat] 📡 Suscribiéndose a canal Pusher:', channelName)
+      
+      // Suscribirse al canal privado
+      const channel = pusher.subscribe(channelName)
+      pusherChannelRef.current = channel
+      
+      // Escuchar cuando la suscripción sea exitosa
+      channel.bind('pusher:subscription_succeeded', () => {
+        console.error('[Chat] ✅ Suscrito exitosamente a canal Pusher:', channelName)
+      })
+      
+      // Escuchar nuevos mensajes en tiempo real
+      channel.bind('new-message', (data: any) => {
+        console.error('[Chat] 📨 Nuevo mensaje recibido vía Pusher:', {
+          id: data.id,
+          remitente_id: data.remitente_id,
+          cliente_id: data.cliente_id,
+          texto: data.texto?.substring(0, 30),
+        })
+        
+        // Validar que el mensaje sea para esta conversación
+        const mensajeRemitenteId = String(data.remitente_id || '')
+        const mensajeClienteId = String(data.cliente_id || '')
+        const currentUserIdStr = String(currentUserId || '')
+        const currentContactIdStr = String(currentContact.id || '')
+        
+        const esParaEstaConversacion = 
+          (mensajeRemitenteId === currentUserIdStr && mensajeClienteId === currentContactIdStr) ||
+          (mensajeRemitenteId === currentContactIdStr && mensajeClienteId === currentUserIdStr)
+        
+        if (!esParaEstaConversacion) {
+          console.error('[Chat] ⚠️ Mensaje recibido no es para esta conversación, ignorando')
+          return
+        }
+        
+        // Convertir el mensaje al formato esperado
+        const fecha = data.fecha || new Date().toISOString()
+        const fechaObj = new Date(fecha)
+        
+        const nuevoMensaje: MessageType = {
+          id: String(data.id),
+          senderId: String(data.remitente_id),
+          text: data.texto || '',
+          time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+        }
+        
+        // Agregar mensaje al estado (evitando duplicados y removiendo temporales)
+        setMessages((prev) => {
+          // Verificar si el mensaje ya existe
+          const existe = prev.some((m) => m.id === nuevoMensaje.id)
+          if (existe) {
+            console.error('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
+            // Aún así, remover temporales
+            return prev.filter((m) => !m.id.startsWith('temp-'))
+          }
+          
+          // Remover mensajes temporales y agregar el nuevo
+          const prevSinTemporales = prev.filter((m) => !m.id.startsWith('temp-'))
+          const todos = [...prevSinTemporales, nuevoMensaje]
+          
+          // Ordenar por ID (que debería ser por fecha de creación)
+          todos.sort((a, b) => {
+            const idA = parseInt(a.id) || 0
+            const idB = parseInt(b.id) || 0
+            return idA - idB
+          })
+          
+          return todos
+        })
+        
+        // Actualizar última fecha
+        if (fecha) {
+          setLastMessageDate(fecha)
+        }
+        
+        // Scroll al final
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 100)
+      })
+      
+      // Manejar errores de suscripción
+      channel.bind('pusher:subscription_error', (error: any) => {
+        console.error('[Chat] ❌ Error al suscribirse a canal Pusher:', error)
+      })
+    } else {
+      console.error('[Chat] ⚠️ Pusher no disponible, usando polling como fallback')
+      // Fallback a polling si Pusher no está disponible
+      const pollingInterval = setInterval(() => {
+        cargarMensajes(true)
+      }, 2000)
+      
+      return () => {
+        clearInterval(pollingInterval)
+      }
+    }
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
+      // Limpiar suscripción de Pusher
+      if (pusherChannelRef.current) {
+        pusherChannelRef.current.unbind_all()
+        pusherChannelRef.current.unsubscribe()
+        pusherChannelRef.current = null
       }
     }
   }, [currentContact, currentUserId]) // Removido lastMessageDate de dependencias para evitar loops
@@ -445,86 +556,10 @@ const Page = () => {
 
       const responseData = await response.json()
       
-      // Obtener el ID del mensaje guardado
-      let mensajeGuardado: any = null
-      if (responseData.data) {
-        const data = Array.isArray(responseData.data) ? responseData.data[0] : responseData.data
-        mensajeGuardado = data?.attributes || data || null
-      }
+      console.error('[Chat] ✅ Mensaje enviado exitosamente, Pusher notificará automáticamente')
       
-      // Forzar recarga inmediata de mensajes para obtener el mensaje real y asegurar sincronización
-      // Esto es crítico para que el mensaje aparezca en ambas cuentas
-      try {
-        // CRÍTICO: Usar los mismos IDs normalizados para la recarga
-        const query = new URLSearchParams({
-          colaborador_id: String(colaboradorIdNum),
-          remitente_id: String(remitenteIdNum),
-        })
-        
-        console.error('[Chat] 🔄 Recargando mensajes después de enviar:', {
-          remitenteIdNum,
-          colaboradorIdNum,
-        })
-        
-        const reloadResponse = await fetch(`/api/chat/mensajes?${query.toString()}`)
-        if (reloadResponse.ok) {
-          const reloadData = await reloadResponse.json()
-          const mensajesData = Array.isArray(reloadData.data) ? reloadData.data : (reloadData.data ? [reloadData.data] : [])
-          
-          // Mapear mensajes correctamente - pueden venir en attributes o directamente
-          const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-            const mensajeAttrs = mensaje.attributes || mensaje
-            const textoMsg = mensajeAttrs.texto || mensaje.texto || ''
-            const remitenteIdMsg = mensajeAttrs.remitente_id || mensaje.remitente_id || 1
-            const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
-            const fechaObj = new Date(fecha)
-            const mensajeId = mensaje.id || mensajeAttrs.id
-            
-            return {
-              id: String(mensajeId),
-              senderId: String(remitenteIdMsg),
-              text: textoMsg,
-              time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-            }
-          })
-          
-          // Ordenar por fecha (más confiable que por ID)
-          mensajesMapeados.sort((a, b) => {
-            // Buscar la fecha en los mensajes originales
-            const msgA = mensajesData.find((m: any) => String(m.id || m.attributes?.id) === a.id)
-            const msgB = mensajesData.find((m: any) => String(m.id || m.attributes?.id) === b.id)
-            const fechaA = msgA?.fecha || msgA?.createdAt || msgA?.attributes?.fecha || '0'
-            const fechaB = msgB?.fecha || msgB?.createdAt || msgB?.attributes?.fecha || '0'
-            return new Date(fechaA).getTime() - new Date(fechaB).getTime()
-          })
-          
-          // Remover mensajes temporales y actualizar con los reales
-          setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
-          
-          // Actualizar última fecha para el polling
-          if (mensajesMapeados.length > 0) {
-            // Ordenar por fecha y tomar el más reciente
-            const mensajesOrdenados = [...mensajesData].sort((a: any, b: any) => {
-              const fechaA = new Date(a?.fecha || a?.createdAt || a?.attributes?.fecha || 0).getTime()
-              const fechaB = new Date(b?.fecha || b?.createdAt || b?.attributes?.fecha || 0).getTime()
-              return fechaB - fechaA // Más reciente primero
-            })
-            
-            const mensajeMasReciente = mensajesOrdenados[0]
-            const ultimaFecha = mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha
-            if (ultimaFecha) {
-              setLastMessageDate(ultimaFecha)
-            }
-          }
-          
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-          }, 100)
-        }
-      } catch (reloadErr) {
-        console.error('Error al recargar mensajes después de enviar:', reloadErr)
-        // Si falla, el polling capturará el mensaje en los próximos 3 segundos
-      }
+      // El mensaje temporal se reemplazará automáticamente cuando Pusher emita el evento 'new-message'
+      // No necesitamos recargar manualmente, Pusher lo hace en tiempo real
       
     } catch (err: any) {
       console.error('Error al enviar mensaje:', err)

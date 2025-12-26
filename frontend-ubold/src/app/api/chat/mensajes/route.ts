@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getChatMessages, sendChatMessage } from '@/lib/api/chat/services'
 import { validateGetMessagesParams, validateSendMessageParams } from '@/lib/api/chat/validators'
 import { requireAuth } from '@/lib/auth/middleware'
+import getPusherServer from '@/lib/pusher/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,15 +118,38 @@ export async function POST(request: NextRequest) {
     const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
     const savedMessageData = (savedMessage as any)?.attributes || savedMessage
     
+    const mensajeFormateado = {
+      id: (savedMessage as any)?.id || savedMessageData?.id,
+      texto: savedMessageData?.texto || texto,
+      remitente_id: savedMessageData?.remitente_id || remitenteIdNum,
+      cliente_id: savedMessageData?.cliente_id || colaboradorIdNum,
+      fecha: savedMessageData?.fecha || new Date().toISOString(),
+      leido: savedMessageData?.leido || false,
+    }
+    
+    // Emitir evento Pusher para notificar a ambos usuarios en tiempo real
+    try {
+      const pusher = getPusherServer()
+      if (pusher) {
+        // Crear nombre de canal único para esta conversación (ordenado para que ambos usuarios usen el mismo)
+        const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
+        const channelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
+        
+        // Emitir evento a ambos usuarios
+        await pusher.trigger(channelName, 'new-message', mensajeFormateado)
+        
+        console.log('[API /chat/mensajes POST] 📡 Evento Pusher emitido:', {
+          channel: channelName,
+          mensajeId: mensajeFormateado.id,
+        })
+      }
+    } catch (pusherError) {
+      // No fallar si Pusher falla, solo loggear
+      console.error('[API /chat/mensajes POST] ⚠️ Error al emitir evento Pusher:', pusherError)
+    }
+    
     return NextResponse.json({
-      data: {
-        id: (savedMessage as any)?.id || savedMessageData?.id,
-        texto: savedMessageData?.texto || texto,
-        remitente_id: savedMessageData?.remitente_id || remitenteIdNum,
-        cliente_id: savedMessageData?.cliente_id || colaboradorIdNum,
-        fecha: savedMessageData?.fecha || new Date().toISOString(),
-        leido: savedMessageData?.leido || false,
-      },
+      data: mensajeFormateado,
       meta: {}
     }, { status: 201 })
   } catch (error: any) {
