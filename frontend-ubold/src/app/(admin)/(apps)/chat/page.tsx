@@ -152,8 +152,8 @@ const Page = () => {
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
-        // Log para debugging
-        console.log('[Chat] 🔄 Cargando mensajes:', {
+        // Log para debugging (usar error para que siempre se vea)
+        console.error('[Chat] 🔄 Cargando mensajes:', {
           soloNuevos,
           currentUserId,
           currentContactId: currentContact.id,
@@ -190,7 +190,7 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
-        console.log('[Chat] 📨 Mensajes recibidos del API:', {
+        console.error('[Chat] 📨 Mensajes recibidos del API:', {
           total: mensajesData.length,
           primeros: mensajesData.slice(0, 3).map((m: any) => ({
             id: m.id || m.attributes?.id,
@@ -199,6 +199,12 @@ const Page = () => {
             texto: (m.texto || m.attributes?.texto || '').substring(0, 30),
           }))
         })
+        
+        // Validar que tenemos IDs válidos
+        if (!currentUserId || !currentContact.id) {
+          console.error('[Chat] ❌ ERROR: IDs inválidos', { currentUserId, currentContactId: currentContact.id })
+          return
+        }
 
         // Mapear mensajes manteniendo referencia a los datos originales para ordenar por fecha
         interface MensajeConFecha extends MessageType {
@@ -330,14 +336,21 @@ const Page = () => {
     const remitenteIdNum = parseInt(currentUserId, 10)
     const colaboradorIdNum = parseInt(currentContact.id, 10)
     
-    // Log para debugging
-    console.log('[Chat] 📤 Enviando mensaje desde frontend:', {
+    // Log para debugging (usar error para que siempre se vea)
+    console.error('[Chat] 📤 Enviando mensaje desde frontend:', {
       texto: texto.substring(0, 50),
       remitenteIdNum,
       colaboradorIdNum,
       currentUserId,
       currentContactId: currentContact.id,
     })
+    
+    // Validar IDs
+    if (!remitenteIdNum || !colaboradorIdNum || isNaN(remitenteIdNum) || isNaN(colaboradorIdNum)) {
+      console.error('[Chat] ❌ ERROR: IDs inválidos al enviar', { remitenteIdNum, colaboradorIdNum, currentUserId, currentContactId: currentContact.id })
+      setError('Error: IDs inválidos. Por favor, recarga la página.')
+      return
+    }
     
     // Crear mensaje temporal (optimistic update)
     const mensajeTemporal: MessageType = {

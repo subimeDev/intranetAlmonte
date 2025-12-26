@@ -92,7 +92,7 @@ export function extractChatMessages(
 
   const raw = Array.isArray(response.data) ? response.data : [response.data]
   
-  console.log('[Chat Service] 📋 Extrayendo mensajes:', {
+  console.error('[Chat Service] 📋 Extrayendo mensajes:', {
     total: raw.length,
     primeros: raw.slice(0, 3).map((item: any) => ({
       id: item.id,
@@ -146,8 +146,8 @@ export async function getChatMessages(
 ): Promise<ChatMensaje[]> {
   const { query1, query2 } = buildChatQueries(remitenteId, colaboradorId, ultimaFecha)
 
-  // Logs detallados para debugging (siempre activos para ver qué está pasando)
-  console.log('[Chat Service] 🔍 Obteniendo mensajes:', { 
+  // Logs detallados para debugging (usar error para que siempre se vea)
+  console.error('[Chat Service] 🔍 Obteniendo mensajes:', { 
     remitenteId, 
     colaboradorId, 
     tieneUltimaFecha: !!ultimaFecha,
@@ -155,6 +155,12 @@ export async function getChatMessages(
     query1: query1.substring(0, 200),
     query2: query2.substring(0, 200),
   })
+  
+  // Validar IDs
+  if (!remitenteId || !colaboradorId || isNaN(remitenteId) || isNaN(colaboradorId)) {
+    console.error('[Chat Service] ❌ ERROR: IDs inválidos', { remitenteId, colaboradorId })
+    return []
+  }
 
   const [response1, response2] = await Promise.all([
     ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1, 'query1'),
@@ -164,7 +170,7 @@ export async function getChatMessages(
   const data1 = extractChatMessages(response1)
   const data2 = extractChatMessages(response2)
 
-  console.log('[Chat Service] 📦 Respuestas obtenidas:', { 
+  console.error('[Chat Service] 📦 Respuestas obtenidas:', { 
     query1Count: data1.length,
     query2Count: data2.length,
     query1Sample: data1.length > 0 ? { id: data1[0].id, remitente_id: data1[0].remitente_id, cliente_id: data1[0].cliente_id } : null,
@@ -173,7 +179,7 @@ export async function getChatMessages(
 
   const allMessages = combineAndSortMessages(data1, data2)
 
-  console.log('[Chat Service] ✅ Total mensajes combinados:', { 
+  console.error('[Chat Service] ✅ Total mensajes combinados:', { 
     total: allMessages.length,
     enviados: data1.length,
     recibidos: data2.length,
@@ -191,13 +197,19 @@ export async function sendChatMessage(
   remitenteId: number,
   colaboradorId: number
 ): Promise<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>> {
-  // Logs detallados para debugging
-  console.log('[Chat Service] 📤 Enviando mensaje:', {
+  // Logs detallados para debugging (usar error para que siempre se vea)
+  console.error('[Chat Service] 📤 Enviando mensaje:', {
     texto: texto.substring(0, 50),
     remitente_id: remitenteId,
     cliente_id: colaboradorId,
     fecha: new Date().toISOString(),
   })
+  
+  // Validar IDs
+  if (!remitenteId || !colaboradorId || isNaN(remitenteId) || isNaN(colaboradorId)) {
+    console.error('[Chat Service] ❌ ERROR: IDs inválidos al enviar', { remitenteId, colaboradorId })
+    throw new Error('IDs inválidos al enviar mensaje')
+  }
 
   const response = await strapiClient.post<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(
     '/api/intranet-chats',
@@ -215,7 +227,7 @@ export async function sendChatMessage(
   const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
   const savedMessageData = (savedMessage as any)?.attributes || savedMessage
   
-  console.log('[Chat Service] ✅ Mensaje guardado en Strapi:', {
+  console.error('[Chat Service] ✅ Mensaje guardado en Strapi:', {
     id: (savedMessage as any)?.id || savedMessageData?.id,
     remitente_id: savedMessageData?.remitente_id,
     cliente_id: savedMessageData?.cliente_id,
