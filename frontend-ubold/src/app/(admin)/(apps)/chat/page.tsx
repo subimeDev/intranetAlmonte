@@ -394,22 +394,40 @@ const Page = () => {
           remitente_id: data.remitente_id,
           cliente_id: data.cliente_id,
           texto: data.texto?.substring(0, 30),
+          currentUserId,
+          currentContactId: currentContact.id,
         })
         
         // Validar que el mensaje sea para esta conversación
-        const mensajeRemitenteId = String(data.remitente_id || '')
-        const mensajeClienteId = String(data.cliente_id || '')
-        const currentUserIdStr = String(currentUserId || '')
-        const currentContactIdStr = String(currentContact.id || '')
+        // Normalizar todos los IDs a números para comparación
+        const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
+        const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
+        const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
+        const currentContactIdNum = parseInt(String(currentContact.id || ''), 10)
+        
+        console.error('[Chat] 🔍 Validando mensaje:', {
+          mensajeRemitenteId,
+          mensajeClienteId,
+          currentUserIdNum,
+          currentContactIdNum,
+        })
         
         const esParaEstaConversacion = 
-          (mensajeRemitenteId === currentUserIdStr && mensajeClienteId === currentContactIdStr) ||
-          (mensajeRemitenteId === currentContactIdStr && mensajeClienteId === currentUserIdStr)
+          (mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum) ||
+          (mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum)
         
         if (!esParaEstaConversacion) {
-          console.error('[Chat] ⚠️ Mensaje recibido no es para esta conversación, ignorando')
+          console.error('[Chat] ⚠️ Mensaje recibido no es para esta conversación, ignorando:', {
+            mensajeRemitenteId,
+            mensajeClienteId,
+            currentUserIdNum,
+            currentContactIdNum,
+            esParaEstaConversacion,
+          })
           return
         }
+        
+        console.error('[Chat] ✅ Mensaje validado correctamente, agregando a la conversación')
         
         // Convertir el mensaje al formato esperado
         const fecha = data.fecha || new Date().toISOString()

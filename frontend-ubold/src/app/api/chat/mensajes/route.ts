@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const colaboradorIdNum = parseInt(String(colaborador_id), 10)
     const remitenteIdNum = parseInt(String(remitente_id), 10)
     
-    console.log('[API /chat/mensajes POST] 📤 Enviando mensaje:', {
+    console.error('[API /chat/mensajes POST] 📤 Enviando mensaje:', {
       texto: texto.substring(0, 50),
       remitente_id: remitenteIdNum,
       colaborador_id: colaboradorIdNum,
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Enviar mensaje usando el servicio modular
     const response = await sendChatMessage(texto, remitenteIdNum, colaboradorIdNum)
     
-    console.log('[API /chat/mensajes POST] ✅ Mensaje enviado exitosamente')
+    console.error('[API /chat/mensajes POST] ✅ Mensaje enviado exitosamente')
     
     // Retornar el mensaje guardado en el formato esperado por el cliente
     const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
@@ -138,9 +138,12 @@ export async function POST(request: NextRequest) {
         // Emitir evento a ambos usuarios
         await pusher.trigger(channelName, 'new-message', mensajeFormateado)
         
-        console.log('[API /chat/mensajes POST] 📡 Evento Pusher emitido:', {
+        console.error('[API /chat/mensajes POST] 📡 Evento Pusher emitido:', {
           channel: channelName,
           mensajeId: mensajeFormateado.id,
+          remitente_id: mensajeFormateado.remitente_id,
+          cliente_id: mensajeFormateado.cliente_id,
+          texto: mensajeFormateado.texto?.substring(0, 30),
         })
       }
     } catch (pusherError) {
