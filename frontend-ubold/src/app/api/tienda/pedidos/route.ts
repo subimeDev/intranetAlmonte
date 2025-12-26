@@ -152,9 +152,23 @@ export async function GET(request: NextRequest) {
     
     // Obtener TODOS los pedidos de ambas plataformas (woo_moraleja y woo_escolar)
     // Optimizar: usar populate selectivo en lugar de populate=*
-    const response = await strapiClient.get<any>(
-      `/api/wo-pedidos?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario&pagination[pageSize]=5000&publicationState=${publicationState}`
-    )
+    // Intentar primero con publicationState, si falla, intentar sin él
+    let response: any
+    try {
+      response = await strapiClient.get<any>(
+        `/api/wo-pedidos?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario&pagination[pageSize]=5000&publicationState=${publicationState}`
+      )
+    } catch (pubStateError: any) {
+      // Si falla con publicationState, intentar sin él
+      if (pubStateError.status === 400 || pubStateError.message?.includes('400')) {
+        console.warn('[API /tienda/pedidos GET] ⚠️ Error con publicationState, intentando sin él:', pubStateError.message)
+        response = await strapiClient.get<any>(
+          `/api/wo-pedidos?populate[cliente][fields][0]=nombre&populate[items][fields][0]=nombre&populate[items][fields][1]=cantidad&populate[items][fields][2]=precio_unitario&pagination[pageSize]=5000`
+        )
+      } else {
+        throw pubStateError
+      }
+    }
     
     let items: any[] = []
     if (Array.isArray(response)) {
