@@ -114,22 +114,46 @@ export async function GET(request: NextRequest) {
     )
     
     // Log detallado para debugging
-    console.log('[API /tienda/productos] Respuesta de Strapi exitosa:', {
-      endpoint: endpointUsed,
-      hasData: !!response.data,
-      isArray: Array.isArray(response.data),
-      count: Array.isArray(response.data) ? response.data.length : response.data ? 1 : 0,
-    })
+    console.log('[API /tienda/productos] ==========================================')
+    console.log('[API /tienda/productos] Respuesta de Strapi recibida')
+    console.log('[API /tienda/productos] Tipo de respuesta:', typeof response)
+    console.log('[API /tienda/productos] Tiene data?:', !!response.data)
+    console.log('[API /tienda/productos] Data es array?:', Array.isArray(response.data))
+    console.log('[API /tienda/productos] Total productos:', Array.isArray(response.data) ? response.data.length : response.data ? 1 : 0)
+    console.log('[API /tienda/productos] Meta paginación:', JSON.stringify(response.meta?.pagination || {}, null, 2))
     
-    // Log del primer producto para verificar estructura de imágenes
+    // Log de todos los IDs de productos para verificar que se están obteniendo
+    if (response.data && Array.isArray(response.data)) {
+      const ids = response.data.map((p: any) => {
+        const attrs = p.attributes || p
+        return {
+          id: p.id || attrs.id,
+          documentId: p.documentId || attrs.documentId,
+          nombre: attrs.nombre_libro || attrs.NOMBRE_LIBRO || 'Sin nombre',
+          estado: attrs.estado_publicacion || attrs.ESTADO_PUBLICACION || 'Sin estado',
+          createdAt: attrs.createdAt || p.createdAt || 'Sin fecha',
+        }
+      })
+      console.log('[API /tienda/productos] IDs de productos obtenidos:', ids.slice(0, 10)) // Primeros 10
+      if (ids.length > 10) {
+        console.log(`[API /tienda/productos] ... y ${ids.length - 10} más`)
+      }
+    }
+    
+    // Log del primer producto para verificar estructura completa
     if (response.data && (Array.isArray(response.data) ? response.data[0] : response.data)) {
       const primerProducto = Array.isArray(response.data) ? response.data[0] : response.data
+      const attrs = primerProducto.attributes || primerProducto
       console.log('[API /tienda/productos] Primer producto estructura:', {
         id: primerProducto.id,
+        documentId: primerProducto.documentId,
         tieneAttributes: !!primerProducto.attributes,
-        keysAttributes: primerProducto.attributes ? Object.keys(primerProducto.attributes).slice(0, 5) : [],
+        nombre: attrs.nombre_libro || attrs.NOMBRE_LIBRO || 'Sin nombre',
+        estado: attrs.estado_publicacion || attrs.ESTADO_PUBLICACION || 'Sin estado',
+        keysAttributes: attrs ? Object.keys(attrs).slice(0, 10) : [],
       })
     }
+    console.log('[API /tienda/productos] ==========================================')
     
     // No registrar log de visualización - solo se registran ediciones y eliminaciones
     return NextResponse.json({
