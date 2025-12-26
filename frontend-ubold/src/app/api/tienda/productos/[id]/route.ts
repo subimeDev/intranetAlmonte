@@ -446,7 +446,6 @@ export async function PUT(
     const nombreNuevo = updateData.data.nombre_libro || nombreAnterior
     // Logging detallado de cookies antes de llamar logActivity
     const todasLasCookies = request.cookies.getAll()
-    const colaboradorCookie = request.cookies.get('colaboradorData')?.value
     const cookieHeader = request.headers.get('cookie')
     
     console.log('[API PUT] 📝 Llamando logActivity con request:', {
