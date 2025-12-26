@@ -255,15 +255,6 @@ const Page = () => {
       const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
       const currentContactIdNum = parseInt(String(currentContact.id || ''), 10)
 
-      console.error('[Chat] 🔍 Validando mensaje:', {
-        mensajeRemitenteId,
-        mensajeClienteId,
-        currentUserIdNum,
-        currentContactIdNum,
-        esRemitente: mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum,
-        esCliente: mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum,
-      })
-
       // Validar que el mensaje sea para esta conversación
       // El mensaje puede venir en dos direcciones:
       // 1. Usuario actual envía a contacto: remitente_id = currentUserId, cliente_id = currentContactId
@@ -272,7 +263,7 @@ const Page = () => {
       const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
       const esParaEstaConversacion = esRemitente || esCliente
 
-      console.error('[Chat] 🔍 Validación detallada:', {
+      console.error('[Chat] 🔍 Validando mensaje:', {
         mensajeRemitenteId,
         mensajeClienteId,
         currentUserIdNum,
@@ -280,6 +271,7 @@ const Page = () => {
         esRemitente,
         esCliente,
         esParaEstaConversacion,
+        channelName,
       })
 
       if (!esParaEstaConversacion) {
