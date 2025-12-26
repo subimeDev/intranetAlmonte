@@ -81,9 +81,12 @@ export async function POST(request: Request) {
     if (data.colaborador?.id || data.colaborador?.documentId) {
       try {
         const colaboradorId = data.colaborador.id || data.colaborador.documentId
-        const colaboradorConPersona = await strapiClient.get<any>(
-          `/api/colaboradores/${colaboradorId}?populate[persona][fields][0]=nombres&populate[persona][fields][1]=primer_apellido&populate[persona][fields][2]=segundo_apellido&populate[persona][fields][3]=nombre_completo`
-        )
+        
+        // Intentar obtener persona del colaborador, pero no fallar si no existe
+        try {
+          const colaboradorConPersona = await strapiClient.get<any>(
+            `/api/colaboradores/${colaboradorId}?populate[persona][fields][0]=nombres&populate[persona][fields][1]=primer_apellido&populate[persona][fields][2]=segundo_apellido&populate[persona][fields][3]=nombre_completo`
+          )
         
         // Extraer datos del colaborador con persona
         // Manejar diferentes estructuras de respuesta de Strapi
@@ -122,12 +125,22 @@ export async function POST(request: Request) {
             nombreCompleto: personaData.nombre_completo,
             nombres: personaData.nombres,
           })
-        } else {
-          console.warn('[API /auth/login] ⚠️ Colaborador no tiene persona asociada:', colaboradorId)
+          } else {
+            console.warn('[API /auth/login] ⚠️ Colaborador no tiene persona asociada:', colaboradorId)
+          }
+        } catch (personaError: any) {
+          // Si el colaborador no existe (404) o hay otro error, continuar sin persona
+          if (personaError.status === 404) {
+            console.warn('[API /auth/login] ⚠️ Colaborador no encontrado en Strapi (puede ser un problema de sincronización):', colaboradorId)
+          } else {
+            console.warn('[API /auth/login] ⚠️ No se pudo obtener persona del colaborador:', personaError.message || personaError)
+          }
+          // Continuar con el colaborador sin persona - el login puede continuar
         }
       } catch (error: any) {
-        console.warn('[API /auth/login] ⚠️ No se pudo obtener persona del colaborador:', error.message)
-        // Continuar con el colaborador sin persona
+        // Error general al intentar obtener colaborador completo
+        console.warn('[API /auth/login] ⚠️ Error al obtener datos completos del colaborador:', error.message || error)
+        // Continuar con el colaborador básico que viene del login
       }
     }
 

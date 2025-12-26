@@ -45,8 +45,13 @@ export async function getUserFromRequest(request: NextRequest): Promise<{
   try {
     // Intentar obtener colaborador de las cookies
     // Primero intentar desde request.cookies (funciona cuando viene del navegador)
-    let colaboradorCookie = request.cookies.get('colaboradorData')?.value || 
-                           request.cookies.get('colaborador')?.value
+    // Validar que request.cookies existe antes de usarlo
+    let colaboradorCookie: string | undefined = undefined
+    
+    if (request.cookies) {
+      colaboradorCookie = request.cookies.get('colaboradorData')?.value || 
+                         request.cookies.get('colaborador')?.value
+    }
     
     // Si no hay cookies en request.cookies, intentar extraer del header Cookie
     // Esto es necesario cuando se hace fetch desde el servidor (SSR)
@@ -149,7 +154,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<{
 
     // Si hay token, intentar obtener usuario de Strapi
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
-                  request.cookies.get('auth_token')?.value
+                  (request.cookies ? request.cookies.get('auth_token')?.value : undefined)
 
     if (token) {
       try {
@@ -231,8 +236,12 @@ export async function logActivity(
     }
 
     // Obtener cookies y token para logging
-    const colaboradorCookie = request.cookies.get('colaboradorData')?.value || request.cookies.get('colaborador')?.value
-    const token = request.headers.get('authorization') || request.cookies.get('auth_token')?.value
+    // Validar que request.cookies existe antes de usarlo
+    const colaboradorCookie = request.cookies 
+      ? (request.cookies.get('colaboradorData')?.value || request.cookies.get('colaborador')?.value)
+      : undefined
+    const token = request.headers.get('authorization') || 
+                  (request.cookies ? request.cookies.get('auth_token')?.value : undefined)
     
     // Agregar usuario si está disponible
     if (user?.id) {
@@ -248,20 +257,23 @@ export async function logActivity(
       // Listar todas las cookies disponibles para debug
       const allCookies: Record<string, string> = {}
       try {
-        // Intentar obtener todas las cookies (puede no estar disponible en todas las versiones)
-        if (typeof request.cookies.getAll === 'function') {
-          request.cookies.getAll().forEach((cookie: any) => {
-            allCookies[cookie.name] = cookie.value ? cookie.value.substring(0, 100) : '' // Primeros 100 chars
-          })
-        } else {
-          // Fallback: solo listar las cookies conocidas
-          const knownCookies = ['colaboradorData', 'colaborador', 'auth_token', 'user']
-          knownCookies.forEach(name => {
-            const cookie = request.cookies.get(name)
-            if (cookie) {
-              allCookies[name] = cookie.value.substring(0, 100)
-            }
-          })
+        // Validar que request.cookies existe antes de usarlo
+        if (request.cookies) {
+          // Intentar obtener todas las cookies (puede no estar disponible en todas las versiones)
+          if (typeof request.cookies.getAll === 'function') {
+            request.cookies.getAll().forEach((cookie: any) => {
+              allCookies[cookie.name] = cookie.value ? cookie.value.substring(0, 100) : '' // Primeros 100 chars
+            })
+          } else {
+            // Fallback: solo listar las cookies conocidas
+            const knownCookies = ['colaboradorData', 'colaborador', 'auth_token', 'user']
+            knownCookies.forEach(name => {
+              const cookie = request.cookies?.get(name)
+              if (cookie) {
+                allCookies[name] = cookie.value.substring(0, 100)
+              }
+            })
+          }
         }
       } catch (cookieError) {
         // Si hay error al obtener cookies, continuar sin ellas
