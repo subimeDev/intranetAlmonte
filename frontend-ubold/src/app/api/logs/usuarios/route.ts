@@ -32,14 +32,14 @@ export async function GET(request: NextRequest) {
       
       const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || process.env.STRAPI_API_URL || 'https://strapi.moraleja.cl'
       addDebugLog(`[API /logs/usuarios] 🔗 URL de Strapi: ${strapiUrl}`)
-      addDebugLog(`[API /logs/usuarios] 🔗 Endpoint completo: ${strapiUrl}/api/activity-logs?...`)
+      addDebugLog(`[API /logs/usuarios] 🔗 Usando endpoint personalizado: ${strapiUrl}/api/activity-logs/listar?...`)
       
-      // Populate del usuario con persona para obtener email_login y nombre
-      // IMPORTANTE: Especificar solo los campos que existen en persona para evitar errores con relaciones inexistentes (como tags)
+      // Usar el endpoint personalizado de Strapi que ya trae el populate automático
+      // Este endpoint no requiere autenticación y siempre trae usuario y persona poblados
       logsResponse = await strapiClient.get<any>(
-        `/api/activity-logs?populate[usuario][fields]=email_login,id,documentId&populate[usuario][populate][persona][fields]=nombres,primer_apellido,segundo_apellido,nombre_completo&pagination[pageSize]=10000&sort=fecha:desc`
+        `/api/activity-logs/listar?page=1&pageSize=10000`
       )
-      addDebugLog('[API /logs/usuarios] ✅ Respuesta de Strapi recibida')
+      addDebugLog('[API /logs/usuarios] ✅ Respuesta de Strapi recibida desde endpoint personalizado')
     } catch (strapiError: any) {
       const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || process.env.STRAPI_API_URL || 'https://strapi.moraleja.cl'
       addDebugLog(`[API /logs/usuarios] ❌ Error al obtener logs de Strapi: ${strapiError.message}`)
