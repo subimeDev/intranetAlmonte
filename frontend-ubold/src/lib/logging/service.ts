@@ -6,6 +6,13 @@
 import strapiClient from '@/lib/strapi/client'
 import { NextRequest } from 'next/server'
 
+/**
+ * Type guard para verificar si el request es NextRequest (tiene cookies)
+ */
+function isNextRequest(request: NextRequest | Request): request is NextRequest {
+  return 'cookies' in request && request.cookies !== undefined
+}
+
 export type AccionType =
   | 'crear'
   | 'actualizar'
@@ -37,29 +44,63 @@ export interface LogActivityParams {
 /**
  * Obtiene información del usuario desde el request
  */
-export async function getUserFromRequest(request: NextRequest): Promise<{
+export async function getUserFromRequest(request: NextRequest | Request): Promise<{
   id: string | number | null
   email?: string
   nombre?: string
 } | null> {
+  console.log('[LOGGING] 🔍 [getUserFromRequest] Iniciando extracción de usuario...')
+  console.log('[LOGGING] 🔍 Request recibido:', typeof request)
+  console.log('[LOGGING] 🔍 Request tiene cookies?:', isNextRequest(request))
+  
+  // VALIDACIÓN CRÍTICA
+  if (!request) {
+    console.error('[LOGGING] ❌ Request es undefined o null')
+    return null
+  }
+  
   try {
-    console.log('[LOGGING] 🔍 [getUserFromRequest] Iniciando extracción de usuario...')
-    const colaboradorCookie = request.cookies.get('colaboradorData')?.value
-    console.log('[LOGGING] 📋 Cookie colaboradorData:', colaboradorCookie ? colaboradorCookie.substring(0, 500) : 'NO HAY COOKIE')
-    
     // Intentar obtener colaborador de las cookies
-    // Primero intentar desde request.cookies (funciona cuando viene del navegador)
-    let colaboradorCookieValue = colaboradorCookie || 
-                           request.cookies.get('colaborador')?.value
+    // Primero intentar desde request.cookies (si es NextRequest)
+    let colaboradorCookieValue: string | undefined = undefined
     
-    console.log('[Logging] 🔍 [getUserFromRequest] Cookies desde request.cookies:', {
-      tieneColaboradorData: !!request.cookies.get('colaboradorData')?.value,
-      tieneColaborador: !!request.cookies.get('colaborador')?.value,
-      valorColaboradorData: request.cookies.get('colaboradorData')?.value?.substring(0, 100) || 'no hay',
-    })
+    if (isNextRequest(request)) {
+      // Es NextRequest, usar cookies directamente
+      const colaboradorCookie = request.cookies.get('colaboradorData')?.value
+      console.log('[LOGGING] 📋 Cookie colaboradorData (desde cookies):', colaboradorCookie ? colaboradorCookie.substring(0, 500) : 'NO HAY COOKIE')
+      colaboradorCookieValue = colaboradorCookie || request.cookies.get('colaborador')?.value
+    } else {
+      // Es Request normal, extraer del header Cookie
+      console.log('[LOGGING] ⚠️ Request no tiene cookies, intentando extraer del header Cookie')
+      const cookieHeader = request.headers.get('cookie')
+      console.log('[LOGGING] 📋 Cookie header:', cookieHeader ? cookieHeader.substring(0, 500) : 'NO HAY HEADER COOKIE')
+      
+      if (cookieHeader) {
+        // Parsear cookies manualmente del header
+        const cookies = cookieHeader.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+          const [name, ...valueParts] = cookie.trim().split('=')
+          if (name && valueParts.length > 0) {
+            acc[name] = decodeURIComponent(valueParts.join('='))
+          }
+          return acc
+        }, {})
+        
+        colaboradorCookieValue = cookies['colaboradorData'] || cookies['colaborador']
+        console.log('[LOGGING] 📋 Cookie extraída del header:', colaboradorCookieValue ? colaboradorCookieValue.substring(0, 500) : 'NO HAY COOKIE EN HEADER')
+      }
+    }
+    
+    // Solo loguear cookies si request tiene cookies (NextRequest)
+    if (isNextRequest(request)) {
+      console.log('[Logging] 🔍 [getUserFromRequest] Cookies desde request.cookies:', {
+        tieneColaboradorData: !!request.cookies.get('colaboradorData')?.value,
+        tieneColaborador: !!request.cookies.get('colaborador')?.value,
+        valorColaboradorData: request.cookies.get('colaboradorData')?.value?.substring(0, 100) || 'no hay',
+      })
+    }
     
     // Si no hay cookies en request.cookies, intentar extraer del header Cookie
-    // Esto es necesario cuando se hace fetch desde el servidor (SSR)
+    // Esto es necesario cuando se hace fetch desde el servidor (SSR) o cuando es Request normal
     if (!colaboradorCookieValue) {
       const cookieHeader = request.headers.get('cookie')
       console.log('[Logging] 🔍 [getUserFromRequest] Cookie header completo:', cookieHeader ? cookieHeader.substring(0, 200) : 'no hay')
@@ -165,22 +206,29 @@ export async function getUserFromRequest(request: NextRequest): Promise<{
         console.error('[LOGGING] ❌ Error al parsear cookie colaboradorData:', {
           error: parseError.message,
           stack: parseError.stack,
-          cookiePreview: colaboradorCookie?.substring(0, 200) || 'no hay cookie',
+          cookiePreview: colaboradorCookieValue?.substring(0, 200) || 'no hay cookie',
         })
       }
     } else {
       // Listar todas las cookies disponibles para debug
-      const allCookies = request.cookies.getAll()
-      console.warn('[LOGGING] ⚠️ No se encontró cookie colaboradorData ni colaborador', {
-        cookiesDisponibles: allCookies.map(c => c.name).join(', '),
-        totalCookies: allCookies.length,
-        cookieHeader: request.headers.get('cookie')?.substring(0, 200) || 'no hay header cookie',
-      })
+      // Solo si request tiene cookies (NextRequest)
+      if (isNextRequest(request)) {
+        const allCookies = request.cookies.getAll()
+        console.warn('[LOGGING] ⚠️ No se encontró cookie colaboradorData ni colaborador', {
+          cookiesDisponibles: allCookies.map((c: any) => c.name).join(', '),
+          totalCookies: allCookies.length,
+          cookieHeader: request.headers.get('cookie')?.substring(0, 200) || 'no hay header cookie',
+        })
+      } else {
+        console.warn('[LOGGING] ⚠️ No se encontró cookie colaboradorData ni colaborador (Request sin cookies)', {
+          cookieHeader: request.headers.get('cookie')?.substring(0, 200) || 'no hay header cookie',
+        })
+      }
     }
 
     // Si hay token, intentar obtener usuario de Strapi
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
-                  request.cookies.get('auth_token')?.value
+                  (isNextRequest(request) ? request.cookies.get('auth_token')?.value : undefined)
 
     if (token) {
       try {
@@ -217,7 +265,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<{
 /**
  * Obtiene la IP del cliente desde el request
  */
-export function getClientIP(request: NextRequest): string | null {
+export function getClientIP(request: NextRequest | Request): string | null {
   // Intentar obtener IP de headers comunes
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
@@ -235,7 +283,7 @@ export function getClientIP(request: NextRequest): string | null {
 /**
  * Obtiene el User-Agent del request
  */
-export function getUserAgent(request: NextRequest): string | null {
+export function getUserAgent(request: NextRequest | Request): string | null {
   return request.headers.get('user-agent')
 }
 
@@ -244,12 +292,25 @@ export function getUserAgent(request: NextRequest): string | null {
  * Esta función es asíncrona y no bloquea la ejecución
  */
 export async function logActivity(
-  request: NextRequest,
+  request: NextRequest | Request,
   params: Omit<LogActivityParams, 'usuarioId' | 'ipAddress' | 'userAgent'>
 ): Promise<void> {
+  console.log('[LOGGING] 🚀 Iniciando logActivity')
+  console.log('[LOGGING] 🔍 Request tipo:', typeof request)
+  console.log('[LOGGING] 🔍 Request es NextRequest?:', request instanceof NextRequest)
+  console.log('[LOGGING] 🚀 Iniciando logActivity para:', params.accion, params.entidad)
+  
+  if (!request) {
+    console.error('[LOGGING] ❌ No se recibió request en logActivity')
+    return
+  }
+  
+  // NO retornar si no tiene cookies - puede ser Request normal, extraer del header
+  if (!isNextRequest(request)) {
+    console.log('[LOGGING] ⚠️ Request no tiene cookies, será Request normal (extraer del header)')
+  }
+  
   try {
-    console.log('[LOGGING] 🚀 Iniciando logActivity para:', params.accion, params.entidad)
-    
     // Obtener información del usuario, IP y User-Agent
     const usuario = await getUserFromRequest(request)
     console.log('[LOGGING] 👤 Resultado de getUserFromRequest:', JSON.stringify(usuario, null, 2))
@@ -266,8 +327,25 @@ export async function logActivity(
     }
 
     // Obtener cookies y token para logging
-    const colaboradorCookie = request.cookies.get('colaboradorData')?.value || request.cookies.get('colaborador')?.value
-    const token = request.headers.get('authorization') || request.cookies.get('auth_token')?.value
+    // Manejar tanto NextRequest (con cookies) como Request (sin cookies)
+    let colaboradorCookie: string | undefined = undefined
+    if (isNextRequest(request)) {
+      colaboradorCookie = request.cookies.get('colaboradorData')?.value || request.cookies.get('colaborador')?.value
+    } else {
+      // Es Request normal, extraer del header
+      const cookieHeader = request.headers.get('cookie')
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+          const [name, ...valueParts] = cookie.trim().split('=')
+          if (name && valueParts.length > 0) {
+            acc[name] = decodeURIComponent(valueParts.join('='))
+          }
+          return acc
+        }, {})
+        colaboradorCookie = cookies['colaboradorData'] || cookies['colaborador']
+      }
+    }
+    const token = request.headers.get('authorization') || (isNextRequest(request) ? request.cookies.get('auth_token')?.value : undefined)
     
     // Agregar usuario si está disponible
     if (usuario?.id) {
@@ -288,20 +366,33 @@ export async function logActivity(
       // Listar todas las cookies disponibles para debug
       const allCookies: Record<string, string> = {}
       try {
-        // Intentar obtener todas las cookies (puede no estar disponible en todas las versiones)
-        if (typeof request.cookies.getAll === 'function') {
-          request.cookies.getAll().forEach((cookie: any) => {
-            allCookies[cookie.name] = cookie.value ? cookie.value.substring(0, 100) : '' // Primeros 100 chars
-          })
+        if (isNextRequest(request)) {
+          // Intentar obtener todas las cookies (puede no estar disponible en todas las versiones)
+          if (typeof request.cookies.getAll === 'function') {
+            request.cookies.getAll().forEach((cookie: any) => {
+              allCookies[cookie.name] = cookie.value ? cookie.value.substring(0, 100) : '' // Primeros 100 chars
+            })
+          } else {
+            // Fallback: solo listar las cookies conocidas
+            const knownCookies = ['colaboradorData', 'colaborador', 'auth_token', 'user']
+            knownCookies.forEach(name => {
+              const cookie = request.cookies.get(name)
+              if (cookie) {
+                allCookies[name] = cookie.value.substring(0, 100)
+              }
+            })
+          }
         } else {
-          // Fallback: solo listar las cookies conocidas
-          const knownCookies = ['colaboradorData', 'colaborador', 'auth_token', 'user']
-          knownCookies.forEach(name => {
-            const cookie = request.cookies.get(name)
-            if (cookie) {
-              allCookies[name] = cookie.value.substring(0, 100)
-            }
-          })
+          // Es Request normal, extraer del header
+          const cookieHeader = request.headers.get('cookie')
+          if (cookieHeader) {
+            cookieHeader.split(';').forEach((cookie: string) => {
+              const [name, ...valueParts] = cookie.trim().split('=')
+              if (name && valueParts.length > 0) {
+                allCookies[name] = decodeURIComponent(valueParts.join('=')).substring(0, 100)
+              }
+            })
+          }
         }
       } catch (cookieError) {
         // Si hay error al obtener cookies, continuar sin ellas
