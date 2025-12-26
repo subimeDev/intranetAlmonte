@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardBody, Button, Alert, Form, Row, Col, Spinner } from 'react-bootstrap'
-import { TbPencil, TbCheck, TbX } from 'react-icons/tb'
+import { TbPencil } from 'react-icons/tb'
+import ProductEditForm from './ProductEditForm'
 
 interface ProductDetailsProps {
   producto: any
@@ -49,146 +50,49 @@ export function ProductDetails({ producto, onUpdate, onProductoUpdate }: Product
   // Obtener datos del producto (puede venir de attributes o directamente)
   const attrs = producto.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
-  
-  // Estados para todos los campos editables
-  const [formData, setFormData] = useState({
-    isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
-    nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
-    subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
-    descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
-    numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
-    agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
-    idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
-    tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
-    estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
-  })
-
-  // Resetear form cuando cambia el producto
-  useEffect(() => {
-    const attrs = producto.attributes || {}
-    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
-    
-    setFormData({
-      isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
-      nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
-      subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
-      descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
-      numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
-      agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
-      idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
-      tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
-      estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
-    })
-  }, [producto])
-
-  const resetForm = () => {
-    const attrs = producto.attributes || {}
-    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (producto as any)
-    
-    setFormData({
-      isbn_libro: getField(data, 'isbn_libro', 'ISBN_LIBRO', 'isbnLibro') || '',
-      nombre_libro: getField(data, 'nombre_libro', 'NOMBRE_LIBRO', 'nombreLibro') || '',
-      subtitulo_libro: getField(data, 'subtitulo_libro', 'SUBTITULO_LIBRO', 'subtituloLibro') || '',
-      descripcion: extractDescriptionText(getField(data, 'descripcion', 'DESCRIPCION', 'descripcion')) || '',
-      numero_edicion: getField(data, 'numero_edicion', 'NUMERO_EDICION', 'numeroEdicion') || '',
-      agno_edicion: getField(data, 'agno_edicion', 'AGNO_EDICION', 'agnoEdicion') || '',
-      idioma: getField(data, 'idioma', 'IDIOMA', 'idioma') || '',
-      tipo_libro: getField(data, 'tipo_libro', 'TIPO_LIBRO', 'tipoLibro') || '',
-      estado_edicion: getField(data, 'estado_edicion', 'ESTADO_EDICION', 'estadoEdicion') || 'Vigente',
-    })
-  }
 
   const handleEdit = () => {
-    resetForm()
     setIsEditing(true)
     setError(null)
     setSuccess(false)
   }
 
   const handleCancel = () => {
-    resetForm()
     setIsEditing(false)
     setError(null)
     setSuccess(false)
   }
 
-  const handleSaveAll = async () => {
+  const handleSave = async (dataToSend: any) => {
+    setSaving(true)
+    setError(null)
+    setSuccess(false)
+
     try {
-      setSaving(true)
-      setError(null)
-      setSuccess(false)
-
-      // Validar campos requeridos
-      if (!formData.nombre_libro.trim()) {
-        throw new Error('El nombre del libro es obligatorio')
-      }
-
       const productId = producto.id?.toString() || producto.documentId
       
       if (!productId || productId === 'unknown') {
         throw new Error('No se pudo obtener el ID del producto')
       }
 
-      // Preparar datos (optimizado - hacer todo en el frontend)
-      const dataToSend: any = {
-        nombre_libro: formData.nombre_libro.trim()
-      }
-
-      if (formData.isbn_libro?.trim()) {
-        dataToSend.isbn_libro = formData.isbn_libro.trim()
-      }
-
-      if (formData.subtitulo_libro?.trim()) {
-        dataToSend.subtitulo_libro = formData.subtitulo_libro.trim()
-      }
-
-      // Descripción - Ya preparar en formato blocks aquí (optimización)
-      if (formData.descripcion?.trim()) {
-        dataToSend.descripcion = [
-          {
-            type: 'paragraph',
-            children: [{ type: 'text', text: formData.descripcion.trim() }]
-          }
-        ]
-      }
-
-      if (formData.numero_edicion) {
-        const numEdicion = parseInt(formData.numero_edicion)
-        if (!isNaN(numEdicion)) {
-          dataToSend.numero_edicion = numEdicion
-        }
-      }
-
-      if (formData.agno_edicion) {
-        const agnoEdicion = parseInt(formData.agno_edicion)
-        if (!isNaN(agnoEdicion)) {
-          dataToSend.agno_edicion = agnoEdicion
-        }
-      }
-
-      if (formData.idioma) dataToSend.idioma = formData.idioma
-      if (formData.tipo_libro) dataToSend.tipo_libro = formData.tipo_libro
-      if (formData.estado_edicion) dataToSend.estado_edicion = formData.estado_edicion
-
       console.log('[ProductDetails] 📤 Enviando:', dataToSend)
 
-      // UNA SOLA llamada al API
       const response = await fetch(`/api/tienda/productos/${productId}`, {
         method: 'PUT',
-        credentials: 'include', // Incluir cookies
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend)
       })
 
-      const data = await response.json()
+      const responseData = await response.json()
 
-      if (!data.success) {
-        throw new Error(data.error || 'Error al actualizar')
+      if (!responseData.success) {
+        throw new Error(responseData.error || 'Error al actualizar')
       }
 
       console.log('[ProductDetails] ✅ Guardado exitoso')
 
-      // Actualizar estado local inmediatamente (optimistic update)
+      // Actualizar estado local
       if (onProductoUpdate) {
         onProductoUpdate(dataToSend)
       }
@@ -196,9 +100,8 @@ export function ProductDetails({ producto, onUpdate, onProductoUpdate }: Product
       setSuccess(true)
       setIsEditing(false)
       
-      // Refrescar desde servidor en segundo plano (sin esperar)
+      // Refrescar desde servidor
       if (onUpdate) {
-        // onUpdate puede ser async o sync, manejarlo apropiadamente
         const updateResult = onUpdate()
         if (updateResult && typeof updateResult.catch === 'function') {
           updateResult.catch((err: any) => {
@@ -207,14 +110,13 @@ export function ProductDetails({ producto, onUpdate, onProductoUpdate }: Product
         }
       }
       
-      // Ocultar mensaje de éxito después de 2 segundos
       setTimeout(() => {
         setSuccess(false)
       }, 2000)
-
     } catch (err: any) {
       console.error('[ProductDetails] Error:', err)
       setError(err.message || 'Error al guardar cambios')
+      throw err
     } finally {
       setSaving(false)
     }
@@ -368,140 +270,13 @@ export function ProductDetails({ producto, onUpdate, onProductoUpdate }: Product
             </Col>
           </Row>
         ) : (
-          /* MODO EDICIÓN */
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>ISBN</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.isbn_libro}
-                  onChange={(e) => setFormData({...formData, isbn_libro: e.target.value})}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>
-                  Nombre del Libro <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Control
-                  type="text"
-                  required
-                  value={formData.nombre_libro}
-                  onChange={(e) => setFormData({...formData, nombre_libro: e.target.value})}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col xs={12}>
-              <Form.Group className="mb-3">
-                <Form.Label>Subtítulo</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.subtitulo_libro}
-                  onChange={(e) => setFormData({...formData, subtitulo_libro: e.target.value})}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col xs={12}>
-              <Form.Group className="mb-3">
-                <Form.Label>Descripción</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={4}
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
-                />
-                <Form.Text className="text-muted">
-                  La descripción se guardará en formato de texto enriquecido
-                </Form.Text>
-              </Form.Group>
-            </Col>
-
-            <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Número de Edición</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={formData.numero_edicion}
-                  onChange={(e) => setFormData({...formData, numero_edicion: e.target.value})}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Año de Edición</Form.Label>
-                <Form.Control
-                  type="number"
-                  placeholder="2024"
-                  value={formData.agno_edicion}
-                  onChange={(e) => setFormData({...formData, agno_edicion: e.target.value})}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Estado de Edición</Form.Label>
-                <Form.Select
-                  value={formData.estado_edicion}
-                  onChange={(e) => setFormData({...formData, estado_edicion: e.target.value})}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="Vigente">Vigente</option>
-                  <option value="Agotado">Agotado</option>
-                  <option value="Descatalogado">Descatalogado</option>
-                  <option value="Próximamente">Próximamente</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Idioma</Form.Label>
-                <Form.Select
-                  value={formData.idioma}
-                  onChange={(e) => setFormData({...formData, idioma: e.target.value})}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="Español">Español</option>
-                  <option value="Inglés">Inglés</option>
-                  <option value="Francés">Francés</option>
-                  <option value="Alemán">Alemán</option>
-                  <option value="Portugués">Portugués</option>
-                  <option value="Italiano">Italiano</option>
-                  <option value="Otro">Otro</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Tipo de Libro</Form.Label>
-                <Form.Select
-                  value={formData.tipo_libro}
-                  onChange={(e) => setFormData({...formData, tipo_libro: e.target.value})}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="Plan Lector">Plan Lector</option>
-                  <option value="Texto Curricular">Texto Curricular</option>
-                  <option value="Texto PAES">Texto PAES</option>
-                  <option value="Texto Complementario">Texto Complementario</option>
-                  <option value="Otro">Otro</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-
-            <Col xs={12}>
-              <Alert variant="info">
-                <strong>ℹ️ Nota:</strong> Revisa todos los campos antes de guardar. Los cambios se aplicarán al presionar "Guardar Cambios".
-              </Alert>
-            </Col>
-          </Row>
+          /* MODO EDICIÓN COMPLETA */
+          <ProductEditForm
+            producto={producto}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            saving={saving}
+          />
         )}
       </CardBody>
     </Card>

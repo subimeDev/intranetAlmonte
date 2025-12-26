@@ -143,27 +143,48 @@ const RelationSelector = memo(function RelationSelector({
     // Obtener el ID del producto
     const productId = option.id || option.documentId || data.id || data.documentId
     
-    // Intentar obtener el nombre/título del producto (incluyendo nombre_libro que es el campo real)
-    const nombre = data[displayField] || 
-                   option[displayField] ||
-                   data.nombre_libro ||
-                   option.nombre_libro ||
-                   data.nombre || 
-                   option.nombre || 
-                   data.titulo ||
-                   option.titulo || 
-                   data.name ||
-                   option.name ||
-                   data.title ||
-                   option.title ||
-                   null
+    // Intentar obtener el nombre/título del producto
+    // Primero intentar con el displayField específico
+    let nombre = data[displayField] || option[displayField]
     
-    // Si hay nombre, mostrar "Nombre (ID)", si no solo "Item ID"
-    if (nombre) {
-      return `${nombre} (${productId})`
+    // Si no se encontró, buscar en campos comunes según el tipo de relación
+    if (!nombre) {
+      // Campos comunes para diferentes tipos de entidades
+      const possibleFields = [
+        'nombre_obra', 'nombreObra', 'NOMBRE_OBRA', // Obras
+        'nombre_libro', 'nombreLibro', 'NOMBRE_LIBRO', // Productos
+        'nombre', 'NOMBRE', 'name', 'NAME', // Autores, Sellos, Marcas, etc.
+        'titulo', 'TITULO', 'title', 'TITLE', // Obras, Productos
+        'razon_social', 'razonSocial', 'RAZON_SOCIAL', // Editoriales
+      ]
+      
+      for (const field of possibleFields) {
+        if (data[field] || option[field]) {
+          nombre = data[field] || option[field]
+          break
+        }
+      }
     }
     
-    return `Item ${productId}`
+    // Si aún no hay nombre, intentar buscar en relaciones anidadas
+    if (!nombre && data.data) {
+      const nestedData = data.data.attributes || data.data
+      nombre = nestedData[displayField] || 
+               nestedData.nombre_obra ||
+               nestedData.nombre_libro ||
+               nestedData.nombre ||
+               nestedData.titulo ||
+               nestedData.name ||
+               nestedData.title
+    }
+    
+    // Si hay nombre, mostrar solo el nombre (sin ID para mejor legibilidad)
+    if (nombre && nombre.trim()) {
+      return nombre.trim()
+    }
+    
+    // Si no hay nombre, mostrar ID como último recurso
+    return productId ? `Item ${productId}` : 'Sin nombre'
   }
 
   return (

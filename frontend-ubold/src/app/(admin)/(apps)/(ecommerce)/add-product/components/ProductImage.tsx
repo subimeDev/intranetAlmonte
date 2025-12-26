@@ -8,6 +8,7 @@ import { FileType } from '@/types'
 
 interface ProductImageProps {
   onImageChange?: (file: File | null) => void
+  currentImage?: any
 }
 
 const ProductImage = ({ onImageChange }: ProductImageProps) => {

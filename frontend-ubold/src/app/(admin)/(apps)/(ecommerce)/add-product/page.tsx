@@ -668,7 +668,7 @@ export default function AddProductPage() {
         </Card>
 
         {/* ════════════════════════════════════════════════════════════════ */}
-        {/* SECCIÓN 2: RELACIONES PRINCIPALES */}
+        {/* SECCIÓN 2: RELACIONES */}
         {/* ════════════════════════════════════════════════════════════════ */}
         <Card className="mb-3">
           <CardHeader>
@@ -682,7 +682,7 @@ export default function AddProductPage() {
                   value={formData.obra}
                   onChange={(val) => setFormData(prev => ({...prev, obra: val as string}))}
                   endpoint="/api/tienda/obras"
-                  displayField="titulo"
+                  displayField="nombre_obra"
                 />
               </Col>
               
@@ -734,46 +734,14 @@ export default function AddProductPage() {
         </Card>
 
         {/* ════════════════════════════════════════════════════════════════ */}
-        {/* SECCIÓN 3: CANALES DE PUBLICACIÓN */}
+        {/* SECCIÓN 3: CATEGORIZACIÓN Y PUBLICACIÓN */}
         {/* ════════════════════════════════════════════════════════════════ */}
         <Card className="mb-3">
           <CardHeader>
-            <h5 className="card-title mb-0">Publicación</h5>
+            <h5 className="card-title mb-0">Categorización y Publicación</h5>
           </CardHeader>
           <CardBody>
-            <p className="text-muted mb-2">
-              Selecciona en qué canales/sitios web se publicará este libro. 
-              <strong className="text-primary"> Puedes seleccionar múltiples canales manteniendo presionada la tecla Ctrl (Windows) o Cmd (Mac) mientras haces clic.</strong>
-            </p>
-            
-            <RelationSelector
-              label="Canales"
-              value={formData.canales}
-              onChange={(val) => setFormData(prev => ({...prev, canales: val as string[]}))}
-              endpoint="/api/tienda/canales"
-              multiple={true}
-              displayField="nombre"
-            />
-            
-            {formData.canales.length > 0 && (
-              <div className="mt-2">
-                <small className="text-success">
-                  ✓ {formData.canales.length} canal{formData.canales.length > 1 ? 'es' : ''} seleccionado{formData.canales.length > 1 ? 's' : ''}
-                </small>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* SECCIÓN 4: CATEGORIZACIÓN */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        <Card className="mb-3">
-          <CardHeader>
-            <h5 className="card-title mb-0">Categorización</h5>
-          </CardHeader>
-          <CardBody>
-          <Row>
+            <Row>
               <Col md={6}>
                 <RelationSelector
                   label="Marcas"
@@ -797,14 +765,44 @@ export default function AddProductPage() {
               </Col>
             </Row>
             
-            <RelationSelector
-              label="Categorías de Producto"
-              value={formData.categorias_producto}
-              onChange={(val) => setFormData(prev => ({...prev, categorias_producto: val as string[]}))}
-              endpoint="/api/tienda/categorias"
-              multiple={true}
-              displayField="nombre"
-            />
+            <Row>
+              <Col md={6}>
+                <RelationSelector
+                  label="Categorías de Producto"
+                  value={formData.categorias_producto}
+                  onChange={(val) => setFormData(prev => ({...prev, categorias_producto: val as string[]}))}
+                  endpoint="/api/tienda/categorias"
+                  multiple={true}
+                  displayField="nombre"
+                />
+              </Col>
+              
+              <Col md={6}>
+                <div className="mb-3">
+                  <p className="text-muted mb-2 small">
+                    Selecciona en qué canales/sitios web se publicará este libro. 
+                    <strong className="text-primary"> Puedes seleccionar múltiples canales manteniendo presionada la tecla Ctrl (Windows) o Cmd (Mac) mientras haces clic.</strong>
+                  </p>
+                  
+                  <RelationSelector
+                    label="Canales"
+                    value={formData.canales}
+                    onChange={(val) => setFormData(prev => ({...prev, canales: val as string[]}))}
+                    endpoint="/api/tienda/canales"
+                    multiple={true}
+                    displayField="nombre"
+                  />
+                  
+                  {formData.canales.length > 0 && (
+                    <div className="mt-2">
+                      <small className="text-success">
+                        ✓ {formData.canales.length} canal{formData.canales.length > 1 ? 'es' : ''} seleccionado{formData.canales.length > 1 ? 's' : ''}
+                      </small>
+                    </div>
+                  )}
+                </div>
+              </Col>
+            </Row>
           </CardBody>
         </Card>
 
