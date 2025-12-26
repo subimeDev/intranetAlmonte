@@ -123,6 +123,79 @@ const Page = () => {
           })
 
         setContacts(contactosMapeados)
+
+        // Suscribirse a todos los canales de todos los contactos
+        const pusher = getPusherClient()
+        if (pusher && currentUserId) {
+          const currentUserIdNum = parseInt(currentUserId, 10)
+          contactosMapeados.forEach((contact) => {
+            const contactIdNum = parseInt(contact.id, 10)
+            if (!isNaN(currentUserIdNum) && !isNaN(contactIdNum)) {
+              const idsOrdenados = [currentUserIdNum, contactIdNum].sort((a, b) => a - b)
+              const channelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
+              
+              // Solo suscribirse si no estamos ya suscritos
+              if (!allChannelsRef.current.has(channelName)) {
+                console.error('[Chat] 📡 Suscribiéndose a canal global:', channelName)
+                const channel = pusher.subscribe(channelName)
+                allChannelsRef.current.set(channelName, channel)
+
+                // Escuchar nuevos mensajes en todos los canales
+                channel.bind('new-message', (data: any) => {
+                  console.error('[Chat] 📨 Mensaje recibido en canal global:', {
+                    channelName,
+                    id: data.id,
+                    remitente_id: data.remitente_id,
+                    cliente_id: data.cliente_id,
+                    texto: data.texto?.substring(0, 30),
+                    currentUserId,
+                    contactId: contact.id,
+                  })
+
+                  // Si estamos viendo esta conversación, actualizar mensajes
+                  // El useEffect del currentContact manejará la actualización
+                  // Por ahora, solo recargar mensajes si estamos viendo esta conversación
+                  setMessages((prev) => {
+                    // Verificar si el mensaje es para la conversación actual
+                    const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
+                    const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
+                    const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
+                    const currentContactIdNum = parseInt(String(contact.id || ''), 10)
+                    
+                    const esRemitente = mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum
+                    const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
+                    const esParaEstaConversacion = esRemitente || esCliente
+
+                    if (!esParaEstaConversacion) {
+                      return prev
+                    }
+
+                    // Verificar si el mensaje ya existe
+                    const nuevoMensaje: MessageType = {
+                      id: String(data.id),
+                      senderId: String(data.remitente_id),
+                      text: data.texto || '',
+                      time: new Date(data.fecha || Date.now()).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+                    }
+
+                    if (prev.some((m) => m.id === nuevoMensaje.id)) {
+                      return prev
+                    }
+
+                    const nuevos = [...prev, nuevoMensaje]
+                    nuevos.sort((a, b) => {
+                      const idA = parseInt(a.id) || 0
+                      const idB = parseInt(b.id) || 0
+                      return idA - idB
+                    })
+                    console.error('[Chat] ✅ Mensaje agregado desde canal global. Total:', nuevos.length)
+                    return nuevos
+                  })
+                })
+              }
+            }
+          })
+        }
       } catch (err: any) {
         console.error('Error al cargar contactos:', err)
         setError(err.message || 'Error al cargar contactos')
