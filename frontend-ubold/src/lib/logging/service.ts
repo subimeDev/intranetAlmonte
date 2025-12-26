@@ -449,7 +449,7 @@ export async function logActivity(
     const logEndpoint = '/api/activity-logs'
     
     // Logging mejorado para debug (usar las variables ya definidas arriba)
-    console.log('[Logging] 📝 Registrando actividad:', {
+    console.log('[LOGGING] 📝 Registrando actividad:', {
       accion: params.accion,
       entidad: params.entidad,
       usuario: usuario?.id || 'sin usuario',
@@ -459,11 +459,21 @@ export async function logActivity(
       tieneColaboradorCookie: !!colaboradorCookie,
       tieneToken: !!token,
       colaboradorCookiePreview: colaboradorCookie ? colaboradorCookie.substring(0, 100) : 'no hay',
+      esNextRequest: isNextRequest(request),
+      tieneCookiesEnRequest: isNextRequest(request) ? 'sí' : 'no (Request normal)',
     })
     
     // Log del body que se envía a Strapi (solo para debug)
     const bodyToSend = { data: logData }
     console.log('[LOGGING] 📤 Log a enviar a Strapi:', JSON.stringify(logData, null, 2))
+    console.log('[LOGGING] 🔍 Verificación del usuario en logData:', {
+      tieneUsuario: !!logData.usuario,
+      valorUsuario: logData.usuario,
+      tipoUsuario: typeof logData.usuario,
+      esNumero: typeof logData.usuario === 'number',
+      esNull: logData.usuario === null,
+      esUndefined: logData.usuario === undefined,
+    })
     
     strapiClient.post(logEndpoint, bodyToSend)
       .then(async (response: any) => {
