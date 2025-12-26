@@ -142,8 +142,11 @@ const Page = () => {
                 allChannelsRef.current.set(channelName, channel)
 
                 // Escuchar nuevos mensajes en todos los canales
+                // NOTA: Este handler solo escucha para mantener suscripciones activas.
+                // El canal específico de la conversación actual maneja la actualización de mensajes
+                // cuando estamos viendo esa conversación, para evitar duplicados.
                 channel.bind('new-message', (data: any) => {
-                  console.error('[Chat] 📨 Mensaje recibido en canal global:', {
+                  console.error('[Chat] 📨 Mensaje recibido en canal global (solo logging):', {
                     channelName,
                     id: data.id,
                     remitente_id: data.remitente_id,
@@ -153,53 +156,10 @@ const Page = () => {
                     contactId: contact.id,
                   })
                   
-                  // Actualizar mensajes si estamos viendo esta conversación
-                  const currentContactActual = currentContactRef.current
-                  if (currentContactActual && currentUserId) {
-                    const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
-                    const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
-                    const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
-                    const currentContactIdNum = parseInt(String(currentContactActual.id || ''), 10)
-                    
-                    // Verificar si el mensaje es para la conversación actual
-                    const esRemitente = mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum
-                    const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
-                    const esParaEstaConversacion = esRemitente || esCliente
-                    
-                    if (esParaEstaConversacion) {
-                      console.error('[Chat] ✅ Mensaje recibido en canal global para conversación actual, actualizando estado')
-                      setMessages((prev) => {
-                        // Verificar si el mensaje ya existe para evitar duplicados
-                        const existe = prev.some((m) => String(m.id) === String(data.id))
-                        if (existe) {
-                          console.error('[Chat] ⚠️ Mensaje duplicado ignorado en canal global:', data.id)
-                          return prev
-                        }
-                        
-                        const nuevoMensaje: MessageType = {
-                          id: String(data.id),
-                          senderId: String(data.remitente_id),
-                          text: data.texto || '',
-                          time: new Date(data.fecha || Date.now()).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-                        }
-                        
-                        const nuevosMensajes = [...prev, nuevoMensaje]
-                        nuevosMensajes.sort((a, b) => {
-                          const idA = parseInt(a.id) || 0
-                          const idB = parseInt(b.id) || 0
-                          return idA - idB
-                        })
-                        
-                        console.error('[Chat] ✅ Mensaje agregado desde canal global. Total:', nuevosMensajes.length, 'ID:', data.id)
-                        return nuevosMensajes
-                      })
-                      
-                      // Scroll al final después de un breve delay
-                      setTimeout(() => {
-                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-                      }, 100)
-                    }
-                  }
+                  // NO procesar mensajes aquí si estamos viendo esta conversación
+                  // El canal específico ya lo maneja. Esto evita duplicados.
+                  // El canal global solo mantiene las suscripciones activas para recibir mensajes
+                  // cuando no estamos viendo esa conversación (para notificaciones futuras).
                 })
               }
             }
@@ -383,24 +343,31 @@ const Page = () => {
       }
 
       setMessages((prev) => {
-        // Evitar duplicados
-        if (prev.some((m) => m.id === nuevoMensaje.id)) {
+        // Evitar duplicados verificando por ID
+        const existe = prev.some((m) => String(m.id) === String(nuevoMensaje.id))
+        if (existe) {
           console.error('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
           return prev
         }
+        
+        // Crear nuevo array con el mensaje agregado
         const nuevos = [...prev, nuevoMensaje]
+        
+        // Ordenar por ID numérico
         nuevos.sort((a, b) => {
           const idA = parseInt(a.id) || 0
           const idB = parseInt(b.id) || 0
           return idA - idB
         })
-        console.error('[Chat] ✅ Mensaje agregado al estado. Total mensajes:', nuevos.length, 'ID:', nuevoMensaje.id)
+        
+        console.error('[Chat] ✅ Mensaje agregado al estado. Total mensajes:', nuevos.length, 'ID:', nuevoMensaje.id, 'Estado anterior:', prev.length)
         return nuevos
       })
 
+      // Forzar scroll después de que React actualice el DOM
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
+      }, 150)
     })
 
     // Cleanup solo del canal de la conversación actual
