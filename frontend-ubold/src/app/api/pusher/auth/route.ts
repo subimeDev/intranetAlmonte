@@ -16,7 +16,13 @@ export async function POST(request: NextRequest) {
   const colaboradorData = request.cookies.get('colaboradorData')?.value || 
                          request.cookies.get('colaborador')?.value
   
+  console.error('[Pusher Auth] 🔐 Verificando autenticación:', {
+    tieneToken: !!token,
+    tieneColaboradorData: !!colaboradorData,
+  })
+  
   if (!token && !colaboradorData) {
+    console.error('[Pusher Auth] ❌ No autorizado - sin token ni datos de colaborador')
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
@@ -37,11 +43,19 @@ export async function POST(request: NextRequest) {
     // Verificar que el canal sea privado y tenga el formato correcto
     // Formato esperado: private-chat-{remitenteId}-{colaboradorId}
     if (!channelName.startsWith('private-chat-')) {
+      console.error('[Pusher Auth] ❌ Canal no autorizado:', channelName)
       return NextResponse.json({ error: 'Canal no autorizado' }, { status: 403 })
     }
 
+    console.error('[Pusher Auth] ✅ Autenticando canal:', {
+      channelName,
+      socketId: socketId.substring(0, 20) + '...',
+    })
+
     // Autenticar el canal privado
     const auth = pusher.authorizeChannel(socketId, channelName)
+
+    console.error('[Pusher Auth] ✅ Canal autenticado exitosamente:', channelName)
 
     return NextResponse.json(auth)
   } catch (error: any) {
