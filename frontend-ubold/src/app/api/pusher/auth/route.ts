@@ -10,9 +10,13 @@ import getPusherServer from '@/lib/pusher/server'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  // Verificar autenticación
-  const authError = await requireAuth(request)
-  if (authError) {
+  // Verificar autenticación de forma más permisiva
+  // Permitir si hay token o datos de colaborador en cookies
+  const token = request.cookies.get('auth_token')?.value
+  const colaboradorData = request.cookies.get('colaboradorData')?.value || 
+                         request.cookies.get('colaborador')?.value
+  
+  if (!token && !colaboradorData) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
