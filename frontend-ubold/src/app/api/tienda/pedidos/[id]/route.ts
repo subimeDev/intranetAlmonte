@@ -744,21 +744,6 @@ export async function PUT(
       }
     }
 
-    // Manejar publishedAt para ocultar/mostrar pedidos
-    // En Strapi, publishedAt debe estar en el nivel raíz del objeto data
-    if (body.data.publishedAt !== undefined) {
-      // Si publishedAt es null, despublicar el pedido (ocultar)
-      // Si es una fecha string, publicar el pedido
-      // Si es false o undefined, mantener el estado actual
-      if (body.data.publishedAt === null) {
-        pedidoData.data.publishedAt = null // Despublicar
-        console.log('[API Pedidos PUT] 📝 Despublicando pedido (publishedAt: null)')
-      } else if (body.data.publishedAt) {
-        pedidoData.data.publishedAt = body.data.publishedAt // Publicar con fecha
-        console.log('[API Pedidos PUT] 📝 Publicando pedido (publishedAt:', body.data.publishedAt, ')')
-      }
-    }
-    
     // Solo agregar campos que realmente se están actualizando (que están en body.data)
     if (body.data.numero_pedido !== undefined) pedidoData.data.numero_pedido = body.data.numero_pedido?.toString().trim() || null
     if (body.data.fecha_pedido !== undefined) pedidoData.data.fecha_pedido = body.data.fecha_pedido || null
@@ -847,9 +832,6 @@ export async function PUT(
     // El warning del cliente de Strapi es solo informativo - Strapi acepta camelCase
     
     // Verificar que hay datos para actualizar
-    // publishedAt puede ser null (para despublicar), así que verificar explícitamente
-    const hasPublishedAt = body.data.publishedAt !== undefined && 'publishedAt' in pedidoData.data
-    
     if (Object.keys(pedidoData.data).length === 0) {
       console.warn('[API Pedidos PUT] ⚠️ No hay campos para actualizar en Strapi')
       return NextResponse.json({

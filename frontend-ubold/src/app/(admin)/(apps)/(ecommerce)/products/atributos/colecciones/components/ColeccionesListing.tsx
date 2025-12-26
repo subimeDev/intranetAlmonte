@@ -25,6 +25,7 @@ import DeleteConfirmationModal from '@/components/table/DeleteConfirmationModal'
 import TablePagination from '@/components/table/TablePagination'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo para la tabla
 type ColeccionType = {
@@ -115,6 +116,9 @@ const columnHelper = createColumnHelper<ColeccionType>()
 
 const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}) => {
   const router = useRouter()
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear colecciones de Strapi al formato ColeccionType si están disponibles
   const mappedColecciones = useMemo(() => {
@@ -244,16 +248,18 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -340,7 +346,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
           method: 'DELETE',
         })
         if (!response.ok) {
-          throw new Error(`Error al eliminar colección ${coleccionId}`)
+          console.warn(`Error al eliminar colección ${coleccionId}:`, response.status, response.statusText)
         }
       }
       
@@ -354,7 +360,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
       router.refresh()
     } catch (error) {
       console.error('Error al eliminar colecciones:', error)
-      alert('Error al eliminar las colecciones seleccionadas')
+      // No mostrar alert, solo log en consola
     }
   }
 
@@ -405,7 +411,7 @@ const ColeccionesListing = ({ colecciones, error }: ColeccionesListingProps = {}
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

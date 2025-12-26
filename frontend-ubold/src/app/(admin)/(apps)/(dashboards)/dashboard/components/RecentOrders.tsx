@@ -16,7 +16,12 @@ import {
 import { TbCircleFilled, TbDotsVertical, TbFileExport, TbPlus } from 'react-icons/tb'
 
 import TablePagination from '@/components/table/TablePagination'
-import { orders, type OrderType } from '../data'
+import type { DashboardOrder } from '../lib/getDashboardData'
+
+// Tipo compatible con OrderType pero usando DashboardOrder
+type OrderType = Omit<DashboardOrder, 'userImage'> & {
+  userImage?: string | { src: string }
+}
 import {
   ColumnFiltersState,
   createColumnHelper,
@@ -31,22 +36,43 @@ import DataTable from '@/components/table/DataTable'
 
 const columnHelper = createColumnHelper<OrderType>()
 
-const RecentOrders = () => {
+// Helper para obtener la URL de la imagen del usuario
+function getUserImageSrc(userImage: string | { src: string } | undefined, userName: string): string {
+  if (userImage) {
+    if (typeof userImage === 'string') return userImage
+    if (typeof userImage === 'object' && userImage !== null && 'src' in userImage) {
+      return userImage.src
+    }
+  }
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&size=128`
+}
+
+interface RecentOrdersProps {
+  orders?: OrderType[]
+}
+
+const RecentOrders = ({ orders: propsOrders }: RecentOrdersProps) => {
+  // Usar pedidos de props o datos estáticos como fallback
+  const defaultOrders: OrderType[] = []
+  const ordersToUse = propsOrders && propsOrders.length > 0 ? propsOrders : defaultOrders
   const columns = [
-    columnHelper.accessor('userImage', {
-      cell: ({ row }) => (
-        <div className="d-flex align-items-center">
-          <Image src={row.original.userImage.src} className="avatar-sm rounded-circle me-2" alt={row.original.userName} />
-          <div>
-            <span className="text-muted fs-xs">{row.original.userName}</span>
-            <h5 className="fs-base mb-0">
-              <Link href="/orders/1" className="text-body">
-                #{row.original.id}
-              </Link>
-            </h5>
+    columnHelper.accessor('userName', {
+      cell: ({ row }) => {
+        const imageSrc = getUserImageSrc(row.original.userImage, row.original.userName)
+        return (
+          <div className="d-flex align-items-center">
+            <Image src={imageSrc} className="avatar-sm rounded-circle me-2" alt={row.original.userName} />
+            <div>
+              <span className="text-muted fs-xs">{row.original.userName}</span>
+              <h5 className="fs-base mb-0">
+                <Link href={`/orders/${row.original.id.replace('ORD-', '')}`} className="text-body">
+                  #{row.original.id}
+                </Link>
+              </h5>
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     }),
     columnHelper.accessor('product', {
       cell: ({ row }) => (
@@ -97,7 +123,7 @@ const RecentOrders = () => {
     }),
   ]
 
-  const [data, setData] = useState<OrderType[]>(() => [...orders])
+  const [data, setData] = useState<OrderType[]>(() => [...ordersToUse])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 7 })
 

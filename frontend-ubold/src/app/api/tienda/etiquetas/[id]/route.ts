@@ -158,22 +158,80 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Verificar rol del usuario
+    const colaboradorCookie = request.cookies.get('auth_colaborador')?.value
+    if (colaboradorCookie) {
+      try {
+        const colaborador = JSON.parse(colaboradorCookie)
+        if (colaborador.rol !== 'super_admin') {
+          return NextResponse.json({
+            success: false,
+            error: 'No tienes permisos para eliminar etiquetas'
+          }, { status: 403 })
+        }
+      } catch (e) {
+        // Si hay error parseando, continuar (podría ser que no esté autenticado)
+      }
+    }
+
     const { id } = await params
     console.log('[API Etiquetas DELETE] 🗑️ Eliminando etiqueta:', id)
 
     const etiquetaEndpoint = '/api/etiquetas'
     
+    // Primero obtener la etiqueta de Strapi para verificar estado_publicacion
+    let etiquetaStrapi: any = null
+    let documentId: string | null = null
+    let estadoPublicacion: string | null = null
+    
+    try {
+      const etiquetaResponse = await strapiClient.get<any>(`${etiquetaEndpoint}?filters[id][$eq]=${id}&populate=*`)
+      let etiquetas: any[] = []
+      if (Array.isArray(etiquetaResponse)) {
+        etiquetas = etiquetaResponse
+      } else if (etiquetaResponse.data && Array.isArray(etiquetaResponse.data)) {
+        etiquetas = etiquetaResponse.data
+      } else if (etiquetaResponse.data) {
+        etiquetas = [etiquetaResponse.data]
+      }
+      etiquetaStrapi = etiquetas[0]
+      
+      if (etiquetaStrapi) {
+        const attrs = etiquetaStrapi.attributes || {}
+        const data = (attrs && Object.keys(attrs).length > 0) ? attrs : etiquetaStrapi
+        estadoPublicacion = data.estado_publicacion || data.estadoPublicacion || null
+        documentId = etiquetaStrapi.documentId || etiquetaStrapi.data?.documentId || id
+        
+        console.log('[API Etiquetas DELETE] Estado de publicación:', estadoPublicacion)
+        
+        // Normalizar estado a minúsculas para comparación
+        if (estadoPublicacion) {
+          estadoPublicacion = estadoPublicacion.toLowerCase()
+        }
+      }
+    } catch (error: any) {
+      console.warn('[API Etiquetas DELETE] ⚠️ No se pudo obtener etiqueta de Strapi:', error.message)
+      documentId = id
+    }
+
     // Eliminar en Strapi
-    // La eliminación en WordPress se maneja automáticamente en los lifecycles de Strapi
+    // El lifecycle de Strapi verifica estado_publicacion y solo elimina de WooCommerce si estaba "publicado"
     const endpoint = `${etiquetaEndpoint}/${id}`
     console.log('[API Etiquetas DELETE] Usando endpoint Strapi:', endpoint)
 
     const response = await strapiClient.delete<any>(endpoint)
-    console.log('[API Etiquetas DELETE] ✅ Etiqueta eliminada en Strapi')
+    
+    if (estadoPublicacion === 'publicado') {
+      console.log('[API Etiquetas DELETE] ✅ Etiqueta eliminada en Strapi. El lifecycle eliminará de WooCommerce si estaba publicado.')
+    } else {
+      console.log('[API Etiquetas DELETE] ✅ Etiqueta eliminada en Strapi (solo Strapi, no estaba publicada en WooCommerce)')
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Etiqueta eliminada exitosamente en Strapi',
+      message: estadoPublicacion === 'publicado' 
+        ? 'Etiqueta eliminada exitosamente en Strapi. El lifecycle eliminará de WooCommerce.' 
+        : 'Etiqueta eliminada exitosamente en Strapi',
       data: response
     })
 

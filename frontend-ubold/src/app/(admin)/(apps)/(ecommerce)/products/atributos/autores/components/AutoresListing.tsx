@@ -27,6 +27,7 @@ import TablePagination from '@/components/table/TablePagination'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo para la tabla
 type AutorType = {
@@ -143,6 +144,9 @@ const columnHelper = createColumnHelper<AutorType>()
 
 const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
   const router = useRouter()
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol === 'super_admin'
   
   // Mapear autores de Strapi al formato AutorType si están disponibles
   const mappedAutores = useMemo(() => {
@@ -304,16 +308,18 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -465,7 +471,7 @@ const AutoresListing = ({ autores, error }: AutoresListingProps = {}) => {
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>

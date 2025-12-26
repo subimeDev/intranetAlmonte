@@ -29,6 +29,7 @@ import { currency } from '@/helpers'
 import { productData, type ProductType } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo extendido para productos con estado_publicacion
 type ProductTypeExtended = Omit<ProductType, 'image'> & {
@@ -147,6 +148,10 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
 const columnHelper = createColumnHelper<ProductTypeExtended>()
 
 const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProps = {}) => {
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol === 'super_admin'
+
   const mappedProducts = useMemo(() => {
     if (productos && productos.length > 0) {
       console.log('[ProductRequestsListing] Productos recibidos:', productos.length)
@@ -331,17 +336,19 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
             }}>
             <TbCheck className="fs-lg" />
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            title="Eliminar"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              title="Eliminar"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -432,8 +439,12 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
       throw new Error('Producto no válido')
     }
 
-    // IMPORTANTE: Strapi espera valores en minúsculas: "pendiente", "publicado", "borrador"
-    const newStatusLower = newStatus.toLowerCase()
+    // IMPORTANTE: Strapi espera valores con mayúscula inicial: "Publicado", "Pendiente", "Borrador"
+    // Normalizar a formato con mayúscula inicial
+    const newStatusNormalized = newStatus === 'Publicado' ? 'Publicado' :
+                                newStatus === 'Pendiente' ? 'Pendiente' :
+                                newStatus === 'Borrador' ? 'Borrador' :
+                                newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase()
 
     try {
       const response = await fetch(`/api/tienda/productos/${selectedProduct.strapiId}`, {
@@ -442,7 +453,9 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          estado_publicacion: newStatusLower, // Enviar en minúsculas
+          data: {
+            estado_publicacion: newStatusNormalized, // Enviar con mayúscula inicial dentro de data
+          },
         }),
       })
 
@@ -451,10 +464,8 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
         throw new Error(error.error || 'Error al actualizar el estado')
       }
 
-      // Actualizar el estado local (capitalizar para mostrar)
-      const estadoMostrar = newStatusLower === 'publicado' ? 'Publicado' : 
-                           newStatusLower === 'borrador' ? 'Borrador' : 
-                           'Pendiente'
+      // Actualizar el estado local (ya viene con mayúscula inicial)
+      const estadoMostrar = newStatusNormalized
       setData((old) => old.map((p) => {
         if (p.strapiId === selectedProduct.strapiId) {
           return { ...p, estadoPublicacion: estadoMostrar as 'Publicado' | 'Pendiente' | 'Borrador' }
@@ -502,7 +513,7 @@ const ProductRequestsListing = ({ productos, error }: ProductRequestsListingProp
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>
