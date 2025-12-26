@@ -284,11 +284,16 @@ export async function GET(request: NextRequest) {
       }
       
       // Registrar la IP con este email para evitar crear usuarios anónimos después
+      // CRÍTICO: Registrar TODAS las IPs asociadas a este usuario para asociar logs anónimos después
       if (ipAddress !== 'desconocido' && emailKey && !emailKey.startsWith('id_')) {
         ipToEmail.set(ipAddress, emailKey)
         emailToId.set(emailKey, usuarioId)
+        // También registrar el emailKey como clave principal para búsquedas inversas
+        if (!emailToId.has(emailKey)) {
+          emailToId.set(emailKey, usuarioId)
+        }
         if (index < 3) {
-          addDebugLog(`[API /logs/usuarios] ✅ Asociando IP ${ipAddress} con email ${emailKey}`)
+          addDebugLog(`[API /logs/usuarios] ✅ Asociando IP ${ipAddress} con email ${emailKey} (ID: ${usuarioId})`)
         }
       }
 
