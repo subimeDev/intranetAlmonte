@@ -177,30 +177,7 @@ const Page = () => {
       return
     }
 
-    // Limpiar suscripción anterior solo si cambió el contacto o usuario
-    const remitenteIdNum = parseInt(String(currentUserId), 10)
-    const colaboradorIdNum = parseInt(String(currentContact.id), 10)
-    const idsOrdenados = [remitenteIdNum, colaboradorIdNum].sort((a, b) => a - b)
-    const currentChannelName = `private-chat-${idsOrdenados[0]}-${idsOrdenados[1]}`
-    
-    if (pusherChannelRef.current) {
-      const oldChannelName = pusherChannelRef.current.name
-      if (oldChannelName !== currentChannelName) {
-        // Canal diferente, limpiar y resuscribirse
-        pusherChannelRef.current.unbind_all()
-        pusherChannelRef.current.unsubscribe()
-        pusherChannelRef.current = null
-      } else {
-        // Mismo canal, no hacer nada - ya estamos suscritos
-        console.error('[Chat] ✅ Ya suscrito al canal correcto, no re-suscribiendo')
-        // Solo cargar mensajes iniciales si no hay mensajes
-        if (messages.length === 0) {
-          cargarMensajes(false)
-        }
-        return
-      }
-    }
-
+    // Función para cargar mensajes (declarada primero)
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
         // Log para debugging (usar error para que siempre se vea)
