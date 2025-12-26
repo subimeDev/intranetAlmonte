@@ -37,7 +37,7 @@ export function buildChatQueries(
 
   // IMPORTANTE: Solo aplicar filtro de fecha si se proporciona Y es válido
   // El filtro se aplica a AMBAS queries para capturar mensajes nuevos en ambas direcciones
-  // Pero el margen de 60 segundos del frontend debería asegurar que no se pierdan mensajes
+  // El margen de 120 segundos del frontend asegura que no se pierdan mensajes por diferencias de tiempo
   if (ultimaFecha) {
     try {
       const fechaLimite = new Date(ultimaFecha)
@@ -46,6 +46,11 @@ export function buildChatQueries(
         const fechaISO = encodeURIComponent(fechaLimite.toISOString())
         query1 += `&filters[fecha][$gt]=${fechaISO}`
         query2 += `&filters[fecha][$gt]=${fechaISO}`
+        console.error('[Chat Service] 🔍 Filtro de fecha aplicado en buildChatQueries:', {
+          ultimaFecha,
+          fechaISO,
+          fechaLimite: fechaLimite.toISOString()
+        })
       } else {
         console.error('[Chat Service] ⚠️ Fecha inválida, continuando sin filtro:', ultimaFecha)
       }

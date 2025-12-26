@@ -189,9 +189,9 @@ const Page = () => {
           try {
             const fechaLastMessage = new Date(lastMessageDate)
             if (!isNaN(fechaLastMessage.getTime())) {
-              // Margen de 60 segundos (aumentado) para asegurar que no se pierdan mensajes
-              // Esto es crítico cuando hay diferencias de tiempo entre servidor y cliente
-              const fechaConMargen = new Date(fechaLastMessage.getTime() - 60000).toISOString()
+              // Margen de 120 segundos (aumentado de 60) para asegurar que no se pierdan mensajes
+              // Esto es crítico cuando hay diferencias de tiempo entre servidor y cliente o cuando los mensajes tienen timestamps ligeramente diferentes
+              const fechaConMargen = new Date(fechaLastMessage.getTime() - 120000).toISOString()
               query.append('ultima_fecha', fechaConMargen)
               console.error('[Chat] ⏰ Filtro de fecha aplicado:', { 
                 lastMessageDate, 
@@ -323,11 +323,23 @@ const Page = () => {
           const ultimaFecha = mensajeMasReciente.fechaOriginal
           if (ultimaFecha) {
             setLastMessageDate(ultimaFecha)
+            console.error('[Chat] ✅ lastMessageDate actualizada:', {
+              nuevaFecha: ultimaFecha,
+              mensajesRecibidos: mensajesMapeados.length,
+              soloNuevos
+            })
           }
-        } else if (!soloNuevos) {
-          // Si es carga inicial y no hay mensajes, establecer fecha actual para que el polling capture mensajes nuevos
-          // Esto asegura que cuando llegue el primer mensaje, se capture correctamente
-          setLastMessageDate(new Date().toISOString())
+        } else {
+          if (soloNuevos) {
+            // En polling, si no hay mensajes nuevos, mantener el lastMessageDate existente
+            // Los mensajes existentes se mantienen en el estado
+            console.error('[Chat] ⚠️ Polling sin mensajes nuevos, manteniendo mensajes existentes')
+          } else {
+            // Si es carga inicial y no hay mensajes, establecer fecha actual para que el polling capture mensajes nuevos
+            // Esto asegura que cuando llegue el primer mensaje, se capture correctamente
+            setLastMessageDate(new Date().toISOString())
+            console.error('[Chat] ⚠️ Carga inicial sin mensajes, estableciendo fecha actual')
+          }
         }
 
         // Scroll solo si hay cambios
