@@ -140,12 +140,26 @@ export async function GET(request: NextRequest) {
       const usuario = logData.usuario
       
       // Logging detallado para debugging
-      if (index < 3) { // Solo los primeros 3 logs para no saturar
+      if (index < 5) { // Aumentar a 5 logs para ver más casos
         addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario: ${usuario ? 'EXISTE' : 'NULL'}`)
         if (usuario) {
-          addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario estructura: ${JSON.stringify(usuario, null, 2).substring(0, 500)}`)
+          addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario estructura completa: ${JSON.stringify(usuario, null, 2).substring(0, 1000)}`)
+          // Verificar estructura específica
+          if (usuario.data) {
+            addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario tiene .data`)
+            if (usuario.data.attributes) {
+              addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario.data.attributes.email_login: ${usuario.data.attributes.email_login || 'NO HAY'}`)
+            }
+          } else if (usuario.attributes) {
+            addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario tiene .attributes`)
+            addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario.attributes.email_login: ${usuario.attributes.email_login || 'NO HAY'}`)
+          } else if (usuario.email_login) {
+            addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - usuario tiene email_login directo: ${usuario.email_login}`)
+          }
         } else {
           addDebugLog(`[API /logs/usuarios] ⚠️ Log #${index} - usuario es NULL, IP: ${logData.ip_address || 'sin IP'}`)
+          // Verificar si el log tiene estructura diferente
+          addDebugLog(`[API /logs/usuarios] 🔍 Log #${index} - logData completo (primeros 500 chars): ${JSON.stringify(logData, null, 2).substring(0, 500)}`)
         }
       }
       
