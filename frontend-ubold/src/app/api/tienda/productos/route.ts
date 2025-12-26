@@ -163,30 +163,68 @@ export async function POST(request: NextRequest) {
     }
 
     // === RELACIONES SIMPLES (documentId) ===
-    if (body.obra) strapiProductData.data.obra = body.obra
-    if (body.autor_relacion) strapiProductData.data.autor_relacion = body.autor_relacion
-    if (body.editorial) strapiProductData.data.editorial = body.editorial
-    if (body.sello) strapiProductData.data.sello = body.sello
-    if (body.coleccion) strapiProductData.data.coleccion = body.coleccion
+    // Validar que los documentIds no estén vacíos o sean null
+    if (body.obra && body.obra !== null && body.obra !== '') {
+      strapiProductData.data.obra = body.obra
+      console.log('[API POST] 📚 Obra asignada:', body.obra)
+    }
+    if (body.autor_relacion && body.autor_relacion !== null && body.autor_relacion !== '') {
+      strapiProductData.data.autor_relacion = body.autor_relacion
+      console.log('[API POST] 👤 Autor asignado:', body.autor_relacion)
+    }
+    if (body.editorial && body.editorial !== null && body.editorial !== '') {
+      strapiProductData.data.editorial = body.editorial
+      console.log('[API POST] 📖 Editorial asignada:', body.editorial)
+    }
+    if (body.sello && body.sello !== null && body.sello !== '') {
+      strapiProductData.data.sello = body.sello
+      console.log('[API POST] 🏷️ Sello asignado:', body.sello)
+    }
+    if (body.coleccion && body.coleccion !== null && body.coleccion !== '') {
+      strapiProductData.data.coleccion = body.coleccion
+      console.log('[API POST] 📚 Colección asignada:', body.coleccion)
+    }
 
     // === RELACIONES MÚLTIPLES (array de documentIds) ===
     // CRÍTICO: Los canales son necesarios para sincronizar con WordPress
+    // Validar que los arrays no contengan valores null o vacíos
     if (body.canales && Array.isArray(body.canales) && body.canales.length > 0) {
-      strapiProductData.data.canales = body.canales
-      console.log('[API POST] 📡 Canales asignados:', body.canales)
+      const canalesValidos = body.canales.filter((c: any) => c !== null && c !== '' && c !== undefined)
+      if (canalesValidos.length > 0) {
+        strapiProductData.data.canales = canalesValidos
+        console.log('[API POST] 📡 Canales asignados:', canalesValidos)
+      } else {
+        console.warn('[API POST] ⚠️ Canales proporcionados pero todos son inválidos (null/vacíos)')
+      }
     } else {
       console.warn('[API POST] ⚠️ No se asignaron canales. El producto no se sincronizará con WordPress hasta que se asignen canales.')
     }
     
     if (body.marcas && Array.isArray(body.marcas) && body.marcas.length > 0) {
-      strapiProductData.data.marcas = body.marcas
+      const marcasValidas = body.marcas.filter((m: any) => m !== null && m !== '' && m !== undefined)
+      if (marcasValidas.length > 0) {
+        strapiProductData.data.marcas = marcasValidas
+        console.log('[API POST] 🏷️ Marcas asignadas:', marcasValidas)
+      }
     }
     if (body.etiquetas && Array.isArray(body.etiquetas) && body.etiquetas.length > 0) {
-      strapiProductData.data.etiquetas = body.etiquetas
+      const etiquetasValidas = body.etiquetas.filter((e: any) => e !== null && e !== '' && e !== undefined)
+      if (etiquetasValidas.length > 0) {
+        strapiProductData.data.etiquetas = etiquetasValidas
+        console.log('[API POST] 🏷️ Etiquetas asignadas:', etiquetasValidas)
+      }
     }
     if (body.categorias_producto && Array.isArray(body.categorias_producto) && body.categorias_producto.length > 0) {
-      strapiProductData.data.categorias_producto = body.categorias_producto
+      const categoriasValidas = body.categorias_producto.filter((c: any) => c !== null && c !== '' && c !== undefined)
+      if (categoriasValidas.length > 0) {
+        strapiProductData.data.categorias_producto = categoriasValidas
+        console.log('[API POST] 📂 Categorías asignadas:', categoriasValidas)
+      }
     }
+    
+    // Log del body completo para debug
+    console.log('[API POST] 🔍 Body completo recibido:', JSON.stringify(body, null, 2))
+    console.log('[API POST] 🔍 Datos a enviar a Strapi:', JSON.stringify(strapiProductData, null, 2))
 
     // === CAMPOS NUMÉRICOS ===
     if (body.numero_edicion !== undefined && body.numero_edicion !== '') {
