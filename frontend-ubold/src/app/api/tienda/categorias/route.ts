@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
-import wooCommerceClient from '@/lib/woocommerce/client'
+import wooCommerceClient, { WooCommerceCategory } from '@/lib/woocommerce/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,12 +112,15 @@ export async function POST(request: NextRequest) {
     // Crear en WooCommerce con slug=documentId
     console.log('[API Categorias POST] 🛒 Creando categoría en WooCommerce...')
     try {
-      const wooCommerceCategory = await wooCommerceClient.post('products/categories', {
+      const wooCommerceCategory = await wooCommerceClient.post<WooCommerceCategory>('products/categories', {
         name: nombre.trim(),
         slug: documentId, // Usar documentId como slug
       })
 
-      const wooCommerceId = String(wooCommerceCategory.id)
+      const wooCommerceId = String(wooCommerceCategory?.id || '')
+      if (!wooCommerceId || wooCommerceId === '') {
+        throw new Error('No se pudo obtener el ID de WooCommerce')
+      }
       console.log('[API Categorias POST] ✅ Categoría creada en WooCommerce con ID:', wooCommerceId)
 
       // Actualizar Strapi con woocommerce_id
