@@ -164,14 +164,19 @@ const Page = () => {
           remitente_id: currentUserId,
         })
 
-        if (soloNuevos && lastMessageDate) {
-          // Aumentar margen a 10 segundos para asegurar que se capturen mensajes nuevos
-          // Esto es crítico para que los mensajes aparezcan entre cuentas diferentes
-          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 10000).toISOString()
-          query.append('ultima_fecha', fechaConMargen)
-          console.log('[Chat] ⏰ Filtro de fecha aplicado:', { lastMessageDate, fechaConMargen })
-        } else if (soloNuevos) {
-          console.log('[Chat] ⚠️ Polling sin lastMessageDate - cargando todos los mensajes')
+        // IMPORTANTE: Solo aplicar filtro de fecha si es polling Y tenemos una fecha válida
+        // Si no hay lastMessageDate, cargar todos los mensajes (solo en polling, no en carga inicial)
+        if (soloNuevos) {
+          if (lastMessageDate) {
+            // Aumentar margen a 10 segundos para asegurar que se capturen mensajes nuevos
+            // Esto es crítico para que los mensajes aparezcan entre cuentas diferentes
+            const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 10000).toISOString()
+            query.append('ultima_fecha', fechaConMargen)
+            console.log('[Chat] ⏰ Filtro de fecha aplicado en polling:', { lastMessageDate, fechaConMargen })
+          } else {
+            // Si no hay lastMessageDate en polling, NO aplicar filtro - cargar todos los mensajes nuevos
+            console.log('[Chat] ⚠️ Polling sin lastMessageDate - sin filtro de fecha para capturar todos los mensajes')
+          }
         }
 
         const response = await fetch(`/api/chat/mensajes?${query.toString()}`)
@@ -279,14 +284,12 @@ const Page = () => {
           const ultimaFecha = mensajeMasReciente.fechaOriginal
           if (ultimaFecha) {
             setLastMessageDate(ultimaFecha)
+            console.log('[Chat] ✅ Actualizada lastMessageDate:', { ultimaFecha, totalMensajes: mensajesMapeados.length })
           }
-        } else if (!soloNuevos && lastMessageDate) {
-          // Si no hay mensajes y es carga inicial, mantener la fecha anterior
-          // Esto evita que el polling se rompa
-        } else if (!lastMessageDate) {
-          // Si nunca ha habido una fecha, usar la fecha actual menos 1 minuto para asegurar que se capturen mensajes recientes
-          const fechaInicial = new Date(Date.now() - 60000).toISOString()
-          setLastMessageDate(fechaInicial)
+        } else if (!soloNuevos) {
+          // En carga inicial, si no hay mensajes, NO inicializar lastMessageDate
+          // Esto permitirá que el polling capture todos los mensajes nuevos desde ahora
+          console.log('[Chat] ℹ️ Carga inicial sin mensajes - no se inicializa lastMessageDate para capturar todos los nuevos')
         }
 
         // Scroll solo si hay cambios
