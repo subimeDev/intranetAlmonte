@@ -97,7 +97,13 @@ const Page = () => {
         const contactosMapeados: ContactType[] = colaboradoresArray
           .filter((colaborador: any) => {
             const colaboradorData = colaborador.attributes || colaborador
-            return colaborador?.id && colaboradorData.activo && colaboradorData.persona
+            // Filtrar usuario actual y solo mostrar activos con persona
+            return (
+              colaborador?.id && 
+              colaboradorData.activo && 
+              colaboradorData.persona &&
+              String(colaborador.id) !== currentUserId // Excluir al usuario actual
+            )
           })
           .map((colaborador: any) => {
             const colaboradorData = colaborador.attributes || colaborador
@@ -127,11 +133,21 @@ const Page = () => {
     }
 
     cargarContactos()
-  }, [])
+  }, [currentUserId]) // Agregar currentUserId como dependencia
 
   // Cargar mensajes y polling
   useEffect(() => {
-    if (!currentContact || !currentUserId) return
+    if (!currentContact || !currentUserId) {
+      setMessages([])
+      setLastMessageDate(null)
+      return
+    }
+
+    // Limpiar intervalo anterior si existe
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
 
     const cargarMensajes = async (soloNuevos: boolean = false) => {
       try {
@@ -141,7 +157,7 @@ const Page = () => {
         })
 
         if (soloNuevos && lastMessageDate) {
-          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 2000).toISOString()
+          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 1000).toISOString()
           query.append('ultima_fecha', fechaConMargen)
         }
 
@@ -170,16 +186,38 @@ const Page = () => {
           }
         })
 
+        // Los mensajes ya vienen ordenados del servidor
+
         if (soloNuevos) {
           setMessages((prev) => {
-            const nuevosIds = new Set(mensajesMapeados.map((m) => m.id))
-            const mensajesExistentes = prev.filter((m) => !nuevosIds.has(m.id))
-            return [...mensajesExistentes, ...mensajesMapeados]
+            // Evitar duplicados
+            const idsExistentes = new Set(prev.map((m) => m.id))
+            const nuevos = mensajesMapeados.filter((m) => !idsExistentes.has(m.id))
+            
+            if (nuevos.length === 0) return prev
+            
+            // Combinar y ordenar
+            const todos = [...prev, ...nuevos]
+            // Ordenar por ID numérico (asumiendo que IDs más altos = más recientes)
+            todos.sort((a, b) => {
+              const idA = parseInt(a.id) || 0
+              const idB = parseInt(b.id) || 0
+              return idA - idB
+            })
+            
+            return todos
           })
         } else {
+          // Ordenar mensajes por ID (más antiguos primero)
+          mensajesMapeados.sort((a, b) => {
+            const idA = parseInt(a.id) || 0
+            const idB = parseInt(b.id) || 0
+            return idA - idB
+          })
           setMessages(mensajesMapeados)
         }
 
+        // Actualizar última fecha solo si hay mensajes nuevos
         if (mensajesMapeados.length > 0) {
           const ultimoMensaje = mensajesData[mensajesData.length - 1]
           const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt
@@ -188,9 +226,12 @@ const Page = () => {
           }
         }
 
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-        }, 100)
+        // Scroll solo si hay cambios
+        if (mensajesMapeados.length > 0) {
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+          }, 100)
+        }
       } catch (err: any) {
         if (err.status !== 404 && err.status !== 502 && err.status !== 504) {
           console.error('Error al cargar mensajes:', err)
@@ -198,25 +239,31 @@ const Page = () => {
       }
     }
 
+    // Cargar mensajes iniciales
     cargarMensajes(false)
+    
+    // Configurar polling cada 3 segundos (más eficiente que 1 segundo)
     pollingIntervalRef.current = setInterval(() => {
       cargarMensajes(true)
-    }, 1000)
+    }, 3000)
 
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
       }
     }
-  }, [currentContact, lastMessageDate, currentUserId])
+  }, [currentContact, currentUserId]) // Removido lastMessageDate de dependencias para evitar loops
 
   // Enviar mensaje
   const handleSendMessage = async () => {
     if (!messageText.trim() || !currentContact || isSending || !currentUserId) return
 
     const texto = messageText.trim()
+    const textoOriginal = messageText // Guardar para restaurar en caso de error
     setMessageText('')
     setIsSending(true)
+    setError(null)
 
     const remitenteIdNum = parseInt(currentUserId, 10)
     const colaboradorIdNum = parseInt(currentContact.id, 10)
@@ -237,38 +284,15 @@ const Page = () => {
         throw new Error(errorData.error || 'Error al enviar mensaje')
       }
 
-      // Recargar mensajes después de enviar
+      // El mensaje se agregará automáticamente con el polling
+      // Solo hacer scroll después de un breve delay
       setTimeout(() => {
-        const query = new URLSearchParams({
-          colaborador_id: currentContact.id,
-          remitente_id: currentUserId,
-        })
-        fetch(`/api/chat/mensajes?${query.toString()}`)
-          .then((res) => res.json())
-          .then((data) => {
-            const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
-            const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-              const texto = mensaje.texto || ''
-              const remitenteId = mensaje.remitente_id || 1
-              const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
-              return {
-                id: String(mensaje.id),
-                senderId: String(remitenteId),
-                text: texto,
-                time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-              }
-            })
-            setMessages(mensajesMapeados)
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }, 100)
-          })
-          .catch(() => {})
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }, 500)
     } catch (err: any) {
       console.error('Error al enviar mensaje:', err)
       setError(err.message || 'Error al enviar mensaje')
-      setMessageText(texto)
+      setMessageText(textoOriginal) // Restaurar texto en caso de error
     } finally {
       setIsSending(false)
     }

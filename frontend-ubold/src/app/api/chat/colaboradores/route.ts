@@ -45,26 +45,10 @@ export async function GET(request: NextRequest) {
       '/api/colaboradores?pagination[pageSize]=1000&sort=email_login:asc&populate[persona][fields]=rut,nombres,primer_apellido,segundo_apellido,nombre_completo&populate[persona][populate][emails]=*&populate[persona][populate][telefonos]=*&populate[persona][populate][imagen][populate]=*&filters[activo][$eq]=true'
     )
     
-    // Log detallado para debugging
-    console.log('[API /chat/colaboradores] Respuesta de Strapi:', {
-      hasData: !!response.data,
-      isArray: Array.isArray(response.data),
-      count: Array.isArray(response.data) ? response.data.length : response.data ? 1 : 0,
-    })
-    
-    if (Array.isArray(response.data) && response.data.length > 0) {
-      const firstColaborador = response.data[0] as any
-      // Los datos pueden venir directamente o en attributes
-      const colaboradorData = firstColaborador.attributes || firstColaborador
-      console.log('[API /chat/colaboradores] Primer colaborador ejemplo:', {
-        id: firstColaborador.id,
-        email_login: colaboradorData.email_login,
-        persona: colaboradorData.persona ? {
-          id: colaboradorData.persona.id,
-          nombre_completo: colaboradorData.persona.nombre_completo,
-          nombres: colaboradorData.persona.nombres,
-          primer_apellido: colaboradorData.persona.primer_apellido,
-        } : null,
+    // Log solo en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API /chat/colaboradores] Colaboradores obtenidos:', {
+        count: Array.isArray(response.data) ? response.data.length : response.data ? 1 : 0,
       })
     }
     

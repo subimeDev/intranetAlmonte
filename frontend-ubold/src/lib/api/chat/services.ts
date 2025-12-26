@@ -122,42 +122,25 @@ export async function getChatMessages(
 ): Promise<ChatMensaje[]> {
   const { query1, query2 } = buildChatQueries(remitenteId, colaboradorId, ultimaFecha)
 
-  console.log('[Chat Service] Query URLs:', {
-    query1,
-    query2,
-    remitenteId,
-    colaboradorId,
-  })
+  // Logs solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Chat Service] Obteniendo mensajes:', { remitenteId, colaboradorId, ultimaFecha: !!ultimaFecha })
+  }
 
   const [response1, response2] = await Promise.all([
     ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1, 'query1'),
     ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2, 'query2'),
   ])
 
-  console.log('[Chat Service] Respuestas raw de Strapi:', {
-    response1HasData: !!response1?.data,
-    response1Length: Array.isArray(response1?.data) ? response1.data.length : (response1?.data ? 1 : 0),
-    response2HasData: !!response2?.data,
-    response2Length: Array.isArray(response2?.data) ? response2.data.length : (response2?.data ? 1 : 0),
-  })
-
   const data1 = extractChatMessages(response1)
   const data2 = extractChatMessages(response2)
 
-  console.log('[Chat Service] Datos extraídos:', {
-    data1Count: data1.length,
-    data2Count: data2.length,
-  })
-
   const allMessages = combineAndSortMessages(data1, data2)
 
-  console.log('[Chat Service] Resultados finales:', {
-    remitenteId,
-    colaboradorId,
-    totalCount: allMessages.length,
-    query1Count: data1.length,
-    query2Count: data2.length,
-  })
+  // Log solo si hay mensajes o en desarrollo
+  if (process.env.NODE_ENV === 'development' && allMessages.length > 0) {
+    console.log('[Chat Service] Mensajes obtenidos:', { total: allMessages.length, enviados: data1.length, recibidos: data2.length })
+  }
 
   return allMessages
 }
@@ -170,11 +153,14 @@ export async function sendChatMessage(
   remitenteId: number,
   colaboradorId: number
 ): Promise<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>> {
-  console.log('[Chat Service] Enviando mensaje:', {
-    texto: texto.substring(0, 50),
-    remitente_id: remitenteId,
-    cliente_id: colaboradorId,
-  })
+  // Log solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Chat Service] Enviando mensaje:', {
+      texto: texto.substring(0, 50),
+      remitente_id: remitenteId,
+      cliente_id: colaboradorId,
+    })
+  }
 
   const response = await strapiClient.post<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(
     '/api/intranet-chats',
@@ -189,14 +175,14 @@ export async function sendChatMessage(
     }
   )
 
-  const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
-  const savedMessageData = (savedMessage as any)?.attributes || savedMessage
-  
-  console.log('[Chat Service] Mensaje guardado:', {
-    id: (savedMessage as any)?.id || savedMessageData?.id,
-    remitente_id: savedMessageData?.remitente_id,
-    cliente_id: savedMessageData?.cliente_id,
-  })
+  // Log solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
+    const savedMessageData = (savedMessage as any)?.attributes || savedMessage
+    console.log('[Chat Service] Mensaje guardado:', {
+      id: (savedMessage as any)?.id || savedMessageData?.id,
+    })
+  }
 
   return response
 }
