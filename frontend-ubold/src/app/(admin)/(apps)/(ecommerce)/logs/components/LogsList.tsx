@@ -149,13 +149,26 @@ export default function LogsList() {
         const email = row.original.email
         const esAnonimo = row.original.nombre.includes('Usuario Anónimo')
         
-        // Si es usuario anónimo, mostrar IP
+        // Si es usuario anónimo, mostrar IP con estilo diferente
         if (esAnonimo) {
-          return <div className="text-muted">{usuario || '-'}</div>
+          return (
+            <div className="text-muted">
+              <small>{usuario || email || 'Sin identificar'}</small>
+            </div>
+          )
         }
         
-        // Mostrar email_login (usuario)
-        return <div>{usuario || email || '-'}</div>
+        // Mostrar email_login (usuario) - SIEMPRE mostrar el email, nunca dejar vacío
+        const emailAMostrar = usuario || email || 'Sin email'
+        return (
+          <div className="fw-medium">
+            {emailAMostrar.includes('@') ? (
+              <span>{emailAMostrar}</span>
+            ) : (
+              <span className="text-muted">{emailAMostrar}</span>
+            )}
+          </div>
+        )
       },
     }),
     {

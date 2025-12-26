@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Segunda pasada: procesar logs sin usuario, pero solo si la IP no está asociada a un usuario real
+    // Segunda pasada: procesar logs sin usuario, pero asociarlos con usuarios reales si es posible
     logs.forEach((log: any) => {
       const logData = log.attributes || log
       const usuario = logData.usuario
@@ -329,7 +329,8 @@ export async function GET(request: NextRequest) {
       const userAgent = logData.user_agent || 'desconocido'
       const fechaLog = logData.fecha || logData.createdAt
       
-      // Si esta IP ya está asociada a un email de usuario real, agregar el log a ese usuario
+      // CRÍTICO: Si esta IP ya está asociada a un email de usuario real, agregar el log a ese usuario
+      // Esto asegura que logs antiguos con usuario: null se asocien con usuarios reales
       if (ipToEmail.has(ipAddress)) {
         const emailUsuario = ipToEmail.get(ipAddress)!
         if (usuariosMap.has(emailUsuario)) {
@@ -338,12 +339,25 @@ export async function GET(request: NextRequest) {
           if (fechaLog && (!usuarioExistente.ultimoAcceso || new Date(fechaLog) > new Date(usuarioExistente.ultimoAcceso))) {
             usuarioExistente.ultimoAcceso = fechaLog
           }
+          if (index < 3) {
+            addDebugLog(`[API /logs/usuarios] ✅ Log anónimo (IP: ${ipAddress}) asociado a usuario real: ${emailUsuario}`)
+          }
+          return // No crear usuario anónimo, ya está asociado a un usuario real
         }
-        return // No crear usuario anónimo, ya está asociado a un usuario real
       }
       
-      // Solo crear usuario anónimo si la IP no está asociada a ningún email de usuario real
-      // Usar IP como clave para agrupar usuarios anónimos por IP
+      // Si no hay usuario real asociado a esta IP, crear usuario anónimo SOLO si realmente no hay ningún usuario real
+      // Verificar si hay algún usuario real con esta IP en el mapa
+      const hayUsuarioRealConEstaIP = Array.from(ipToEmail.entries()).some(([ip, email]) => 
+        ip === ipAddress && usuariosMap.has(email)
+      )
+      
+      if (hayUsuarioRealConEstaIP) {
+        // Ya hay un usuario real con esta IP, no crear anónimo
+        return
+      }
+      
+      // Solo crear usuario anónimo si realmente no hay usuario real con esa IP
       const ipKey = `anonimo_${ipAddress}`
       
       // Si el usuario anónimo ya existe, actualizar último acceso
@@ -354,7 +368,7 @@ export async function GET(request: NextRequest) {
           usuarioExistente.ultimoAcceso = fechaLog
         }
       } else {
-        // Crear nuevo usuario anónimo solo si no hay usuario real con esa IP
+        // Crear nuevo usuario anónimo solo si realmente no hay usuario real con esa IP
         const ipHash = ipAddress.split('').reduce((acc: number, char: string) => {
           return ((acc << 5) - acc) + char.charCodeAt(0)
         }, 0)
@@ -363,8 +377,8 @@ export async function GET(request: NextRequest) {
         usuariosMap.set(ipKey, {
           id: usuarioId,
           nombre: `Usuario Anónimo (${ipAddress === 'desconocido' ? 'Sin IP' : ipAddress})`,
-          usuario: ipAddress,
-          email: ipAddress, // Mostrar IP como email para usuarios anónimos
+          usuario: `IP: ${ipAddress}`, // Mostrar "IP: ..." para que sea claro que es anónimo
+          email: `IP: ${ipAddress}`, // Mostrar IP como email para usuarios anónimos
           ultimoAcceso: fechaLog || null,
           totalAcciones: 1,
         })
