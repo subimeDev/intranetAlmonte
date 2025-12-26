@@ -63,6 +63,7 @@ const Page = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<Channel | null>(null)
   const allChannelsRef = useRef<Map<string, Channel>>(new Map())
+  const currentContactRef = useRef<ContactType | null>(null)
 
   // Cargar contactos
   useEffect(() => {
@@ -152,25 +153,31 @@ const Page = () => {
                     contactId: contact.id,
                   })
 
-                  // Si estamos viendo esta conversación, actualizar mensajes
-                  // El useEffect del currentContact manejará la actualización
-                  // Por ahora, solo recargar mensajes si estamos viendo esta conversación
+                  // Solo actualizar mensajes si estamos viendo esta conversación específica
+                  // Usar currentContactRef para acceder al currentContact actual
                   setMessages((prev) => {
-                    // Verificar si el mensaje es para la conversación actual
+                    const currentContactActual = currentContactRef.current
+                    if (!currentContactActual) {
+                      // Si no hay conversación activa, no actualizar
+                      return prev
+                    }
+
                     const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
                     const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
                     const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
-                    const currentContactIdNum = parseInt(String(contact.id || ''), 10)
+                    const currentContactIdNum = parseInt(String(currentContactActual.id || ''), 10)
                     
+                    // Verificar si el mensaje es para la conversación actual
                     const esRemitente = mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum
                     const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
                     const esParaEstaConversacion = esRemitente || esCliente
 
                     if (!esParaEstaConversacion) {
+                      // El mensaje no es para la conversación actual, no actualizar
                       return prev
                     }
 
-                    // Verificar si el mensaje ya existe
+                    // Verificar si el mensaje ya existe (evitar duplicados)
                     const nuevoMensaje: MessageType = {
                       id: String(data.id),
                       senderId: String(data.remitente_id),
@@ -179,6 +186,7 @@ const Page = () => {
                     }
 
                     if (prev.some((m) => m.id === nuevoMensaje.id)) {
+                      console.error('[Chat] ⚠️ Mensaje duplicado ignorado en canal global:', nuevoMensaje.id)
                       return prev
                     }
 
@@ -188,7 +196,7 @@ const Page = () => {
                       const idB = parseInt(b.id) || 0
                       return idA - idB
                     })
-                    console.error('[Chat] ✅ Mensaje agregado desde canal global. Total:', nuevos.length)
+                    console.error('[Chat] ✅ Mensaje agregado desde canal global. Total:', nuevos.length, 'ID:', nuevoMensaje.id)
                     return nuevos
                   })
                 })
@@ -208,6 +216,11 @@ const Page = () => {
       cargarContactos()
     }
   }, [currentUserId])
+
+  // Actualizar referencia a currentContact
+  useEffect(() => {
+    currentContactRef.current = currentContact
+  }, [currentContact])
 
   // Cargar mensajes y configurar Pusher
   useEffect(() => {
