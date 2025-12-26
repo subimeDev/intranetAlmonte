@@ -568,13 +568,13 @@ export async function logActivity(
         console.error('[LOGGING] ❌ Error completo:', JSON.stringify(error, null, 2).substring(0, 1000))
         console.error('[LOGGING] ❌ LogData enviado:', {
           accion: logData.accion,
-            entidad: logData.entidad,
-            usuario: logData.usuario || null,
-            tipoUsuario: typeof logData.usuario,
-            descripcion: logData.descripcion?.substring(0, 50),
-          },
+          entidad: logData.entidad,
+          usuario: logData.usuario || null,
+          tipoUsuario: typeof logData.usuario,
+          descripcion: logData.descripcion?.substring(0, 50),
           tieneUsuario: !!logData.usuario,
         })
+        console.error('[LOGGING] ❌ ==========================================')
       })
   } catch (error) {
     // No lanzar errores para no afectar el flujo principal
