@@ -108,9 +108,12 @@ export async function POST(request: Request) {
         // Extraer datos del colaborador con persona
         // Manejar diferentes estructuras de respuesta de Strapi
         let personaData = null
+        let colaboradorDocumentId: string | number | null = null
         
         if (colaboradorConPersona.data) {
           const colaboradorData = colaboradorConPersona.data
+          // CRÍTICO: Extraer documentId de la respuesta de Strapi
+          colaboradorDocumentId = colaboradorData.documentId || colaboradorData.id || colaboradorId
           const colaboradorAttrs = colaboradorData.attributes || colaboradorData
           personaData = colaboradorAttrs.persona
           
@@ -121,6 +124,8 @@ export async function POST(request: Request) {
             personaData = personaData.attributes
           }
         } else if (colaboradorConPersona.attributes) {
+          // Si no tiene .data, el documentId puede estar en el nivel superior
+          colaboradorDocumentId = colaboradorConPersona.documentId || colaboradorConPersona.id || colaboradorId
           personaData = colaboradorConPersona.attributes.persona
           
           // Si persona viene como objeto con data
@@ -129,14 +134,24 @@ export async function POST(request: Request) {
           } else if (personaData?.attributes) {
             personaData = personaData.attributes
           }
+        } else {
+          // Si no tiene estructura conocida, intentar extraer directamente
+          colaboradorDocumentId = colaboradorConPersona.documentId || colaboradorConPersona.id || colaboradorId
         }
         
-        // Actualizar colaboradorCompleto con persona y asegurar que tenga ID
+        console.log('[API /auth/login] 🔑 documentId extraído del colaborador:', {
+          documentId: colaboradorDocumentId,
+          id: colaboradorId,
+          tieneDocumentId: !!colaboradorDocumentId,
+          tipoDocumentId: typeof colaboradorDocumentId,
+        })
+        
+        // Actualizar colaboradorCompleto con persona y asegurar que tenga ID y documentId
         if (personaData) {
           colaboradorCompleto = {
             ...colaboradorCompleto,
             id: colaboradorCompleto.id || colaboradorId,
-            documentId: colaboradorCompleto.documentId || colaboradorId,
+            documentId: colaboradorDocumentId || colaboradorCompleto.documentId || colaboradorId,
             persona: personaData,
           }
           console.log('[API /auth/login] ✅ Persona obtenida para colaborador:', {
@@ -146,21 +161,23 @@ export async function POST(request: Request) {
             nombres: personaData.nombres,
           })
         } else {
-          // Asegurar que tenga ID aunque no tenga persona
+          // Asegurar que tenga ID y documentId aunque no tenga persona
           colaboradorCompleto = {
             ...colaboradorCompleto,
             id: colaboradorCompleto.id || colaboradorId,
-            documentId: colaboradorCompleto.documentId || colaboradorId,
+            documentId: colaboradorDocumentId || colaboradorCompleto.documentId || colaboradorId,
           }
           console.warn('[API /auth/login] ⚠️ Colaborador no tiene persona asociada:', colaboradorId)
         }
       } catch (error: any) {
         console.warn('[API /auth/login] ⚠️ No se pudo obtener persona del colaborador:', error.message)
-        // Asegurar que tenga ID aunque falle la obtención de persona
+        // Asegurar que tenga ID y documentId aunque falle la obtención de persona
+        // Intentar extraer documentId de colaboradorCompleto si ya lo tiene
+        const documentIdFallback = colaboradorCompleto.documentId || colaboradorId
         colaboradorCompleto = {
           ...colaboradorCompleto,
           id: colaboradorCompleto.id || colaboradorId,
-          documentId: colaboradorCompleto.documentId || colaboradorId,
+          documentId: documentIdFallback,
         }
       }
     } else {
