@@ -154,11 +154,29 @@ const Page = () => {
           colaborador_id: currentContact.id,
           remitente_id: currentUserId,
         })
+        console.log('[Chat] 🔄 Cargando mensajes:', {
+          colaborador_id: currentContact.id,
+          remitente_id: currentUserId,
+        })
+        
         const response = await fetch(`/api/chat/mensajes?${query.toString()}`)
-        if (!response.ok) return
+        if (!response.ok) {
+          console.error('[Chat] ❌ Error al cargar mensajes:', response.status, response.statusText)
+          return
+        }
 
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
+        
+        console.log('[Chat] 📨 Mensajes recibidos del API:', {
+          total: mensajesData.length,
+          primeros: mensajesData.slice(0, 3).map((m: any) => ({
+            id: m.id || m.attributes?.id,
+            remitente_id: m.remitente_id || m.attributes?.remitente_id,
+            cliente_id: m.cliente_id || m.attributes?.cliente_id,
+            texto: (m.texto || m.attributes?.texto || '').substring(0, 30),
+          }))
+        })
 
         const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
           const mensajeAttrs = mensaje.attributes || mensaje
@@ -179,12 +197,13 @@ const Page = () => {
           return idA - idB
         })
 
+        console.log('[Chat] ✅ Mensajes mapeados y ordenados:', mensajesMapeados.length)
         setMessages(mensajesMapeados)
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
         }, 100)
       } catch (err) {
-        console.error('Error al cargar mensajes:', err)
+        console.error('[Chat] ❌ Error al cargar mensajes:', err)
       }
     }
 
@@ -209,6 +228,37 @@ const Page = () => {
 
     // Escuchar nuevos mensajes
     channel.bind('new-message', (data: any) => {
+      console.log('[Chat] 📨 Mensaje recibido vía Pusher:', {
+        id: data.id,
+        remitente_id: data.remitente_id,
+        cliente_id: data.cliente_id,
+        texto: data.texto?.substring(0, 30),
+        currentUserId,
+        currentContactId: currentContact.id,
+      })
+
+      // Validar que el mensaje sea para esta conversación
+      const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
+      const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
+      const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
+      const currentContactIdNum = parseInt(String(currentContact.id || ''), 10)
+
+      const esParaEstaConversacion = 
+        (mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum) ||
+        (mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum)
+
+      if (!esParaEstaConversacion) {
+        console.log('[Chat] ⚠️ Mensaje ignorado - no es para esta conversación:', {
+          mensajeRemitenteId,
+          mensajeClienteId,
+          currentUserIdNum,
+          currentContactIdNum,
+        })
+        return
+      }
+
+      console.log('[Chat] ✅ Mensaje válido, agregando a la conversación')
+
       const nuevoMensaje: MessageType = {
         id: String(data.id),
         senderId: String(data.remitente_id),
@@ -219,6 +269,7 @@ const Page = () => {
       setMessages((prev) => {
         // Evitar duplicados
         if (prev.some((m) => m.id === nuevoMensaje.id)) {
+          console.log('[Chat] ⚠️ Mensaje duplicado ignorado:', nuevoMensaje.id)
           return prev
         }
         const nuevos = [...prev, nuevoMensaje]
@@ -227,6 +278,7 @@ const Page = () => {
           const idB = parseInt(b.id) || 0
           return idA - idB
         })
+        console.log('[Chat] ✅ Mensaje agregado. Total:', nuevos.length)
         return nuevos
       })
 
@@ -276,6 +328,12 @@ const Page = () => {
     }, 100)
 
     try {
+      console.log('[Chat] 📤 Enviando mensaje:', {
+        texto: texto.substring(0, 50),
+        remitente_id: remitenteIdNum,
+        colaborador_id: colaboradorIdNum,
+      })
+
       const response = await fetch('/api/chat/mensajes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -288,13 +346,20 @@ const Page = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error('[Chat] ❌ Error al enviar mensaje:', response.status, errorData)
         throw new Error(errorData.error || 'Error al enviar mensaje')
       }
 
+      const responseData = await response.json()
+      console.log('[Chat] ✅ Mensaje enviado exitosamente:', responseData)
+
       // Remover mensaje temporal cuando llegue el real vía Pusher
-      setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
+      // Esperar un poco antes de remover para que Pusher tenga tiempo de emitir
+      setTimeout(() => {
+        setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')))
+      }, 500)
     } catch (err: any) {
-      console.error('Error al enviar mensaje:', err)
+      console.error('[Chat] ❌ Error al enviar mensaje:', err)
       setError(err.message || 'Error al enviar mensaje')
       setMessageText(texto)
       setMessages((prev) => prev.filter((m) => m.id !== mensajeTemporal.id))
