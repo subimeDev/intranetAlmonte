@@ -264,9 +264,23 @@ const Page = () => {
         esCliente: mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum,
       })
 
-      const esParaEstaConversacion = 
-        (mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum) ||
-        (mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum)
+      // Validar que el mensaje sea para esta conversación
+      // El mensaje puede venir en dos direcciones:
+      // 1. Usuario actual envía a contacto: remitente_id = currentUserId, cliente_id = currentContactId
+      // 2. Contacto envía a usuario actual: remitente_id = currentContactId, cliente_id = currentUserId
+      const esRemitente = mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum
+      const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
+      const esParaEstaConversacion = esRemitente || esCliente
+
+      console.error('[Chat] 🔍 Validación detallada:', {
+        mensajeRemitenteId,
+        mensajeClienteId,
+        currentUserIdNum,
+        currentContactIdNum,
+        esRemitente,
+        esCliente,
+        esParaEstaConversacion,
+      })
 
       if (!esParaEstaConversacion) {
         console.error('[Chat] ⚠️ Mensaje ignorado - no es para esta conversación:', {
