@@ -49,6 +49,7 @@ class LogStorage {
 export const logStorage = new LogStorage()
 
 // Interceptar console.log, console.error, console.warn para capturar logs de [LOGGING]
+// CRÍTICO: Esto debe ejecutarse cuando el módulo se carga, no condicionalmente
 if (typeof window === 'undefined') {
   // Solo en el servidor
   const originalLog = console.log
@@ -60,7 +61,7 @@ if (typeof window === 'undefined') {
     const message = args.map(arg => 
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ')
-    if (message.includes('[LOGGING]')) {
+    if (message.includes('[LOGGING]') || message.includes('[Strapi Client POST]')) {
       logStorage.addLog('log', message, args.length > 1 ? args.slice(1) : undefined)
     }
   }
@@ -70,7 +71,7 @@ if (typeof window === 'undefined') {
     const message = args.map(arg => 
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ')
-    if (message.includes('[LOGGING]')) {
+    if (message.includes('[LOGGING]') || message.includes('[Strapi Client POST]')) {
       logStorage.addLog('error', message, args.length > 1 ? args.slice(1) : undefined)
     }
   }
@@ -80,9 +81,12 @@ if (typeof window === 'undefined') {
     const message = args.map(arg => 
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ')
-    if (message.includes('[LOGGING]')) {
+    if (message.includes('[LOGGING]') || message.includes('[Strapi Client POST]')) {
       logStorage.addLog('warn', message, args.length > 1 ? args.slice(1) : undefined)
     }
   }
+  
+  // Log de confirmación
+  originalLog('[LogStorage] ✅ Interceptores de console configurados para capturar logs de [LOGGING] y [Strapi Client POST]')
 }
 

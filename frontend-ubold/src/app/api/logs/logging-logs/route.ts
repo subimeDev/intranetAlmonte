@@ -13,10 +13,17 @@ export async function GET(request: NextRequest) {
   const logs: string[] = []
   
   // PRIMERO: Obtener logs reales del almacenamiento
-  const realLogs = logStorage.getLogsByPrefix('[LOGGING]')
+  // Buscar tanto [LOGGING] como [Strapi Client POST] para ver el flujo completo
+  const realLogs = [
+    ...logStorage.getLogsByPrefix('[LOGGING]'),
+    ...logStorage.getLogsByPrefix('[Strapi Client POST]'),
+  ]
   
   // Si hay logs reales, usarlos
   if (realLogs.length > 0) {
+    // Ordenar por timestamp
+    realLogs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    
     const formattedLogs = realLogs.map(log => {
       const timestamp = new Date(log.timestamp).toLocaleTimeString('es-CL')
       return `[${timestamp}] ${log.message}${log.data ? ' ' + JSON.stringify(log.data, null, 2) : ''}`
@@ -27,7 +34,7 @@ export async function GET(request: NextRequest) {
       logs: formattedLogs,
       source: 'real',
       count: realLogs.length,
-      message: 'Logs reales capturados del sistema de logging',
+      message: `Logs reales capturados del sistema de logging (${realLogs.length} logs)`,
     })
   }
   

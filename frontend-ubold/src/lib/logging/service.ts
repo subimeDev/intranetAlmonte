@@ -5,7 +5,8 @@
 
 import strapiClient from '@/lib/strapi/client'
 import { NextRequest } from 'next/server'
-import { logStorage } from './logStorage'
+// Importar logStorage para asegurar que los interceptores se inicialicen
+import './logStorage'
 
 /**
  * Type guard para verificar si el request es NextRequest (tiene cookies)
