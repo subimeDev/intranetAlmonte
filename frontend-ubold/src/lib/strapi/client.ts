@@ -240,15 +240,48 @@ const strapiClient = {
     const timeoutId = setTimeout(() => controller.abort(), 60000)
     
     try {
+      const bodyString = data ? JSON.stringify(data) : undefined
+      
+      // Log detallado para activity-logs (solo para debugging)
+      if (path.includes('activity-logs') && bodyString) {
+        const bodyObj = JSON.parse(bodyString)
+        console.log('[Strapi Client POST] 📤 Enviando a activity-logs:', {
+          url,
+          tieneData: !!bodyObj.data,
+          usuarioEnBody: bodyObj.data?.usuario || 'NO HAY USUARIO',
+          tipoUsuario: typeof bodyObj.data?.usuario,
+          bodyPreview: JSON.stringify(bodyObj, null, 2).substring(0, 500),
+        })
+      }
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: getHeaders(options?.headers),
-        body: data ? JSON.stringify(data) : undefined,
+        body: bodyString,
         signal: controller.signal,
         ...options,
       })
       
       clearTimeout(timeoutId)
+      
+      // Log respuesta para activity-logs
+      if (path.includes('activity-logs')) {
+        const responseClone = response.clone()
+        responseClone.text().then(text => {
+          try {
+            const responseData = JSON.parse(text)
+            console.log('[Strapi Client POST] 📥 Respuesta de activity-logs:', {
+              status: response.status,
+              tieneData: !!responseData.data,
+              usuarioEnRespuesta: responseData.data?.attributes?.usuario || responseData.data?.usuario || 'NO HAY USUARIO',
+              responsePreview: text.substring(0, 500),
+            })
+          } catch (e) {
+            console.log('[Strapi Client POST] 📥 Respuesta de activity-logs (texto):', text.substring(0, 500))
+          }
+        }).catch(() => {})
+      }
+      
       return handleResponse<T>(response)
     } catch (error: any) {
       clearTimeout(timeoutId)
