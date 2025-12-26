@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     let error2 = null
     
     try {
-      const libros = await strapiClient.get<any>('/api/libros?populate[precios]=*&pagination[pageSize]=1')
+      const libros = await strapiClient.get<any>('/api/libros?populate=*&pagination[pageSize]=1')
       let libro: any = null
       
       if (Array.isArray(libros)) {

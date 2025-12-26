@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
     
     console.log('[API Precios GET] Obteniendo precios para libro:', libroId)
     
-    // Obtener libro con precios
+    // Obtener libro (sin populate de precios ya que ese campo no existe en Strapi)
     const response = await strapiClient.get<any>(
-      `/api/libros?filters[id][$eq]=${libroId}&populate[precios]=*`
+      `/api/libros?filters[id][$eq]=${libroId}&populate=*`
     )
     
     let libro: any
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     try {
       // Obtener precios actuales del libro usando el ID numérico
       const libroConPrecios = await strapiClient.get<any>(
-        `/api/libros/${libro.id}?populate[precios]=*`
+        `/api/libros/${libro.id}?populate=*`
       )
       
       let libroActual: any

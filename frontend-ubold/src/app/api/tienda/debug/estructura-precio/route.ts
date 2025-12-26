@@ -9,10 +9,9 @@ export async function GET(request: NextRequest) {
     
     // Intentar obtener un libro con sus precios populados
     const populateOptions = [
-      'populate[precios]=*',
+      'populate=*',
       'populate[PRECIOS]=*',
-      'populate[precios][populate]=*',
-      'populate=*'
+      'populate[precios][populate]=*'
     ]
     
     let libro: any = null
@@ -93,7 +92,7 @@ export async function GET(request: NextRequest) {
     try {
       console.log('[Debug Precio] Buscando libros con precios...')
       const todosLosLibros = await strapiClient.get<any>(
-        '/api/libros?populate[precios]=*&pagination[pageSize]=50'
+        '/api/libros?populate=*&pagination[pageSize]=50'
       )
       
       let libros: any[] = []
