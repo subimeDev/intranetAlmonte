@@ -166,25 +166,24 @@ const Page = () => {
 
         // IMPORTANTE: Solo aplicar filtro de fecha si es polling Y tenemos una fecha válida
         // Si no hay lastMessageDate, cargar todos los mensajes (solo en polling, no en carga inicial)
-        if (soloNuevos) {
-          if (lastMessageDate) {
-            // Aumentar margen a 10 segundos para asegurar que se capturen mensajes nuevos
-            // Esto es crítico para que los mensajes aparezcan entre cuentas diferentes
-            const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 10000).toISOString()
-            query.append('ultima_fecha', fechaConMargen)
-            console.log('[Chat] ⏰ Filtro de fecha aplicado en polling:', { lastMessageDate, fechaConMargen })
-          } else {
-            // Si no hay lastMessageDate en polling, NO aplicar filtro - cargar todos los mensajes nuevos
-            console.log('[Chat] ⚠️ Polling sin lastMessageDate - sin filtro de fecha para capturar todos los mensajes')
-          }
+        // Aplicar filtro de fecha SOLO si es polling Y tenemos una fecha válida
+        // Si no hay lastMessageDate, cargar TODOS los mensajes (sin filtro)
+        if (soloNuevos && lastMessageDate) {
+          // Margen de 30 segundos para asegurar que no se pierdan mensajes por diferencias de tiempo
+          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 30000).toISOString()
+          query.append('ultima_fecha', fechaConMargen)
         }
 
-        const response = await fetch(`/api/chat/mensajes?${query.toString()}`)
+        const url = `/api/chat/mensajes?${query.toString()}`
+        const response = await fetch(url)
+        
         if (!response.ok) {
           if (response.status === 404 || response.status === 502 || response.status === 504) {
             return
           }
-          throw new Error('Error al cargar mensajes')
+          const errorText = await response.text().catch(() => '')
+          console.error('[Chat] ❌ Error al cargar mensajes:', { status: response.status, url, error: errorText.substring(0, 200) })
+          return
         }
 
         const data = await response.json()
@@ -271,8 +270,8 @@ const Page = () => {
           setMessages(sinTemporales)
         }
 
-        // Actualizar última fecha siempre (incluso si no hay mensajes nuevos)
-        // Esto asegura que el polling funcione correctamente
+        // Actualizar última fecha SIEMPRE si hay mensajes
+        // Esto es crítico para que el polling funcione correctamente
         if (mensajesMapeados.length > 0) {
           // Encontrar el mensaje más reciente por fecha
           const mensajeMasReciente = mensajesConFecha.reduce((masReciente, actual) => {
@@ -284,12 +283,11 @@ const Page = () => {
           const ultimaFecha = mensajeMasReciente.fechaOriginal
           if (ultimaFecha) {
             setLastMessageDate(ultimaFecha)
-            console.log('[Chat] ✅ Actualizada lastMessageDate:', { ultimaFecha, totalMensajes: mensajesMapeados.length })
           }
         } else if (!soloNuevos) {
-          // En carga inicial, si no hay mensajes, NO inicializar lastMessageDate
-          // Esto permitirá que el polling capture todos los mensajes nuevos desde ahora
-          console.log('[Chat] ℹ️ Carga inicial sin mensajes - no se inicializa lastMessageDate para capturar todos los nuevos')
+          // Si es carga inicial y no hay mensajes, establecer fecha actual para que el polling capture mensajes nuevos
+          // Esto asegura que cuando llegue el primer mensaje, se capture correctamente
+          setLastMessageDate(new Date().toISOString())
         }
 
         // Scroll solo si hay cambios
@@ -305,11 +303,11 @@ const Page = () => {
       }
     }
 
-    // Cargar mensajes iniciales sin filtro de fecha
+    // Cargar mensajes iniciales SIN filtro de fecha (cargar todos)
     cargarMensajes(false)
     
-    // Configurar polling cada 2 segundos para mejor sincronización entre cuentas
-    // Esto es crítico para que los mensajes aparezcan rápidamente en ambas cuentas
+    // Configurar polling cada 2 segundos
+    // IMPORTANTE: El polling solo filtra por fecha si hay mensajes previos y lastMessageDate
     pollingIntervalRef.current = setInterval(() => {
       cargarMensajes(true)
     }, 2000)
