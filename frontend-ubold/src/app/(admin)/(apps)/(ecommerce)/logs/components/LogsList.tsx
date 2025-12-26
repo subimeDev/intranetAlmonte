@@ -31,6 +31,8 @@ export default function LogsList() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [debugLogs, setDebugLogs] = useState<string[]>([])
   const [showDebugPanel, setShowDebugPanel] = useState(false)
+  const [loggingLogs, setLoggingLogs] = useState<string[]>([])
+  const [showLoggingPanel, setShowLoggingPanel] = useState(false)
   const router = useRouter()
 
   // Interceptar console.log para capturar logs de depuración (solo cuando el panel está visible)
