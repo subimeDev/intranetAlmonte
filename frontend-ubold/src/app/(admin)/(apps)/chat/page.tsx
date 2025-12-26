@@ -157,7 +157,8 @@ const Page = () => {
         })
 
         if (soloNuevos && lastMessageDate) {
-          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 1000).toISOString()
+          // Aumentar margen a 5 segundos para asegurar que se capturen mensajes nuevos
+          const fechaConMargen = new Date(new Date(lastMessageDate).getTime() - 5000).toISOString()
           query.append('ultima_fecha', fechaConMargen)
         }
 
