@@ -35,16 +35,22 @@ const getHeaders = (customHeaders?: HeadersInit): HeadersInit => {
   // Agregar token de autenticación si está disponible (solo en servidor)
   if (STRAPI_API_TOKEN) {
     headers['Authorization'] = `Bearer ${STRAPI_API_TOKEN}`
-    // Log solo en desarrollo o si hay problema
-    if (process.env.NODE_ENV !== 'production' || !STRAPI_API_TOKEN) {
-      console.log('[Strapi Client] Token configurado:', {
+    // Log en desarrollo para verificar
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Strapi Client] ✅ Token configurado:', {
         tieneToken: !!STRAPI_API_TOKEN,
         tokenLength: STRAPI_API_TOKEN?.length,
-        tokenPreview: STRAPI_API_TOKEN ? `${STRAPI_API_TOKEN.substring(0, 10)}...` : 'NO CONFIGURADO'
+        tokenPreview: STRAPI_API_TOKEN ? `${STRAPI_API_TOKEN.substring(0, 20)}...` : 'NO CONFIGURADO'
       })
     }
   } else {
-    console.warn('[Strapi Client] ⚠️ STRAPI_API_TOKEN no está disponible en getHeaders()')
+    console.error('[Strapi Client] ❌ STRAPI_API_TOKEN no está disponible en getHeaders()')
+    console.error('[Strapi Client] 🔍 Debug token:', {
+      tieneToken: !!STRAPI_API_TOKEN,
+      tokenValue: STRAPI_API_TOKEN || 'undefined',
+      nodeEnv: process.env.NODE_ENV,
+      envVars: Object.keys(process.env).filter(k => k.includes('STRAPI') || k.includes('TOKEN')).join(', '),
+    })
   }
   
   return headers
@@ -52,11 +58,18 @@ const getHeaders = (customHeaders?: HeadersInit): HeadersInit => {
 
 // Manejar errores de respuesta
 async function handleResponse<T>(response: Response): Promise<T> {
-  console.log('[Strapi Client] Response status:', response.status)
+  // No loguear status para 404 (son esperados cuando probamos múltiples endpoints)
+  if (response.status !== 404) {
+    console.log('[Strapi Client] Response status:', response.status)
+  }
   
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('[Strapi Client] ❌ Error response:', errorText)
+    
+    // No loguear 404 como errores críticos (son esperados)
+    if (response.status !== 404) {
+      console.error('[Strapi Client] ❌ Error response:', errorText)
+    }
     
     let errorData
     try {
@@ -149,8 +162,8 @@ const strapiClient = {
       
       clearTimeout(timeoutId)
       
-      // Log respuesta antes de manejar errores
-      if (!response.ok) {
+      // Log respuesta antes de manejar errores (solo si no es 404, que es esperado para algunos endpoints)
+      if (!response.ok && response.status !== 404) {
         console.error('[Strapi Client GET] ❌ Error en respuesta:', {
           url,
           status: response.status,
@@ -209,15 +222,48 @@ const strapiClient = {
     const timeoutId = setTimeout(() => controller.abort(), 60000)
     
     try {
+      const bodyString = data ? JSON.stringify(data) : undefined
+      
+      // Log detallado para activity-logs (solo para debugging)
+      if (path.includes('activity-logs') && bodyString) {
+        const bodyObj = JSON.parse(bodyString)
+        console.log('[Strapi Client POST] 📤 Enviando a activity-logs:', {
+          url,
+          tieneData: !!bodyObj.data,
+          usuarioEnBody: bodyObj.data?.usuario || 'NO HAY USUARIO',
+          tipoUsuario: typeof bodyObj.data?.usuario,
+          bodyPreview: JSON.stringify(bodyObj, null, 2).substring(0, 500),
+        })
+      }
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: getHeaders(options?.headers),
-        body: data ? JSON.stringify(data) : undefined,
+        body: bodyString,
         signal: controller.signal,
         ...options,
       })
       
       clearTimeout(timeoutId)
+      
+      // Log respuesta para activity-logs
+      if (path.includes('activity-logs')) {
+        const responseClone = response.clone()
+        responseClone.text().then(text => {
+          try {
+            const responseData = JSON.parse(text)
+            console.log('[Strapi Client POST] 📥 Respuesta de activity-logs:', {
+              status: response.status,
+              tieneData: !!responseData.data,
+              usuarioEnRespuesta: responseData.data?.attributes?.usuario || responseData.data?.usuario || 'NO HAY USUARIO',
+              responsePreview: text.substring(0, 500),
+            })
+          } catch (e) {
+            console.log('[Strapi Client POST] 📥 Respuesta de activity-logs (texto):', text.substring(0, 500))
+          }
+        }).catch(() => {})
+      }
+      
       return handleResponse<T>(response)
     } catch (error: any) {
       clearTimeout(timeoutId)
