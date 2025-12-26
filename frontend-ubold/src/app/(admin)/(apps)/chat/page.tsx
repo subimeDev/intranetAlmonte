@@ -43,12 +43,42 @@ import type { Channel } from 'pusher-js'
 
 const Page = () => {
   const { colaborador, persona } = useAuth()
-  // Usar id o documentId según lo que esté disponible (Strapi puede usar cualquiera)
-  // CRÍTICO: Normalizar el ID a número para asegurar consistencia con Strapi
+  // CRÍTICO: intranet-chat usa remitente_id y cliente_id como INTEGER
+  // Siempre usar el ID numérico del colaborador, NO documentId
+  // El id numérico es el que se guarda en la base de datos
   const currentUserIdRaw = colaborador 
-    ? (colaborador.id || colaborador.documentId || colaborador.attributes?.id || null)
+    ? (colaborador.id || colaborador.attributes?.id || null)
     : null
-  const currentUserId = currentUserIdRaw ? String(currentUserIdRaw) : null
+  // Si no hay id numérico, intentar obtenerlo desde la API
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    currentUserIdRaw ? String(currentUserIdRaw) : null
+  )
+  
+  // Si no tenemos ID numérico, obtenerlo desde la API
+  useEffect(() => {
+    if (!currentUserId && colaborador) {
+      const obtenerIdNumerico = async () => {
+        try {
+          // Intentar obtener el colaborador completo desde la API para tener el id numérico
+          const colaboradorId = colaborador.id || colaborador.documentId
+          if (colaboradorId) {
+            const response = await fetch(`/api/colaboradores/${colaboradorId}`)
+            if (response.ok) {
+              const data = await response.json()
+              const colaboradorCompleto = data.colaborador || data.data
+              if (colaboradorCompleto?.id) {
+                setCurrentUserId(String(colaboradorCompleto.id))
+                console.error('[Chat] ✅ ID numérico obtenido desde API:', colaboradorCompleto.id)
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[Chat] ⚠️ Error al obtener ID numérico:', error)
+        }
+      }
+      obtenerIdNumerico()
+    }
+  }, [currentUserId, colaborador])
   
   // Log para debugging (solo en desarrollo o cuando hay problemas)
   useEffect(() => {
@@ -117,12 +147,16 @@ const Page = () => {
         const contactosMapeados: ContactType[] = colaboradoresArray
           .filter((colaborador: any) => {
             const colaboradorData = colaborador.attributes || colaborador
-            // Filtrar usuario actual y solo mostrar activos con persona
+            // CRÍTICO: Solo usar colaboradores con id numérico (no documentId)
+            // intranet-chat requiere IDs numéricos para remitente_id y cliente_id
+            const colaboradorIdNum = colaborador.id || colaboradorData?.id
+            // Filtrar usuario actual y solo mostrar activos con persona y con ID numérico
             return (
-              colaborador?.id && 
+              colaboradorIdNum && 
+              typeof colaboradorIdNum === 'number' &&
               colaboradorData.activo && 
               colaboradorData.persona &&
-              String(colaborador.id) !== currentUserId // Excluir al usuario actual
+              String(colaboradorIdNum) !== currentUserId // Excluir al usuario actual
             )
           })
           .map((colaborador: any) => {
@@ -130,9 +164,11 @@ const Page = () => {
             const persona = colaboradorData.persona
             const nombre = obtenerNombrePersona(persona)
             const avatar = obtenerAvatar(persona)
+            // CRÍTICO: Usar solo el id numérico, nunca documentId
+            const colaboradorIdNum = colaborador.id || colaboradorData?.id
 
             return {
-              id: String(colaborador.id),
+              id: String(colaboradorIdNum), // Siempre id numérico
               name: nombre.trim(),
               isOnline: false,
               avatar: avatar ? { src: avatar } : undefined,
