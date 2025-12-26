@@ -382,14 +382,25 @@ const Page = () => {
           // Remover mensajes temporales y actualizar con los reales
           setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
           
-          // Actualizar última fecha para el polling
-          if (mensajesMapeados.length > 0) {
-            const ultimoMensaje = mensajesData[mensajesData.length - 1]
-            const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt || ultimoMensaje?.attributes?.fecha
-            if (ultimaFecha) {
-              setLastMessageDate(ultimaFecha)
+            // Actualizar última fecha para el polling (usar el mensaje más reciente por fecha)
+            if (mensajesMapeados.length > 0) {
+              // Encontrar el mensaje más reciente
+              let mensajeMasReciente = mensajesData[0]
+              let fechaMasReciente = new Date(mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha || 0).getTime()
+              
+              mensajesData.forEach((msg: any) => {
+                const fecha = new Date(msg?.fecha || msg?.createdAt || msg?.attributes?.fecha || 0).getTime()
+                if (fecha > fechaMasReciente) {
+                  fechaMasReciente = fecha
+                  mensajeMasReciente = msg
+                }
+              })
+              
+              const ultimaFecha = mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha
+              if (ultimaFecha) {
+                setLastMessageDate(ultimaFecha)
+              }
             }
-          }
           
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
