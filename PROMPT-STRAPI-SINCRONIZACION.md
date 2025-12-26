@@ -55,6 +55,13 @@ Agrega logging detallado en los lifecycles para diagnosticar:
 - Log de errores si la sincronización falla
 ```
 
+## Logs Observados
+
+De los logs de Strapi, veo que:
+- ✅ El producto se crea correctamente: `[libro] Libro creado: 511`
+- ✅ El lifecycle detecta estado "Pendiente": `⏸️ Libro "probanding" con estado "Pendiente" - NO se sincroniza a WooCommerce`
+- ❓ **NO veo logs cuando el estado cambia a "Publicado"** - esto sugiere que el lifecycle puede no estar ejecutándose en updates
+
 ## Prompt Completo para Cursor
 
 Copia y pega esto en Cursor cuando estés en el proyecto de Strapi:
@@ -73,11 +80,18 @@ Copia y pega esto en Cursor cuando estés en el proyecto de Strapi:
 ### 1. Revisar Lifecycles de Libros
 Archivo: `strapi/src/api/libro/content-types/libro/lifecycles.js`
 
+**PROBLEMA OBSERVADO:**
+- El lifecycle funciona en `afterCreate` (veo el log: "Libro creado: 511")
+- El lifecycle detecta estado "Pendiente" correctamente
+- **PERO no veo logs cuando se actualiza el estado a "Publicado"**
+
 Verifica:
 - ¿Existe un lifecycle `afterUpdate` que se ejecute cuando `estado_publicacion` cambia a "Publicado"?
-- ¿El lifecycle verifica que el producto tenga canales asignados?
+- ¿El lifecycle `afterUpdate` está detectando correctamente el cambio de estado?
+- ¿El lifecycle verifica que el producto tenga canales asignados ANTES de sincronizar?
 - ¿El lifecycle llama correctamente a la API de WordPress/WooCommerce?
 - ¿Hay manejo de errores adecuado?
+- **AGREGAR LOGGING**: Agrega console.log al inicio de `afterUpdate` para verificar que se ejecuta cuando se actualiza un producto
 
 ### 2. Verificar Configuración de WordPress
 - ¿Las URLs de WordPress están correctamente configuradas en las variables de entorno?
@@ -85,8 +99,18 @@ Verifica:
 - ¿Hay alguna lógica que determine a qué WordPress sincronizar según los canales?
 
 ### 3. Agregar Logging Detallado
-Agrega console.log en los lifecycles para diagnosticar:
-- Cuando se ejecuta el lifecycle
+**CRÍTICO**: Agrega console.log en los lifecycles para diagnosticar:
+
+En `afterCreate`:
+- ✅ Ya existe: `info: [libro] Libro creado: {id}`
+- ✅ Ya existe: `info: [libro] ⏸️ Libro "{nombre}" con estado "Pendiente" - NO se sincroniza`
+
+En `afterUpdate` (AGREGAR):
+- `info: [libro] 🔄 afterUpdate ejecutado para libro: {id}`
+- `info: [libro] 📊 Estado anterior: {estadoAnterior}, Estado nuevo: {estadoNuevo}`
+- `info: [libro] 🔍 Canales asignados: {canales.length}`
+- `info: [libro] 🚀 Iniciando sincronización con WordPress...`
+- `info: [libro] ✅ Sincronización exitosa` o `error: [libro] ❌ Error en sincronización: {error}`
 - Los datos que se envían a WordPress
 - La respuesta de WordPress
 - Cualquier error que ocurra
@@ -104,10 +128,19 @@ Crea un endpoint de prueba o comando para forzar la sincronización de un produc
 
 ## Resultado Esperado
 Después de los cambios, cuando un producto cambia a "Publicado" y tiene canales asignados, debería:
-1. Ejecutarse el lifecycle
-2. Crear/actualizar el producto en WordPress
-3. Aparecer en la tienda de WordPress
-4. Mostrar logs detallados del proceso
+1. Ejecutarse el lifecycle `afterUpdate` (ver logs: `🔄 afterUpdate ejecutado`)
+2. Detectar el cambio de estado (ver logs: `📊 Estado anterior: Pendiente, Estado nuevo: Publicado`)
+3. Verificar canales (ver logs: `🔍 Canales asignados: X`)
+4. Iniciar sincronización (ver logs: `🚀 Iniciando sincronización con WordPress...`)
+5. Crear/actualizar el producto en WordPress
+6. Mostrar éxito o error (ver logs: `✅ Sincronización exitosa` o `❌ Error en sincronización`)
+7. Aparecer en la tienda de WordPress
+
+## Verificación Inmediata
+Después de hacer los cambios:
+1. Cambiar el estado de un producto de "Pendiente" a "Publicado" desde la Intranet
+2. Revisar los logs de Strapi
+3. Deberías ver los nuevos logs de `afterUpdate` con toda la información del proceso
 ```
 
 ## Información Adicional
