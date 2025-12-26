@@ -367,18 +367,35 @@ export async function logActivity(
     if (usuario?.id) {
       // CRÍTICO: El campo usuario debe ser solo el ID numérico, NO un objeto
       // Convertir explícitamente a número para asegurar el formato correcto
-      logData.usuario = Number(usuario.id) || null
-      console.log('[LOGGING] ✅ Usuario asociado al log:', {
-        idOriginal: usuario.id,
-        idConvertido: logData.usuario,
-        email: usuario.email,
-        nombre: usuario.nombre,
-        accion: params.accion,
-        entidad: params.entidad,
-        tipoUsuario: typeof logData.usuario,
-        esNumero: typeof logData.usuario === 'number',
-      })
+      const usuarioIdNumero = Number(usuario.id)
+      if (isNaN(usuarioIdNumero)) {
+        console.error('[LOGGING] ❌ ERROR: El ID del usuario no es un número válido:', {
+          idOriginal: usuario.id,
+          tipoId: typeof usuario.id,
+          idString: String(usuario.id),
+        })
+        logData.usuario = null
+      } else {
+        logData.usuario = usuarioIdNumero
+        console.log('[LOGGING] ✅ Usuario asociado al log:', {
+          idOriginal: usuario.id,
+          idConvertido: logData.usuario,
+          email: usuario.email,
+          nombre: usuario.nombre,
+          accion: params.accion,
+          entidad: params.entidad,
+          tipoUsuario: typeof logData.usuario,
+          esNumero: typeof logData.usuario === 'number',
+          esNaN: isNaN(logData.usuario),
+        })
+      }
     } else {
+      console.error('[LOGGING] ❌ ERROR: No se pudo obtener usuario para el log:', {
+        usuarioCompleto: JSON.stringify(usuario, null, 2),
+        tieneUsuario: !!usuario,
+        tieneId: !!usuario?.id,
+        id: usuario?.id,
+      })
       // Listar todas las cookies disponibles para debug
       const allCookies: Record<string, string> = {}
       try {
