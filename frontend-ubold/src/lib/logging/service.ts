@@ -85,28 +85,44 @@ export async function getUserFromRequest(request: NextRequest): Promise<{
     
     if (colaboradorCookie) {
       try {
-        console.log('[LOGGING] 📋 Cookie colaboradorData:', colaboradorCookie.substring(0, 200))
+        console.log('[LOGGING] 📋 Cookie colaboradorData (primeros 500 chars):', colaboradorCookie.substring(0, 500))
         
         const colaborador = JSON.parse(colaboradorCookie)
-        console.log('[LOGGING] 👤 Colaborador parseado:', JSON.stringify(colaborador, null, 2).substring(0, 1000))
+        console.log('[LOGGING] 👤 Colaborador parseado (estructura completa):', JSON.stringify(colaborador, null, 2))
         
-        // Búsqueda recursiva del ID
-        const findId = (obj: any): string | number | null => {
-          if (!obj || typeof obj !== 'object') return null
-          if (obj.id !== undefined && obj.id !== null) return obj.id
-          if (obj.documentId !== undefined && obj.documentId !== null) return obj.documentId
-          
-          for (const key in obj) {
-            if (typeof obj[key] === 'object' && obj[key] !== null) {
-              const found = findId(obj[key])
-              if (found) return found
+        // Extraer ID directamente del nivel superior (como se guarda en login)
+        let colaboradorId: string | number | null = null
+        
+        // Prioridad 1: ID en el nivel superior (como se guarda en login)
+        if (colaborador.id !== undefined && colaborador.id !== null) {
+          colaboradorId = colaborador.id
+          console.log('[LOGGING] ✅ ID encontrado en nivel superior (colaborador.id):', colaboradorId)
+        }
+        // Prioridad 2: documentId en el nivel superior
+        else if (colaborador.documentId !== undefined && colaborador.documentId !== null) {
+          colaboradorId = colaborador.documentId
+          console.log('[LOGGING] ✅ ID encontrado en nivel superior (colaborador.documentId):', colaboradorId)
+        }
+        // Prioridad 3: Búsqueda recursiva (fallback)
+        else {
+          const findId = (obj: any): string | number | null => {
+            if (!obj || typeof obj !== 'object') return null
+            if (obj.id !== undefined && obj.id !== null) return obj.id
+            if (obj.documentId !== undefined && obj.documentId !== null) return obj.documentId
+            
+            for (const key in obj) {
+              if (typeof obj[key] === 'object' && obj[key] !== null) {
+                const found = findId(obj[key])
+                if (found) return found
+              }
             }
+            return null
           }
-          return null
+          colaboradorId = findId(colaborador)
+          console.log('[LOGGING] ✅ ID encontrado mediante búsqueda recursiva:', colaboradorId)
         }
 
-        const colaboradorId = findId(colaborador)
-        console.log('[LOGGING] 🔑 ID encontrado:', colaboradorId)
+        console.log('[LOGGING] 🔑 ID final extraído:', colaboradorId, 'tipo:', typeof colaboradorId)
 
         if (!colaboradorId) {
           console.log('[LOGGING] ❌ No se pudo encontrar ID en el colaborador')
