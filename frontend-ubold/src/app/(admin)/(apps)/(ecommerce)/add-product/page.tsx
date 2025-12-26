@@ -276,7 +276,7 @@ export default function AddProductPage() {
               </>
             )}
             <br />
-            <small className="text-muted">Si no se redirige automáticamente, <a href="/products" className="alert-link">haz clic aquí</a>.</small>
+            <small className="text-muted">Si no se redirige automáticamente, <a href="/products" className="alert-link" onClick={(e) => { e.preventDefault(); window.location.href = '/products' }}>haz clic aquí</a>.</small>
           </Alert>
         )}
 
