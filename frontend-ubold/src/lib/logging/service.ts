@@ -369,11 +369,20 @@ export async function logActivity(
         const cookies = cookieHeader.split(';').reduce((acc: Record<string, string>, cookie: string) => {
           const [name, ...valueParts] = cookie.trim().split('=')
           if (name && valueParts.length > 0) {
-            acc[name] = decodeURIComponent(valueParts.join('='))
+            const value = valueParts.join('=')
+            // Intentar parsear JSON primero, si falla, decodificar URI
+            try {
+              JSON.parse(value)
+              acc[name] = value
+            } catch {
+              acc[name] = decodeURIComponent(value)
+            }
           }
           return acc
         }, {})
         colaboradorCookie = cookies['colaboradorData'] || cookies['colaborador']
+        console.log('[LOGGING] 🔍 Cookies extraídas del header:', Object.keys(cookies).join(', '))
+        console.log('[LOGGING] 🔍 ColaboradorCookie encontrada?:', !!colaboradorCookie)
       }
     }
     const token = request.headers.get('authorization') || (isNextRequest(request) ? request.cookies.get('auth_token')?.value : undefined)
