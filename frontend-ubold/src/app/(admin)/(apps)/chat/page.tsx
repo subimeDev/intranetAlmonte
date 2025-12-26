@@ -42,7 +42,24 @@ import { useAuth } from '@/hooks/useAuth'
 const Page = () => {
   const { colaborador, persona } = useAuth()
   // Usar id o documentId según lo que esté disponible (Strapi puede usar cualquiera)
-  const currentUserId = colaborador ? String(colaborador.id || colaborador.documentId || '') : null
+  // CRÍTICO: Normalizar el ID a número para asegurar consistencia con Strapi
+  const currentUserIdRaw = colaborador 
+    ? (colaborador.id || colaborador.documentId || colaborador.attributes?.id || null)
+    : null
+  const currentUserId = currentUserIdRaw ? String(currentUserIdRaw) : null
+  
+  // Log para debugging (solo en desarrollo o cuando hay problemas)
+  useEffect(() => {
+    if (currentUserId) {
+      console.error('[Chat] 👤 Usuario actual identificado:', {
+        currentUserId,
+        colaboradorId: colaborador?.id,
+        colaboradorDocumentId: colaborador?.documentId,
+        colaboradorAttributesId: colaborador?.attributes?.id,
+        colaboradorRaw: colaborador,
+      })
+    }
+  }, [currentUserId, colaborador])
 
   const currentUserData = {
     id: currentUserId || '1',
@@ -349,21 +366,32 @@ const Page = () => {
 
     const texto = messageText.trim()
     const textoOriginal = messageText // Guardar para restaurar en caso de error
-    const remitenteIdNum = parseInt(currentUserId, 10)
-    const colaboradorIdNum = parseInt(currentContact.id, 10)
+    
+    // CRÍTICO: Normalizar IDs asegurando que sean números válidos
+    const remitenteIdStr = String(currentUserId || '')
+    const colaboradorIdStr = String(currentContact.id || '')
+    const remitenteIdNum = parseInt(remitenteIdStr, 10)
+    const colaboradorIdNum = parseInt(colaboradorIdStr, 10)
     
     // Log para debugging (usar error para que siempre se vea)
     console.error('[Chat] 📤 Enviando mensaje desde frontend:', {
       texto: texto.substring(0, 50),
-      remitenteIdNum,
-      colaboradorIdNum,
-      currentUserId,
-      currentContactId: currentContact.id,
+      remitenteId_original: currentUserId,
+      colaboradorId_original: currentContact.id,
+      remitenteId_normalizado: remitenteIdNum,
+      colaboradorId_normalizado: colaboradorIdNum,
     })
     
-    // Validar IDs
+    // Validar IDs normalizados
     if (!remitenteIdNum || !colaboradorIdNum || isNaN(remitenteIdNum) || isNaN(colaboradorIdNum)) {
-      console.error('[Chat] ❌ ERROR: IDs inválidos al enviar', { remitenteIdNum, colaboradorIdNum, currentUserId, currentContactId: currentContact.id })
+      console.error('[Chat] ❌ ERROR: IDs inválidos después de normalización', { 
+        remitenteIdStr, 
+        colaboradorIdStr,
+        remitenteIdNum, 
+        colaboradorIdNum, 
+        currentUserId, 
+        currentContactId: currentContact.id 
+      })
       setError('Error: IDs inválidos. Por favor, recarga la página.')
       return
     }
@@ -415,9 +443,15 @@ const Page = () => {
       // Forzar recarga inmediata de mensajes para obtener el mensaje real y asegurar sincronización
       // Esto es crítico para que el mensaje aparezca en ambas cuentas
       try {
+        // CRÍTICO: Usar los mismos IDs normalizados para la recarga
         const query = new URLSearchParams({
-          colaborador_id: currentContact.id,
-          remitente_id: currentUserId,
+          colaborador_id: String(colaboradorIdNum),
+          remitente_id: String(remitenteIdNum),
+        })
+        
+        console.error('[Chat] 🔄 Recargando mensajes después de enviar:', {
+          remitenteIdNum,
+          colaboradorIdNum,
         })
         
         const reloadResponse = await fetch(`/api/chat/mensajes?${query.toString()}`)

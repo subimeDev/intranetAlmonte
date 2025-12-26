@@ -31,15 +31,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
     
-    const colaboradorIdNum = parseInt(colaboradorId!, 10)
-    const remitenteIdNum = parseInt(remitenteId!, 10)
+    // CRÍTICO: Normalizar IDs a números enteros
+    const colaboradorIdNum = parseInt(String(colaboradorId), 10)
+    const remitenteIdNum = parseInt(String(remitenteId), 10)
     
-    console.log('[API /chat/mensajes GET] 📥 Obteniendo mensajes:', {
-      remitenteId: remitenteIdNum,
-      colaboradorId: colaboradorIdNum,
+    console.error('[API /chat/mensajes GET] 📥 Obteniendo mensajes:', {
+      remitenteId_original: remitenteId,
+      colaboradorId_original: colaboradorId,
+      remitenteId_normalizado: remitenteIdNum,
+      colaboradorId_normalizado: colaboradorIdNum,
       tieneUltimaFecha: !!ultimaFecha,
       ultimaFecha: ultimaFecha?.substring(0, 20),
     })
+    
+    // Validar IDs normalizados
+    if (isNaN(remitenteIdNum) || isNaN(colaboradorIdNum) || !remitenteIdNum || !colaboradorIdNum) {
+      console.error('[API /chat/mensajes GET] ❌ ERROR: IDs inválidos después de normalización', {
+        remitenteId,
+        colaboradorId,
+        remitenteIdNum,
+        colaboradorIdNum,
+      })
+      return NextResponse.json({ error: 'IDs inválidos' }, { status: 400 })
+    }
     
     // Obtener mensajes usando el servicio modular
     const allMessages = await getChatMessages(remitenteIdNum, colaboradorIdNum, ultimaFecha)

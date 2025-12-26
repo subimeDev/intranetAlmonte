@@ -22,16 +22,22 @@ export interface ChatMensaje extends ChatMensajeAttributes {
  * Construye las queries para obtener mensajes bidireccionales
  */
 export function buildChatQueries(
-  remitenteId: number,
-  colaboradorId: number,
+  remitenteId: number | string,
+  colaboradorId: number | string,
   ultimaFecha?: string | null
 ): { query1: string; query2: string } {
-  let query1 = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteId}&filters[cliente_id][$eq]=${colaboradorId}&sort=fecha:asc&pagination[pageSize]=1000`
-  let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorId}&filters[cliente_id][$eq]=${remitenteId}&sort=fecha:asc&pagination[pageSize]=1000`
+  // Normalizar IDs a números
+  const remitenteIdNum = typeof remitenteId === 'string' ? parseInt(remitenteId, 10) : Number(remitenteId)
+  const colaboradorIdNum = typeof colaboradorId === 'string' ? parseInt(colaboradorId, 10) : Number(colaboradorId)
+  
+  // Estas queries se reconstruirán en getChatMessages con los IDs normalizados
+  // Este método ahora solo es para referencia, la construcción real se hace en getChatMessages
+  let query1 = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteIdNum}&filters[cliente_id][$eq]=${colaboradorIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+  let query2 = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorIdNum}&filters[cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
 
   // IMPORTANTE: Solo aplicar filtro de fecha si se proporciona Y es válido
   // El filtro se aplica a AMBAS queries para capturar mensajes nuevos en ambas direcciones
-  // Pero el margen de 30 segundos del frontend debería asegurar que no se pierdan mensajes
+  // Pero el margen de 60 segundos del frontend debería asegurar que no se pierdan mensajes
   if (ultimaFecha) {
     try {
       const fechaLimite = new Date(ultimaFecha)
@@ -146,31 +152,61 @@ export function combineAndSortMessages(messages1: ChatMensaje[], messages2: Chat
  * Obtiene mensajes entre dos colaboradores
  */
 export async function getChatMessages(
-  remitenteId: number,
-  colaboradorId: number,
+  remitenteId: number | string,
+  colaboradorId: number | string,
   ultimaFecha?: string | null
 ): Promise<ChatMensaje[]> {
+  // buildChatQueries ya normaliza los IDs, pero también lo hacemos aquí para seguridad
   const { query1, query2 } = buildChatQueries(remitenteId, colaboradorId, ultimaFecha)
 
+  // CRÍTICO: Normalizar IDs a números enteros para asegurar consistencia
+  const remitenteIdNum = typeof remitenteId === 'string' ? parseInt(remitenteId, 10) : Number(remitenteId)
+  const colaboradorIdNum = typeof colaboradorId === 'string' ? parseInt(colaboradorId, 10) : Number(colaboradorId)
+  
   // Logs detallados para debugging (usar error para que siempre se vea)
   console.error('[Chat Service] 🔍 Obteniendo mensajes:', { 
-    remitenteId, 
-    colaboradorId, 
+    remitenteIdOriginal: remitenteId,
+    colaboradorIdOriginal: colaboradorId,
+    remitenteIdNormalizado: remitenteIdNum, 
+    colaboradorIdNormalizado: colaboradorIdNum, 
     tieneUltimaFecha: !!ultimaFecha,
     ultimaFecha,
     query1: query1.substring(0, 200),
     query2: query2.substring(0, 200),
   })
   
-  // Validar IDs
-  if (!remitenteId || !colaboradorId || isNaN(remitenteId) || isNaN(colaboradorId)) {
-    console.error('[Chat Service] ❌ ERROR: IDs inválidos', { remitenteId, colaboradorId })
+  // Validar IDs normalizados
+  if (!remitenteIdNum || !colaboradorIdNum || isNaN(remitenteIdNum) || isNaN(colaboradorIdNum)) {
+    console.error('[Chat Service] ❌ ERROR: IDs inválidos después de normalización', { 
+      remitenteId, 
+      colaboradorId, 
+      remitenteIdNum, 
+      colaboradorIdNum 
+    })
     return []
+  }
+  
+  // Reconstruir queries con IDs normalizados
+  let query1Final = `/api/intranet-chats?filters[remitente_id][$eq]=${remitenteIdNum}&filters[cliente_id][$eq]=${colaboradorIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+  let query2Final = `/api/intranet-chats?filters[remitente_id][$eq]=${colaboradorIdNum}&filters[cliente_id][$eq]=${remitenteIdNum}&sort=fecha:asc&pagination[pageSize]=1000`
+  
+  // Aplicar filtro de fecha si existe
+  if (ultimaFecha) {
+    try {
+      const fechaLimite = new Date(ultimaFecha)
+      if (!isNaN(fechaLimite.getTime())) {
+        const fechaISO = encodeURIComponent(fechaLimite.toISOString())
+        query1Final += `&filters[fecha][$gt]=${fechaISO}`
+        query2Final += `&filters[fecha][$gt]=${fechaISO}`
+      }
+    } catch (e) {
+      console.error('[Chat Service] ⚠️ Error al procesar fecha límite:', e)
+    }
   }
 
   const [response1, response2] = await Promise.all([
-    ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1, 'query1'),
-    ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2, 'query2'),
+    ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query1Final, 'query1'),
+    ejecutarQueryConRetry<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>>(query2Final, 'query2'),
   ])
 
   const data1 = extractChatMessages(response1)
@@ -200,20 +236,31 @@ export async function getChatMessages(
  */
 export async function sendChatMessage(
   texto: string,
-  remitenteId: number,
-  colaboradorId: number
+  remitenteId: number | string,
+  colaboradorId: number | string
 ): Promise<StrapiResponse<StrapiEntity<ChatMensajeAttributes>>> {
+  // CRÍTICO: Normalizar IDs a números enteros para asegurar consistencia con Strapi
+  const remitenteIdNum = typeof remitenteId === 'string' ? parseInt(remitenteId, 10) : Number(remitenteId)
+  const colaboradorIdNum = typeof colaboradorId === 'string' ? parseInt(colaboradorId, 10) : Number(colaboradorId)
+  
   // Logs detallados para debugging (usar error para que siempre se vea)
   console.error('[Chat Service] 📤 Enviando mensaje:', {
     texto: texto.substring(0, 50),
-    remitente_id: remitenteId,
-    cliente_id: colaboradorId,
+    remitente_id_original: remitenteId,
+    cliente_id_original: colaboradorId,
+    remitente_id_normalizado: remitenteIdNum,
+    cliente_id_normalizado: colaboradorIdNum,
     fecha: new Date().toISOString(),
   })
   
-  // Validar IDs
-  if (!remitenteId || !colaboradorId || isNaN(remitenteId) || isNaN(colaboradorId)) {
-    console.error('[Chat Service] ❌ ERROR: IDs inválidos al enviar', { remitenteId, colaboradorId })
+  // Validar IDs normalizados
+  if (!remitenteIdNum || !colaboradorIdNum || isNaN(remitenteIdNum) || isNaN(colaboradorIdNum)) {
+    console.error('[Chat Service] ❌ ERROR: IDs inválidos al enviar después de normalización', { 
+      remitenteId, 
+      colaboradorId, 
+      remitenteIdNum, 
+      colaboradorIdNum 
+    })
     throw new Error('IDs inválidos al enviar mensaje')
   }
 
@@ -222,8 +269,8 @@ export async function sendChatMessage(
     {
       data: {
         texto,
-        remitente_id: remitenteId,
-        cliente_id: colaboradorId,
+        remitente_id: remitenteIdNum,
+        cliente_id: colaboradorIdNum,
         fecha: new Date().toISOString(),
         leido: false,
       },
