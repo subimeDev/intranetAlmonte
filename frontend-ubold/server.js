@@ -3,37 +3,37 @@
 // Script para iniciar Next.js en modo standalone con configuración para Railway
 // Configura el hostname para que escuche en todas las interfaces de red
 
-// Establecer variables de entorno antes de cargar el servidor
-const port = process.env.PORT || '3000'
+// Establecer variables de entorno ANTES de cargar cualquier módulo
+const port = parseInt(process.env.PORT || '3000', 10)
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 process.env.HOSTNAME = hostname
-process.env.PORT = port
+process.env.PORT = String(port)
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
 console.log(`🚀 Iniciando servidor Next.js en modo standalone...`)
 console.log(`📍 Hostname: ${hostname}`)
 console.log(`🔌 Puerto: ${port}`)
 
-// El servidor standalone de Next.js debería respetar estas variables
-// Si no funciona, necesitaremos modificar el servidor después del build
+// El servidor standalone de Next.js se inicia automáticamente al requerirlo
+// y respeta las variables de entorno PORT y HOSTNAME
 try {
-  const server = require('./.next/standalone/server.js')
+  // Cambiar al directorio standalone para que los módulos relativos funcionen
+  const path = require('path')
+  const standaloneDir = path.join(__dirname, '.next/standalone')
   
-  // Si el servidor tiene un método para iniciar, usarlo
-  if (typeof server === 'function') {
-    server()
-  } else if (server && typeof server.listen === 'function') {
-    // Si el servidor tiene un método listen, usarlo
-    server.listen(port, hostname, () => {
-      console.log(`✅ Servidor escuchando en ${hostname}:${port}`)
-    })
-  } else {
-    // El servidor standalone de Next.js se inicia automáticamente
-    console.log('✅ Servidor standalone cargado correctamente')
-  }
+  // Cambiar al directorio standalone
+  process.chdir(standaloneDir)
+  
+  console.log(`📁 Directorio de trabajo: ${standaloneDir}`)
+  
+  // Cargar el servidor standalone (se inicia automáticamente)
+  require('./server.js')
+  
+  console.log('✅ Servidor standalone iniciado correctamente')
+  console.log(`🌐 Servidor disponible en http://${hostname}:${port}`)
 } catch (error) {
-  console.error('❌ Error al cargar el servidor standalone:', error)
+  console.error('❌ Error al iniciar el servidor standalone:', error)
   console.error('Stack:', error.stack)
   console.log('Asegúrate de que el build se haya completado correctamente')
   process.exit(1)
