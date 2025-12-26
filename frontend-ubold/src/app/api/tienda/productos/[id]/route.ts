@@ -458,6 +458,7 @@ export async function PUT(
       method: request.method,
     })
     
+    console.log('[API PUT] 🚀 EJECUTANDO logActivity AHORA...')
     logActivity(request, {
       accion: 'actualizar',
       entidad: 'producto',
@@ -465,9 +466,17 @@ export async function PUT(
       descripcion: createLogDescription('actualizar', 'producto', nombreNuevo, `Producto "${nombreNuevo}"`),
       datosAnteriores: datosAnteriores ? { nombre: nombreAnterior } : undefined,
       datosNuevos: updateData.data,
-    }).catch((error) => {
-      console.error('[API PUT] ❌ Error al registrar log:', error)
     })
+      .then(() => {
+        console.log('[API PUT] ✅ logActivity completado exitosamente')
+      })
+      .catch((error) => {
+        console.error('[API PUT] ❌ Error al registrar log:', {
+          error: error.message,
+          stack: error.stack,
+          errorCompleto: JSON.stringify(error, null, 2),
+        })
+      })
 
     return NextResponse.json({
       success: true,

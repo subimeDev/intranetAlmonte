@@ -559,14 +559,15 @@ export async function logActivity(
       })
       .catch((error) => {
         // Solo loggear errores, no lanzar excepciones para no afectar el flujo principal
-        console.error('[LOGGING] ❌ Error al registrar actividad en Strapi:', {
-          error: error.message,
-          status: error.status,
-          endpoint: logEndpoint,
-          details: error.details,
-          errorCompleto: JSON.stringify(error, null, 2).substring(0, 500),
-          logDataEnviado: {
-            accion: logData.accion,
+        console.error('[LOGGING] ❌ ==========================================')
+        console.error('[LOGGING] ❌ ERROR AL REGISTRAR ACTIVIDAD EN STRAPI')
+        console.error('[LOGGING] ❌ Error:', error.message)
+        console.error('[LOGGING] ❌ Status:', error.status)
+        console.error('[LOGGING] ❌ Endpoint:', logEndpoint)
+        console.error('[LOGGING] ❌ Details:', error.details)
+        console.error('[LOGGING] ❌ Error completo:', JSON.stringify(error, null, 2).substring(0, 1000))
+        console.error('[LOGGING] ❌ LogData enviado:', {
+          accion: logData.accion,
             entidad: logData.entidad,
             usuario: logData.usuario || null,
             tipoUsuario: typeof logData.usuario,
