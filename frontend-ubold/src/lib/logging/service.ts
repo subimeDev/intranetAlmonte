@@ -48,6 +48,7 @@ export interface LogActivityParams {
  */
 export async function getUserFromRequest(request: NextRequest | Request): Promise<{
   id: string | number | null
+  documentId?: string | number | null
   email?: string
   nombre?: string
 } | null> {
