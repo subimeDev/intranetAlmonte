@@ -23,7 +23,7 @@ export default async function Page() {
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
     const baseUrl = `${protocol}://${host}`
     
-    const response = await fetch(`${baseUrl}/api/tienda/sello`, {
+    const response = await fetch(`${baseUrl}/api/tienda/sellos`, {
       cache: 'no-store', // Forzar fetch dinámico
     })
     

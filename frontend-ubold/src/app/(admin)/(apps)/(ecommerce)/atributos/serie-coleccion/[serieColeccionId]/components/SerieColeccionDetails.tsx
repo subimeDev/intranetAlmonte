@@ -341,7 +341,7 @@ const SerieColeccionDetails = ({ serieColeccion: initialSerieColeccion, serieCol
                     label=""
                     value={formData.sello}
                     onChange={(value) => setFormData((prev) => ({ ...prev, sello: value as string }))}
-                    endpoint="/api/tienda/sello"
+                    endpoint="/api/tienda/sellos"
                     displayField="nombre_sello"
                   />
                   {formData.sello && (

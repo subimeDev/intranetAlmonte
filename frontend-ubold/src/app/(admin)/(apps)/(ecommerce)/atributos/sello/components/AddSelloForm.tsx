@@ -86,7 +86,7 @@ const AddSelloForm = () => {
       }
 
       // Crear el sello
-      const response = await fetch('/api/tienda/sello', {
+      const response = await fetch('/api/tienda/sello', { // POST usa singular
         method: 'POST',
         credentials: 'include', // Incluir cookies
         headers: {
