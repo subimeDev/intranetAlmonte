@@ -399,6 +399,62 @@ export default function LogsList() {
           </Card>
         )}
 
+        {showLoggingPanel && (
+          <Card className="mb-3 border-success">
+            <CardHeader className="bg-success text-white d-flex justify-content-between align-items-center py-2">
+              <h6 className="mb-0">📋 Logs [LOGGING] del Servidor</h6>
+              <div>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-white p-0 me-2"
+                  onClick={fetchLoggingLogs}
+                >
+                  Actualizar
+                </Button>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-white p-0"
+                  onClick={() => setLoggingLogs([])}
+                >
+                  Limpiar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody className="p-2" style={{ maxHeight: '500px', overflowY: 'auto', backgroundColor: '#1e1e1e', color: '#d4d4d4', fontFamily: 'monospace', fontSize: '12px' }}>
+              {loggingLogs.length === 0 ? (
+                <div className="text-muted">
+                  <div>No hay logs de [LOGGING] aún.</div>
+                  <div className="mt-2">
+                    <strong>Para generar logs:</strong>
+                    <ol className="mt-2 mb-0" style={{ fontSize: '11px' }}>
+                      <li>Edita un producto (cambia el nombre y guarda)</li>
+                      <li>Haz clic en "Actualizar" para ver los logs</li>
+                      <li>Los logs se capturan del servidor en tiempo real</li>
+                    </ol>
+                  </div>
+                </div>
+              ) : (
+                loggingLogs.map((log, index) => (
+                  <div key={index} className="mb-1">
+                    <span className={
+                      log.includes('❌') || log.includes('ERROR') ? 'text-danger' : 
+                      log.includes('⚠️') || log.includes('WARN') ? 'text-warning' : 
+                      log.includes('✅') || log.includes('SUCCESS') ? 'text-success' :
+                      log.includes('🔍') || log.includes('🔑') ? 'text-info' :
+                      log.includes('📤') || log.includes('📥') ? 'text-primary' :
+                      'text-light'
+                    }>
+                      {log}
+                    </span>
+                  </div>
+                ))
+              )}
+            </CardBody>
+          </Card>
+        )}
+
         <div className="mb-3">
           <InputGroup>
             <InputGroup.Text>
