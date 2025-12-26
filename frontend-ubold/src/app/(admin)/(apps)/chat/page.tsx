@@ -228,13 +228,19 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
         
-        console.log('[Chat] 📨 Mensajes recibidos del API:', {
+        // Log MUY detallado de la estructura completa de los primeros mensajes
+        console.error('[Chat] 📨 Mensajes recibidos del API (estructura completa):', {
           total: mensajesData.length,
-          primeros: mensajesData.slice(0, 3).map((m: any) => ({
+          dataCompleta: JSON.stringify(data).substring(0, 500),
+          primerosMensajesCompletos: mensajesData.slice(0, 3).map((m: any) => ({
+            mensajeCompleto: JSON.stringify(m).substring(0, 400),
             id: m.id || m.attributes?.id,
-            remitente_id: m.remitente_id || m.attributes?.remitente_id,
-            cliente_id: m.cliente_id || m.attributes?.cliente_id,
-            texto: (m.texto || m.attributes?.texto || '').substring(0, 30),
+            remitente_id_directo: m.remitente_id,
+            remitente_id_attributes: m.attributes?.remitente_id,
+            cliente_id_directo: m.cliente_id,
+            cliente_id_attributes: m.attributes?.cliente_id,
+            tieneAttributes: !!m.attributes,
+            estructura: Object.keys(m),
           }))
         })
 
@@ -245,13 +251,26 @@ const Page = () => {
           const fechaObj = new Date(fecha)
           
           // Extraer remitente_id de múltiples ubicaciones posibles
+          // IMPORTANTE: El remitente_id debe ser el ID de QUIEN ENVÍA el mensaje, no el currentUserId
           let remitenteIdOriginal: any = null
+          
+          // Intentar extraer de diferentes ubicaciones
           if (mensajeAttrs.remitente_id !== undefined && mensajeAttrs.remitente_id !== null) {
             remitenteIdOriginal = mensajeAttrs.remitente_id
           } else if (mensaje.remitente_id !== undefined && mensaje.remitente_id !== null) {
             remitenteIdOriginal = mensaje.remitente_id
           } else if (mensaje.data?.remitente_id !== undefined && mensaje.data?.remitente_id !== null) {
             remitenteIdOriginal = mensaje.data.remitente_id
+          }
+          
+          // CRÍTICO: Si no se encuentra remitente_id, NO usar currentUserId como fallback
+          // Esto causaría que todos los mensajes parezcan ser del usuario actual
+          if (remitenteIdOriginal === null || remitenteIdOriginal === undefined) {
+            console.error('[Chat] ⚠️⚠️⚠️ ERROR CRÍTICO: remitente_id no encontrado en mensaje:', {
+              mensajeId: mensaje.id || mensajeAttrs.id,
+              mensajeCompleto: JSON.stringify(mensaje).substring(0, 400),
+              mensajeAttrsCompleto: JSON.stringify(mensajeAttrs).substring(0, 400),
+            })
           }
           
           // Normalizar a string de forma explícita
