@@ -59,7 +59,11 @@ export async function GET(request: NextRequest) {
           break
         }
       } catch (error: any) {
-        // Continuar con el siguiente endpoint si este falla (404 es esperado si el endpoint no existe)
+        // 404 es esperado cuando el endpoint no existe, no loguear como error
+        // Solo continuar con el siguiente endpoint
+        if (error.status !== 404) {
+          console.warn(`[API Precios GET] ⚠️ Error no-404 en endpoint ${endpoint}:`, error.message)
+        }
         continue
       }
     }

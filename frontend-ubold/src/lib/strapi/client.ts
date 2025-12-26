@@ -149,8 +149,8 @@ const strapiClient = {
       
       clearTimeout(timeoutId)
       
-      // Log respuesta antes de manejar errores
-      if (!response.ok) {
+      // Log respuesta antes de manejar errores (solo si no es 404, que es esperado para algunos endpoints)
+      if (!response.ok && response.status !== 404) {
         console.error('[Strapi Client GET] ❌ Error en respuesta:', {
           url,
           status: response.status,
