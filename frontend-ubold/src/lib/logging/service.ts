@@ -215,8 +215,10 @@ export async function getUserFromRequest(request: NextRequest | Request): Promis
           nombre 
         })
 
+        // Retornar tanto id como documentId para poder usar el correcto según Strapi
         return {
           id: colaboradorId,
+          documentId: colaborador.documentId || colaboradorId, // Priorizar documentId si existe
           email: emailLogin,
           nombre: nombre
         }
@@ -402,34 +404,34 @@ export async function logActivity(
     const token = request.headers.get('authorization') || (isNextRequest(request) ? request.cookies.get('auth_token')?.value : undefined)
     
     // Agregar usuario si está disponible
-    if (usuario?.id) {
-      // CRÍTICO: El campo usuario debe ser solo el ID numérico, NO un objeto
-      // Convertir explícitamente a número para asegurar el formato correcto
-      const usuarioIdNumero = Number(usuario.id)
-      if (isNaN(usuarioIdNumero)) {
-        console.error('[LOGGING] ❌ ERROR: El ID del usuario no es un número válido:', {
-          idOriginal: usuario.id,
-          tipoId: typeof usuario.id,
-          idString: String(usuario.id),
+    if (usuario?.id || usuario?.documentId) {
+      // CRÍTICO: En Strapi v5, las relaciones manyToOne requieren el documentId (string), NO el id numérico
+      // Priorizar documentId si está disponible, sino usar id
+      const usuarioParaStrapi = (usuario as any).documentId || usuario.id
+      
+      if (!usuarioParaStrapi) {
+        console.error('[LOGGING] ❌ ERROR: No se pudo obtener ID ni documentId del usuario:', {
+          usuarioCompleto: JSON.stringify(usuario, null, 2),
+          tieneId: !!usuario.id,
+          tieneDocumentId: !!(usuario as any).documentId,
         })
         logData.usuario = null
       } else {
-        // En Strapi v5, para relaciones manyToOne, podemos usar:
-        // 1. Solo el ID numérico: usuario: 143 (formato simple)
-        // 2. Objeto con connect: usuario: { connect: [{ id: 143 }] } (formato explícito)
-        // Probamos primero con el formato simple (solo ID)
-        logData.usuario = usuarioIdNumero
+        // En Strapi v5, para relaciones manyToOne, usar documentId (string) si está disponible
+        // Si solo tenemos id numérico, intentar con ese
+        logData.usuario = usuarioParaStrapi
         console.log('[LOGGING] ✅ Usuario asociado al log:', {
           idOriginal: usuario.id,
-          idConvertido: logData.usuario,
+          documentId: (usuario as any).documentId || 'no disponible',
+          valorEnviado: logData.usuario,
+          tipoEnviado: typeof logData.usuario,
           email: usuario.email,
           nombre: usuario.nombre,
           accion: params.accion,
           entidad: params.entidad,
-          tipoUsuario: typeof logData.usuario,
-          esNumero: typeof logData.usuario === 'number',
-          esNaN: isNaN(logData.usuario),
-          formatoEnviado: 'ID numérico directo (usuario: ' + logData.usuario + ')',
+          formatoEnviado: typeof logData.usuario === 'string' 
+            ? 'documentId (string): ' + logData.usuario 
+            : 'ID numérico: ' + logData.usuario,
         })
       }
     } else {
