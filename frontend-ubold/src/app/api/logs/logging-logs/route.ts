@@ -72,33 +72,48 @@ export async function GET(request: NextRequest) {
           tienePersona: !!colaborador.persona,
         }))
         
-        // Extraer ID
-        let colaboradorId: string | number | null = null
-        
-        if (colaborador.id !== undefined && colaborador.id !== null) {
-          colaboradorId = colaborador.id
-          addLog('[LOGGING] ✅ ID encontrado en nivel superior (colaborador.id): ' + colaboradorId)
-        } else if (colaborador.documentId !== undefined && colaborador.documentId !== null) {
-          colaboradorId = colaborador.documentId
-          addLog('[LOGGING] ✅ ID encontrado en nivel superior (colaborador.documentId): ' + colaboradorId)
-        } else {
-          addLog('[LOGGING] ❌ No se pudo encontrar ID en el colaborador')
-        }
-        
-        addLog('[LOGGING] 🔑 ID final extraído: ' + colaboradorId + ' (tipo: ' + typeof colaboradorId + ')')
-        
-        if (colaboradorId) {
-          const usuarioIdNumero = Number(colaboradorId)
-          if (isNaN(usuarioIdNumero)) {
-            addLog('[LOGGING] ❌ ERROR: El ID del usuario no es un número válido')
-            addLog('[LOGGING] ❌ ID original: ' + colaboradorId + ' (tipo: ' + typeof colaboradorId + ')')
-          } else {
-            addLog('[LOGGING] ✅ Usuario ID convertido a número: ' + usuarioIdNumero)
-            addLog('[LOGGING] 📤 Log que se enviaría a Strapi: {"usuario": ' + usuarioIdNumero + ', ...}')
-          }
-        } else {
-          addLog('[LOGGING] ❌ ERROR: No se pudo extraer ID del colaborador')
-        }
+                    // Extraer ID y documentId (priorizar documentId para Strapi v5)
+                    let colaboradorId: string | number | null = null
+                    let colaboradorDocumentId: string | number | null = null
+                    
+                    // Prioridad 1: documentId (Strapi v5 prefiere documentId para relaciones manyToOne)
+                    if (colaborador.documentId !== undefined && colaborador.documentId !== null) {
+                      colaboradorDocumentId = colaborador.documentId
+                      addLog('[LOGGING] ✅ documentId encontrado en nivel superior (colaborador.documentId): ' + colaboradorDocumentId + ' (tipo: ' + typeof colaboradorDocumentId + ')')
+                    }
+                    // Prioridad 2: ID (fallback)
+                    if (colaborador.id !== undefined && colaborador.id !== null) {
+                      colaboradorId = colaborador.id
+                      addLog('[LOGGING] ✅ ID encontrado en nivel superior (colaborador.id): ' + colaboradorId + ' (tipo: ' + typeof colaboradorId + ')')
+                    }
+                    
+                    if (!colaboradorDocumentId && !colaboradorId) {
+                      addLog('[LOGGING] ❌ No se pudo encontrar ID ni documentId en el colaborador')
+                    } else {
+                      // Priorizar documentId, convertir a string si es número (Strapi v5 prefiere strings)
+                      let usuarioParaStrapi: string | number | null = null
+                      
+                      if (colaboradorDocumentId !== undefined && colaboradorDocumentId !== null) {
+                        // Convertir documentId a string si es número
+                        usuarioParaStrapi = typeof colaboradorDocumentId === 'number' ? String(colaboradorDocumentId) : colaboradorDocumentId
+                        addLog('[LOGGING] ✅ Usando documentId para Strapi:')
+                        addLog('  - documentId original: ' + colaboradorDocumentId + ' (tipo: ' + typeof colaboradorDocumentId + ')')
+                        addLog('  - documentId enviado: ' + usuarioParaStrapi + ' (tipo: ' + typeof usuarioParaStrapi + ')')
+                      } else if (colaboradorId !== undefined && colaboradorId !== null) {
+                        // Fallback: usar id, convertir a string si es número
+                        usuarioParaStrapi = typeof colaboradorId === 'number' ? String(colaboradorId) : colaboradorId
+                        addLog('[LOGGING] ⚠️ Usando id como fallback (documentId no disponible):')
+                        addLog('  - id original: ' + colaboradorId + ' (tipo: ' + typeof colaboradorId + ')')
+                        addLog('  - id enviado: ' + usuarioParaStrapi + ' (tipo: ' + typeof usuarioParaStrapi + ')')
+                      }
+                      
+                      if (usuarioParaStrapi) {
+                        addLog('[LOGGING] 📤 Log que se enviaría a Strapi: {"usuario": "' + usuarioParaStrapi + '", ...}')
+                        addLog('[LOGGING] ✅ Tipo de dato enviado: ' + typeof usuarioParaStrapi + ' (Strapi v5 requiere string para documentId)')
+                      } else {
+                        addLog('[LOGGING] ❌ ERROR: No se pudo determinar usuario para enviar a Strapi')
+                      }
+                    }
         
         // Extraer email y nombre
         const emailLogin = colaborador.email_login || 'Sin email'
