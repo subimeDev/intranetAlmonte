@@ -14,24 +14,65 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 console.log(`🚀 Iniciando servidor Next.js en modo standalone...`)
 console.log(`📍 Hostname: ${hostname}`)
 console.log(`🔌 Puerto: ${port}`)
+console.log(`📦 NODE_ENV: ${process.env.NODE_ENV}`)
 
 // El servidor standalone de Next.js se inicia automáticamente al requerirlo
 // y respeta las variables de entorno PORT y HOSTNAME
 try {
   // Cambiar al directorio standalone para que los módulos relativos funcionen
   const path = require('path')
+  const fs = require('fs')
   const standaloneDir = path.join(__dirname, '.next/standalone')
+  const serverPath = path.join(standaloneDir, 'server.js')
+  
+  // Verificar que el servidor standalone existe
+  if (!fs.existsSync(serverPath)) {
+    console.error(`❌ Servidor standalone no encontrado en: ${serverPath}`)
+    console.error('Asegúrate de que el build se haya completado correctamente')
+    console.error('Ejecuta: npm run build')
+    process.exit(1)
+  }
   
   // Cambiar al directorio standalone
+  const originalCwd = process.cwd()
   process.chdir(standaloneDir)
   
-  console.log(`📁 Directorio de trabajo: ${standaloneDir}`)
+  console.log(`📁 Directorio de trabajo original: ${originalCwd}`)
+  console.log(`📁 Directorio de trabajo actual: ${process.cwd()}`)
+  console.log(`📄 Cargando servidor desde: ./server.js`)
   
   // Cargar el servidor standalone (se inicia automáticamente)
+  // El servidor standalone de Next.js crea un servidor HTTP que se inicia automáticamente
+  // y respeta las variables de entorno PORT y HOSTNAME
   require('./server.js')
   
-  console.log('✅ Servidor standalone iniciado correctamente')
+  console.log('✅ Servidor standalone cargado e iniciado')
   console.log(`🌐 Servidor disponible en http://${hostname}:${port}`)
+  console.log(`🏥 Healthcheck disponible en http://${hostname}:${port}/api/health`)
+  console.log(`⏳ Esperando conexiones...`)
+  
+  // Mantener el proceso vivo
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM recibido, cerrando servidor...')
+    process.exit(0)
+  })
+  
+  process.on('SIGINT', () => {
+    console.log('SIGINT recibido, cerrando servidor...')
+    process.exit(0)
+  })
+  
+  // Manejar errores no capturados
+  process.on('uncaughtException', (error) => {
+    console.error('❌ Error no capturado:', error)
+    process.exit(1)
+  })
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Promesa rechazada no manejada:', reason)
+    process.exit(1)
+  })
+  
 } catch (error) {
   console.error('❌ Error al iniciar el servidor standalone:', error)
   console.error('Stack:', error.stack)
