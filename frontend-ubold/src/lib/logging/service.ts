@@ -248,10 +248,26 @@ export async function logActivity(
   params: Omit<LogActivityParams, 'usuarioId' | 'ipAddress' | 'userAgent'>
 ): Promise<void> {
   try {
+    console.log('[LOGGING] 🚀 Iniciando logActivity:', {
+      accion: params.accion,
+      entidad: params.entidad,
+      url: request.url,
+      method: request.method,
+      tieneCookies: !!request.cookies.get('colaboradorData')?.value,
+      cookiePreview: request.cookies.get('colaboradorData')?.value?.substring(0, 100) || 'no hay',
+    })
+    
     // Obtener información del usuario, IP y User-Agent
     const user = await getUserFromRequest(request)
     const ipAddress = getClientIP(request)
     const userAgent = getUserAgent(request)
+    
+    console.log('[LOGGING] 👤 Resultado de getUserFromRequest:', {
+      tieneUser: !!user,
+      userId: user?.id || 'null',
+      userEmail: user?.email || 'null',
+      userNombre: user?.nombre || 'null',
+    })
 
     // Preparar datos para Strapi
     const logData: any = {
