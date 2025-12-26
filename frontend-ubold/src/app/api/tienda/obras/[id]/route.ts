@@ -131,6 +131,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Verificar rol del usuario
+    const colaboradorCookie = request.cookies.get('auth_colaborador')?.value
+    if (colaboradorCookie) {
+      try {
+        const colaborador = JSON.parse(colaboradorCookie)
+        if (colaborador.rol !== 'super_admin') {
+          return NextResponse.json({
+            success: false,
+            error: 'No tienes permisos para eliminar obras'
+          }, { status: 403 })
+        }
+      } catch (e) {
+        // Si hay error parseando, continuar (podría ser que no esté autenticado)
+      }
+    }
+
     const { id } = await params
     console.log('[API Obras DELETE] 🗑️ Eliminando obra:', id)
 
@@ -218,9 +234,9 @@ export async function PUT(
 
     const obraEndpoint = '/api/obras'
     
-    // Obtener la obra de Strapi para obtener el documentId
-    let obraStrapi: any
-    let documentId: string | null = null
+    // Primero obtener la obra de Strapi para obtener el documentId
+    let obraStrapi: any = null
+    
     try {
       const obraResponse = await strapiClient.get<any>(`${obraEndpoint}?filters[id][$eq]=${id}&populate=*`)
       let obras: any[] = []
@@ -232,10 +248,23 @@ export async function PUT(
         obras = [obraResponse.data]
       }
       obraStrapi = obras[0]
-      documentId = obraStrapi?.documentId || obraStrapi?.data?.documentId || id
     } catch (error: any) {
-      console.warn('[API Obras PUT] ⚠️ No se pudo obtener obra de Strapi:', error.message)
-      documentId = id
+      // Si falla, intentar obtener todas y buscar
+      console.warn('[API Obras PUT] ⚠️ No se pudo obtener obra de Strapi, intentando búsqueda alternativa:', error.message)
+      try {
+        const allResponse = await strapiClient.get<any>(`${obraEndpoint}?populate=*&pagination[pageSize]=1000`)
+        const allObras = Array.isArray(allResponse) 
+          ? allResponse 
+          : (allResponse.data && Array.isArray(allResponse.data) ? allResponse.data : [])
+        
+        obraStrapi = allObras.find((o: any) => 
+          o.id?.toString() === id || 
+          o.documentId === id ||
+          (o.attributes && (o.attributes.id?.toString() === id || o.attributes.documentId === id))
+        )
+      } catch (searchError: any) {
+        console.error('[API Obras PUT] Error en búsqueda alternativa:', searchError.message)
+      }
     }
 
     if (!obraStrapi) {
@@ -245,9 +274,14 @@ export async function PUT(
       }, { status: 404 })
     }
 
-    // Actualizar en Strapi usando documentId si está disponible
-    const strapiEndpoint = documentId ? `${obraEndpoint}/${documentId}` : `${obraEndpoint}/${id}`
-    console.log('[API Obras PUT] Usando endpoint Strapi:', strapiEndpoint, { documentId, id })
+    // En Strapi v4, usar documentId (string) para actualizar, no el id numérico
+    const obraDocumentId = obraStrapi.documentId || obraStrapi.data?.documentId || obraStrapi.id?.toString() || id
+    console.log('[API Obras PUT] Usando documentId para actualizar:', obraDocumentId)
+
+    // Actualizar en Strapi usando documentId
+    // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+    const endpoint = `${obraEndpoint}/${obraDocumentId}`
+    console.log('[API Obras PUT] Usando endpoint Strapi:', endpoint, { documentId: obraDocumentId, id })
 
     // El schema de Strapi para obras usa: codigo_obra*, nombre_obra*, descripcion
     const obraData: any = {
@@ -275,7 +309,7 @@ export async function PUT(
       console.log('[API Obras PUT] 📝 Estado de publicación actualizado:', estadoNormalizado)
     }
 
-    const strapiResponse = await strapiClient.put<any>(strapiEndpoint, obraData)
+    const strapiResponse = await strapiClient.put<any>(endpoint, obraData)
     console.log('[API Obras PUT] ✅ Obra actualizada en Strapi')
 
     return NextResponse.json({

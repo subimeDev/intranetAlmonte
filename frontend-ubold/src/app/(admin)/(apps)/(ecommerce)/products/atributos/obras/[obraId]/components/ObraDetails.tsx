@@ -48,9 +48,10 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
   const attrs = obra.attributes || {}
   const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
 
-  // Inicializar formData con los valores de la obra
+  // Inicializar formData con los valores de la obra (usar campos del schema: codigo_obra, nombre_obra)
   const [formData, setFormData] = useState({
-    nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+    codigo_obra: getField(data, 'codigo_obra', 'codigoObra', 'CODIGO_OBRA') || '',
+    nombre_obra: getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'name', 'NOMBRE', 'NAME') || '',
     descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
   })
 
@@ -61,7 +62,8 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
       const data = (attrs && Object.keys(attrs).length > 0) ? attrs : (obra as any)
       
       setFormData({
-        nombre: getField(data, 'name', 'nombre', 'NOMBRE', 'NAME') || '',
+        codigo_obra: getField(data, 'codigo_obra', 'codigoObra', 'CODIGO_OBRA') || '',
+        nombre_obra: getField(data, 'nombre_obra', 'nombreObra', 'nombre', 'name', 'NOMBRE', 'NAME') || '',
         descripcion: getField(data, 'descripcion', 'description', 'DESCRIPCION', 'DESCRIPTION') || '',
       })
     }
@@ -113,8 +115,9 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
       const url = `/api/tienda/obras/${obId}`
       const body = JSON.stringify({
         data: {
-          name: formData.nombre,
-          descripcion: formData.descripcion || null,
+          codigo_obra: formData.codigo_obra.trim(),
+          nombre_obra: formData.nombre_obra.trim(),
+          descripcion: formData.descripcion?.trim() || null,
         },
       })
       
@@ -182,7 +185,26 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
 
           <Form onSubmit={handleSubmit}>
             <Row className="g-3">
-              <Col md={12}>
+              <Col md={6}>
+                <FormGroup>
+                  <FormLabel>
+                    Código de la Obra <span className="text-danger">*</span>
+                  </FormLabel>
+                  <FormControl
+                    type="text"
+                    placeholder="Ej: OBRA001"
+                    value={formData.codigo_obra}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, codigo_obra: e.target.value }))
+                    }
+                    required
+                  />
+                  <small className="text-muted">
+                    Código único de identificación
+                  </small>
+                </FormGroup>
+              </Col>
+              <Col md={6}>
                 <FormGroup>
                   <FormLabel>
                     Nombre de la Obra <span className="text-danger">*</span>
@@ -190,9 +212,9 @@ const ObraDetails = ({ obra: initialObra, obraId, error: initialError }: ObraDet
                   <FormControl
                     type="text"
                     placeholder="Ej: Primera Edición, Segunda Edición"
-                    value={formData.nombre}
+                    value={formData.nombre_obra}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, nombre: e.target.value }))
+                      setFormData((prev) => ({ ...prev, nombre_obra: e.target.value }))
                     }
                     required
                   />

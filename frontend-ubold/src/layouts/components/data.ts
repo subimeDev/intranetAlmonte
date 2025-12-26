@@ -26,6 +26,7 @@ import {
   LuEarth,
   LuEyeOff,
   LuFileInput,
+  LuFileText,
   LuFingerprint,
   LuFolderOpenDot,
   LuHandshake,
@@ -145,10 +146,10 @@ export const menuItems: MenuItemType[] = [
           { key: 'autor-requests', label: 'Solicitudes de Autores', url: '/products/atributos/autores/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
           { key: 'all-colecciones', label: 'Todas las Colecciones', url: '/products/atributos/colecciones' },
           { key: 'add-coleccion', label: 'Agregar Colección', url: '/products/atributos/colecciones/agregar' },
-          { key: 'coleccion-requests', label: 'Solicitudes de Colecciones', url: '/products/atributos/colecciones/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+          { key: 'coleccion-requests', label: 'Solicitudes de Colecciones', url: '/products/atributos/colecciones/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] }, // soporte NO puede ver solicitudes
           { key: 'all-obras', label: 'Todas las Obras', url: '/products/atributos/obras' },
           { key: 'add-obra', label: 'Agregar Obra', url: '/products/atributos/obras/agregar' },
-          { key: 'obra-requests', label: 'Solicitudes de Obras', url: '/products/atributos/obras/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+          { key: 'obra-requests', label: 'Solicitudes de Obras', url: '/products/atributos/obras/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] }, // soporte NO puede ver solicitudes
           { key: 'all-sellos', label: 'Todos los Sellos', url: '/atributos/sello' },
           { key: 'add-sello', label: 'Agregar Sello', url: '/atributos/sello/agregar' },
           { key: 'sello-requests', label: 'Solicitudes de Sellos', url: '/atributos/sello/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
@@ -164,21 +165,24 @@ export const menuItems: MenuItemType[] = [
     key: 'ecommerce',
     label: 'Ecommerce',
     icon: LuShoppingBag,
+    roles: ['super_admin', 'encargado_adquisiciones'], // supervisor y soporte NO pueden ver este menú
     children: [
       // { key: 'categories', label: 'Categories', url: '/categories' },
       {
         key: 'orders',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'orders-list', label: 'Pedidos', url: '/orders' },
           { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
         ],
       },
-      // { key: 'customers', label: 'Clientes', url: '/customers' },
-      { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
+      { key: 'customers', label: 'Clientes', url: '/customers', roles: ['super_admin', 'supervisor', 'soporte'] },
+      { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes', roles: ['super_admin', 'supervisor', 'soporte'] },
       {
         key: 'cupones',
         label: 'Cupones',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
           { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
@@ -187,35 +191,39 @@ export const menuItems: MenuItemType[] = [
       {
         key: 'pedidos',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
           { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
         ],
       },
+      { key: 'logs', label: 'Logs de Actividades', icon: LuFileText, url: '/logs', roles: ['super_admin', 'supervisor', 'soporte'] },
     ],
   },
-  // { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
-  // { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
-  // { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
-  // { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
-  // { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
-  // {
-  //   key: 'equipos',
-  //   label: 'Equipos',
-  //   icon: LuUsers,
-  //   children: [
-  //     { key: 'contacts', label: 'Contacts', url: '/users/contacts' },
-  //     { key: 'profile', label: 'Profile', url: '/users/profile' },
-  //     { key: 'roles', label: 'Roles', url: '/users/roles' },
-  //     { key: 'roles-details', label: 'Roles Details', url: '/users/roles-details' },
-  //     { key: 'permissions', label: 'Permissions', url: '/users/permissions' },
-  //   ],
-  // },
+  { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
+  { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
+  { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
+  { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
+  { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
+  {
+    key: 'equipos',
+    label: 'Equipos',
+    icon: LuUsers,
+    children: [
+      { key: 'colaboradores', label: 'Colaboradores', url: '/colaboradores', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
+      { key: 'contacts', label: 'Contacts', url: '/users/contacts' },
+      { key: 'profile', label: 'Profile', url: '/users/profile' },
+      { key: 'roles', label: 'Roles', url: '/users/roles' },
+      { key: 'roles-details', label: 'Roles Details', url: '/users/roles-details' },
+      { key: 'permissions', label: 'Permissions', url: '/users/permissions' },
+    ],
+  },
   { key: 'tienda-section', label: 'TIENDA', isTitle: true },
   {
     key: 'tienda',
     label: 'Tienda',
     icon: TbBasket,
+    roles: ['super_admin', 'encargado_adquisiciones'], // supervisor y soporte NO pueden ver este menú
     children: [
       { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
       { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
@@ -230,6 +238,7 @@ export const menuItems: MenuItemType[] = [
       {
         key: 'tienda-pedidos',
         label: 'Pedidos',
+        roles: ['super_admin', 'supervisor', 'soporte'],
         children: [
           { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
           { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },
@@ -307,21 +316,24 @@ export const horizontalMenuItems: MenuItemType[] = [
         key: 'ecommerce',
         label: 'Ecommerce',
         icon: TbBasket,
+        roles: ['super_admin', 'encargado_adquisiciones'], // supervisor y soporte NO pueden ver este menú
         children: [
           { key: 'categories', label: 'Categories', url: '/categories' },
           {
             key: 'orders',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'orders-list', label: 'Pedidos', url: '/orders' },
               { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
             ],
           },
-          // { key: 'customers', label: 'Clientes', url: '/customers' },
-          { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes' },
+          { key: 'customers', label: 'Clientes', url: '/customers', roles: ['super_admin', 'supervisor', 'soporte'] },
+          { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes', roles: ['super_admin', 'supervisor', 'soporte'] },
           {
             key: 'cupones',
             label: 'Cupones',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'all-cupones', label: 'Todos los Cupones', url: '/atributos/cupones' },
               { key: 'add-cupon', label: 'Agregar Cupón', url: '/atributos/cupones/agregar' },
@@ -330,6 +342,7 @@ export const horizontalMenuItems: MenuItemType[] = [
           {
             key: 'pedidos',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'all-pedidos', label: 'Todos los Pedidos', url: '/atributos/pedidos' },
               { key: 'add-pedido', label: 'Agregar Pedido', url: '/atributos/pedidos/agregar' },
@@ -341,6 +354,7 @@ export const horizontalMenuItems: MenuItemType[] = [
         key: 'tienda',
         label: 'Tienda',
         icon: TbBasket,
+        roles: ['super_admin', 'encargado_adquisiciones'], // supervisor y soporte NO pueden ver este menú
         children: [
           { key: 'tienda-pos', label: 'POS', url: '/tienda/pos' },
           { key: 'tienda-turno', label: 'Número de atención', url: '/tienda/turno' },
@@ -355,6 +369,7 @@ export const horizontalMenuItems: MenuItemType[] = [
           {
             key: 'tienda-pedidos',
             label: 'Pedidos',
+            roles: ['super_admin', 'supervisor', 'soporte'],
             children: [
               { key: 'tienda-pedidos-listing', label: 'Pedidos', url: '/tienda/pedidos' },
               { key: 'tienda-pedidos-editar', label: 'Edición de pedidos', url: '/tienda/pedidos/editar' },

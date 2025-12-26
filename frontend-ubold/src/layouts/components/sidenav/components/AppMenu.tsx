@@ -189,19 +189,44 @@ const AppMenu = () => {
 
   // Filtrar items del menú según roles
   const filteredMenuItems = useMemo(() => {
-    return menuItems
-      .filter((item) => {
-        // Los títulos siempre se muestran
+    const filtered = menuItems
+      .filter((item, index) => {
+        // Si es un título, verificar si hay al menos un item después (hasta el próximo título) que pase el filtro
         if (item.isTitle) {
-          return true
+          // Buscar el siguiente item que no sea título y que pase el filtro
+          for (let i = index + 1; i < menuItems.length; i++) {
+            const nextItem = menuItems[i]
+            // Si encontramos otro título, ya no hay más items en esta sección
+            if (nextItem.isTitle) {
+              return false
+            }
+            // IMPORTANTE: Primero verificar acceso al item padre
+            if (!hasAccess(nextItem, userRole)) {
+              continue // Si el padre no tiene acceso, no mostrar el título
+            }
+            // Si tiene children, verificar si alguno tiene acceso
+            if (nextItem.children) {
+              const filteredChildren = filterChildrenByRole(nextItem.children, userRole)
+              if (filteredChildren.length > 0) {
+                return true
+              }
+            } else {
+              return true // El item padre tiene acceso y no tiene children, mostrar título
+            }
+          }
+          return false
+        }
+        // IMPORTANTE: Primero verificar acceso al item padre
+        if (!hasAccess(item, userRole)) {
+          return false // Si el padre no tiene acceso, no mostrarlo
         }
         // Si tiene children, verificar si alguno tiene acceso
         if (item.children) {
           const filteredChildren = filterChildrenByRole(item.children, userRole)
           return filteredChildren.length > 0
         }
-        // Si es un item simple, verificar acceso directo
-        return hasAccess(item, userRole)
+        // Si es un item simple y pasó hasAccess, mostrarlo
+        return true
       })
       .map((item) => {
         // Si tiene children, filtrarlos
@@ -213,6 +238,7 @@ const AppMenu = () => {
         }
         return item
       })
+    return filtered
   }, [userRole])
 
   return (

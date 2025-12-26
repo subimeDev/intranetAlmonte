@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import strapiClient from '@/lib/strapi/client'
 import wooCommerceClient, { createWooCommerceClient } from '@/lib/woocommerce/client'
+import { logActivity, createLogDescription } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'
 
@@ -310,6 +311,19 @@ export async function GET(
       
       if (pedido) {
         console.log('[API /tienda/pedidos/[id] GET] ✅ Pedido encontrado con endpoint directo')
+        
+        // Registrar log de visualización
+        const attrs = pedido.attributes || {}
+        const data = (attrs && Object.keys(attrs).length > 0) ? attrs : pedido
+        const numeroPedido = data.numero_pedido || data.wooId || id
+        
+        logActivity(request, {
+          accion: 'ver',
+          entidad: 'pedido',
+          entidadId: id,
+          descripcion: createLogDescription('ver', 'pedido', numeroPedido),
+        }).catch(() => {})
+        
         return NextResponse.json({
           success: true,
           data: pedido
@@ -431,6 +445,20 @@ export async function DELETE(
         console.log('[API Pedidos DELETE] ✅ Pedido eliminado en Strapi (respuesta no JSON, probablemente exitosa)')
       }
     }
+
+    // Registrar log de eliminación
+    const attrs = pedidoStrapi?.attributes || {}
+    const data = (attrs && Object.keys(attrs).length > 0) ? attrs : pedidoStrapi
+    const numeroPedido = data?.numero_pedido || data?.wooId || id
+    
+    logActivity(request, {
+      accion: 'eliminar',
+      entidad: 'pedido',
+      entidadId: documentId || id,
+      descripcion: createLogDescription('eliminar', 'pedido', numeroPedido, `Pedido #${numeroPedido} eliminado${wooCommerceDeleted ? ' de WooCommerce y Strapi' : ' de Strapi'}`),
+      datosAnteriores: pedidoStrapi ? { numero_pedido: numeroPedido, originPlatform } : undefined,
+      metadata: { wooCommerceDeleted, originPlatform },
+    }).catch(() => {})
 
     return NextResponse.json({
       success: true,
@@ -817,8 +845,43 @@ export async function PUT(
     console.log('[API Pedidos PUT] Datos a enviar a Strapi:', JSON.stringify(pedidoData, null, 2))
 
     try {
+      // Guardar datos anteriores para el log
+      const attrsAnteriores = cuponStrapi?.attributes || {}
+      const datosAnteriores = (attrsAnteriores && Object.keys(attrsAnteriores).length > 0) ? attrsAnteriores : cuponStrapi
+      const numeroPedido = datosAnteriores?.numero_pedido || datosAnteriores?.wooId || id
+      
       const strapiResponse = await strapiClient.put<any>(strapiEndpoint, pedidoData)
       console.log('[API Pedidos PUT] ✅ Pedido actualizado en Strapi')
+      
+      // Determinar tipo de acción para el log
+      let accion: 'actualizar' | 'cambiar_estado' | 'ocultar' | 'mostrar' = 'actualizar'
+      let descripcionDetalle = ''
+      
+      if (body.data.publishedAt === null) {
+        accion = 'ocultar'
+        descripcionDetalle = 'Pedido ocultado'
+      } else if (body.data.publishedAt !== undefined && body.data.publishedAt !== null) {
+        accion = 'mostrar'
+        descripcionDetalle = 'Pedido mostrado'
+      } else if (body.data.estado !== undefined) {
+        accion = 'cambiar_estado'
+        const estadoAnterior = datosAnteriores?.estado || 'desconocido'
+        const estadoNuevo = pedidoData.data.estado || body.data.estado
+        descripcionDetalle = `Estado: ${estadoAnterior} → ${estadoNuevo}`
+      } else {
+        descripcionDetalle = 'Datos actualizados'
+      }
+      
+      // Registrar log de actualización
+      logActivity(request, {
+        accion,
+        entidad: 'pedido',
+        entidadId: documentId || id,
+        descripcion: createLogDescription(accion, 'pedido', numeroPedido, descripcionDetalle),
+        datosAnteriores: datosAnteriores ? { estado: datosAnteriores.estado, publishedAt: datosAnteriores.publishedAt } : undefined,
+        datosNuevos: pedidoData.data,
+        metadata: { wooCommerceActualizado: !!wooCommercePedido, originPlatform },
+      }).catch(() => {})
       
       return NextResponse.json({
         success: true,

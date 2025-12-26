@@ -29,6 +29,7 @@ import { toPascalCase } from '@/helpers/casing'
 import { productData, type ProductType } from '@/app/(admin)/(apps)/(ecommerce)/products/data'
 import { STRAPI_API_URL } from '@/lib/strapi/config'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/useAuth'
 
 // Tipo extendido para productos que pueden tener imagen como URL o StaticImageData
 type ProductTypeExtended = Omit<ProductType, 'image'> & {
@@ -93,13 +94,23 @@ const mapStrapiProductToProductType = (producto: any): ProductTypeExtended => {
     }, 0)
   }
 
-  // Obtener precio mínimo (igual que ProductosGrid)
+  // Obtener precio: primero del campo directo, luego de la relación
   const getPrecioMinimo = (): number => {
+    // 1. Intentar obtener del campo precio directo (nuevo método)
+    const precioDirecto = getField(data, 'precio', 'PRECIO', 'precio')
+    if (precioDirecto !== undefined && precioDirecto !== null && precioDirecto !== '') {
+      const precioNum = parseFloat(precioDirecto.toString())
+      if (!isNaN(precioNum) && precioNum > 0) {
+        return precioNum
+      }
+    }
+    
+    // 2. Si no hay precio directo, buscar en la relación (método antiguo)
     const precios = data.PRECIOS?.data || data.precios?.data || []
     if (precios.length === 0) return 0
     
     const preciosNumeros = precios
-      .map((p: any) => p.attributes?.PRECIO || p.attributes?.precio)
+      .map((p: any) => p.attributes?.PRECIO || p.attributes?.precio || p.PRECIO || p.precio)
       .filter((p: any): p is number => typeof p === 'number' && p > 0)
     
     return preciosNumeros.length > 0 ? Math.min(...preciosNumeros) : 0
@@ -156,6 +167,10 @@ const priceRangeFilterFn: FilterFn<any> = (row, columnId, value) => {
 const columnHelper = createColumnHelper<ProductTypeExtended>()
 
 const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
+  // Obtener rol del usuario autenticado
+  const { colaborador } = useAuth()
+  const canDelete = colaborador?.rol === 'super_admin'
+
   // Mapear productos de Strapi al formato ProductType si están disponibles
   const mappedProducts = useMemo(() => {
     if (productos && productos.length > 0) {
@@ -333,16 +348,18 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
               <TbEdit className="fs-lg" />
             </Button>
           </Link>
-          <Button
-            variant="default"
-            size="sm"
-            className="btn-icon rounded-circle"
-            onClick={() => {
-              toggleDeleteModal()
-              setSelectedRowIds({ [row.id]: true })
-            }}>
-            <TbTrash className="fs-lg" />
-          </Button>
+          {canDelete && (
+            <Button
+              variant="default"
+              size="sm"
+              className="btn-icon rounded-circle"
+              onClick={() => {
+                toggleDeleteModal()
+                setSelectedRowIds({ [row.id]: true })
+              }}>
+              <TbTrash className="fs-lg" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -416,17 +433,66 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
   const end = Math.min(start + pageSize - 1, totalItems)
 
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(false)
 
   const toggleDeleteModal = () => {
     setShowDeleteModal(!showDeleteModal)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const selectedIds = new Set(Object.keys(selectedRowIds))
-    setData((old) => old.filter((_, idx) => !selectedIds.has(idx.toString())))
-    setSelectedRowIds({})
-    setPagination({ ...pagination, pageIndex: 0 })
-    setShowDeleteModal(false)
+    const productsToDelete = data.filter((_, idx) => selectedIds.has(idx.toString()))
+    
+    if (productsToDelete.length === 0) {
+      setShowDeleteModal(false)
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Eliminar cada producto
+      const deletePromises = productsToDelete.map(async (product) => {
+        if (!product.strapiId) {
+          console.warn('[ProductsListing] Producto sin strapiId, omitiendo:', product)
+          return
+        }
+
+        try {
+          const response = await fetch(`/api/tienda/productos/${product.strapiId}`, {
+            method: 'DELETE',
+          })
+
+          if (!response.ok) {
+            const error = await response.json()
+            console.error('[ProductsListing] Error al eliminar producto:', product.strapiId, error)
+            throw new Error(error.error || 'Error al eliminar el producto')
+          }
+
+          console.log('[ProductsListing] Producto eliminado exitosamente:', product.strapiId)
+        } catch (error: any) {
+          console.error('[ProductsListing] Error al eliminar producto:', error.message)
+          // Continuar con los demás aunque uno falle
+        }
+      })
+
+      await Promise.all(deletePromises)
+
+      // Actualizar datos locales removiendo los eliminados
+      setData((old) => old.filter((_, idx) => !selectedIds.has(idx.toString())))
+      setSelectedRowIds({})
+      setPagination({ ...pagination, pageIndex: 0 })
+      setShowDeleteModal(false)
+
+      // Recargar la página para obtener datos actualizados desde Strapi
+      window.location.reload()
+    } catch (error: any) {
+      console.error('[ProductsListing] Error en handleDelete:', error)
+      // Aún así, recargar para sincronizar
+      window.location.reload()
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Mostrar error si existe, pero continuar mostrando los datos de ejemplo si hay
@@ -480,7 +546,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
                 <LuSearch className="app-search-icon text-muted" />
               </div>
 
-              {Object.keys(selectedRowIds).length > 0 && (
+              {Object.keys(selectedRowIds).length > 0 && canDelete && (
                 <Button variant="danger" size="sm" onClick={toggleDeleteModal}>
                   Eliminar
                 </Button>
@@ -607,7 +673,7 @@ const ProductsListing = ({ productos, error }: ProductsListingProps = {}) => {
             onHide={toggleDeleteModal}
             onConfirm={handleDelete}
             selectedCount={Object.keys(selectedRowIds).length}
-            itemName="product"
+            itemName="producto"
           />
         </Card>
       </Col>
