@@ -87,17 +87,40 @@ export function extractChatMessages(
   response: StrapiResponse<StrapiEntity<ChatMensajeAttributes>>
 ): ChatMensaje[] {
   if (!response?.data) {
+    console.log('[Chat Service] ⚠️ Respuesta sin data')
     return []
   }
 
   const raw = Array.isArray(response.data) ? response.data : [response.data]
   
+  console.log('[Chat Service] 📋 Extrayendo mensajes:', {
+    total: raw.length,
+    primeros: raw.slice(0, 3).map((item: any) => ({
+      id: item.id,
+      tieneAttributes: !!item.attributes,
+      remitente_id: item.attributes?.remitente_id || item.remitente_id,
+      cliente_id: item.attributes?.cliente_id || item.cliente_id,
+    }))
+  })
+  
   return raw.map((item: any) => {
     const attrs = item.attributes || item
-    return {
+    const mensaje = {
       ...attrs,
       id: item.id || attrs.id,
     }
+    
+    // Validar que el mensaje tiene los campos necesarios
+    if (!mensaje.id || !mensaje.remitente_id || !mensaje.cliente_id) {
+      console.warn('[Chat Service] ⚠️ Mensaje con campos faltantes:', {
+        id: mensaje.id,
+        remitente_id: mensaje.remitente_id,
+        cliente_id: mensaje.cliente_id,
+        itemRaw: JSON.stringify(item).substring(0, 200),
+      })
+    }
+    
+    return mensaje
   })
 }
 
