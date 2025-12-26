@@ -442,6 +442,30 @@ export async function PUT(
 
     console.log('[API PUT] ✅ Actualización exitosa')
     
+    // Si se cambió el estado a "Publicado", verificar requisitos para WordPress
+    if (updateData.data.estado_publicacion === 'Publicado') {
+      console.log('[API PUT] 📢 Estado cambiado a "Publicado" - Verificando requisitos para WordPress...')
+      
+      // Obtener el producto actualizado para verificar canales
+      try {
+        const productoActualizado = await strapiClient.get<any>(`/api/libros/${id}?populate=canales`)
+        const canales = productoActualizado?.data?.attributes?.canales?.data || 
+                       productoActualizado?.canales || 
+                       []
+        
+        if (!canales || canales.length === 0) {
+          console.warn('[API PUT] ⚠️ ADVERTENCIA: El producto no tiene canales asignados')
+          console.warn('[API PUT] ⚠️ WordPress requiere canales para sincronizar productos')
+          console.warn('[API PUT] 💡 Asigna canales al producto para que se sincronice correctamente')
+        } else {
+          console.log(`[API PUT] ✅ Producto tiene ${canales.length} canal(es) asignado(s)`)
+          console.log('[API PUT] ✅ Los lifecycles de Strapi deberían sincronizar con WordPress automáticamente')
+        }
+      } catch (error: any) {
+        console.warn('[API PUT] ⚠️ No se pudo verificar canales:', error.message)
+      }
+    }
+    
     // Registrar log de actualización
     const nombreNuevo = updateData.data.nombre_libro || nombreAnterior
     // Logging detallado de cookies antes de llamar logActivity

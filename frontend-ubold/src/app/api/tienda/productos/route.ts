@@ -281,6 +281,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+    // Etiquetas son opcionales - solo agregar si se proporcionan y son válidas
     if (body.etiquetas && Array.isArray(body.etiquetas) && body.etiquetas.length > 0) {
       const etiquetasFiltradas = body.etiquetas.filter((e: any) => e !== null && e !== '' && e !== undefined && String(e).trim() !== '')
       if (etiquetasFiltradas.length > 0) {
@@ -289,8 +290,12 @@ export async function POST(request: NextRequest) {
         if (etiquetasValidas.length > 0) {
           strapiProductData.data.etiquetas = etiquetasValidas
           console.log('[API POST] 🏷️ Etiquetas asignadas (validadas):', etiquetasValidas)
+        } else {
+          console.log('[API POST] ℹ️ Etiquetas proporcionadas pero ninguna es válida, se omite el campo')
         }
       }
+    } else {
+      console.log('[API POST] ℹ️ No se proporcionaron etiquetas (campo opcional)')
     }
     if (body.categorias_producto && Array.isArray(body.categorias_producto) && body.categorias_producto.length > 0) {
       const categoriasFiltradas = body.categorias_producto.filter((c: any) => c !== null && c !== '' && c !== undefined && String(c).trim() !== '')
@@ -392,7 +397,11 @@ export async function POST(request: NextRequest) {
       documentId: strapiProduct.data?.documentId
     })
     console.log('[API POST] Estado: ⏸️ Solo guardado en Strapi (pendiente), no se publica en WordPress')
-    console.log('[API POST] Para publicar, cambiar el estado desde la página de Solicitudes')
+    console.log('[API POST] Para publicar en WordPress:')
+    console.log('[API POST]   1. Ir a la página de Solicitudes')
+    console.log('[API POST]   2. Cambiar estado_publicacion a "Publicado"')
+    console.log('[API POST]   3. Asegurarse de que el producto tenga canales asignados (necesarios para sincronizar)')
+    console.log('[API POST]   4. Los lifecycles de Strapi sincronizarán automáticamente con WordPress')
 
     // Registrar log de creación
     const productoId = strapiProduct?.data?.documentId || strapiProduct?.data?.id || strapiProduct?.documentId || strapiProduct?.id
