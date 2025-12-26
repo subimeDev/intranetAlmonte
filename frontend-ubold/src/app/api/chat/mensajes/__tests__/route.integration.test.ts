@@ -17,6 +17,11 @@ jest.mock('@/lib/api/chat/validators', () => ({
   validateSendMessageParams: jest.fn(),
 }))
 
+// Mock de autenticación
+jest.mock('@/lib/auth/middleware', () => ({
+  requireAuth: jest.fn().mockResolvedValue(null), // null significa que está autenticado
+}))
+
 import { getChatMessages, sendChatMessage } from '@/lib/api/chat/services'
 import { validateGetMessagesParams, validateSendMessageParams } from '@/lib/api/chat/validators'
 

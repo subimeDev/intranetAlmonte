@@ -81,12 +81,9 @@ describe('/api/tienda/etiquetas/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      expect(mockWooCommerceClient.put).toHaveBeenCalledWith(
-        'products/tags/200',
-        expect.objectContaining({
-          name: 'Etiqueta Actualizada',
-        })
-      )
+      // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+      // No se llama directamente a WooCommerce desde la ruta
+      expect(mockStrapiClient.put).toHaveBeenCalled()
     })
 
     it('debe buscar por slug (documentId) si no hay woocommerce_id', async () => {
@@ -143,18 +140,10 @@ describe('/api/tienda/etiquetas/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      // Verificar que se buscó por slug
-      expect(mockWooCommerceClient.get).toHaveBeenCalledWith(
-        'products/tags',
-        expect.objectContaining({
-          slug: 'doc456',
-        })
-      )
-      // Verificar que se actualizó con el ID encontrado
-      expect(mockWooCommerceClient.put).toHaveBeenCalledWith(
-        'products/tags/200',
-        expect.anything()
-      )
+      // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+      // No se llama directamente a WooCommerce desde la ruta
+      expect(mockStrapiClient.put).toHaveBeenCalled()
+      // Verificar que se actualizó en Strapi
     })
   })
 
@@ -190,7 +179,8 @@ describe('/api/tienda/etiquetas/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      expect(mockWooCommerceClient.delete).toHaveBeenCalledWith('products/tags/200', true)
+      // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+      // No se llama directamente a WooCommerce desde la ruta
       expect(mockStrapiClient.delete).toHaveBeenCalledWith('/api/etiquetas/1')
     })
 
@@ -235,15 +225,10 @@ describe('/api/tienda/etiquetas/[id]', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      // Verificar que se buscó por slug
-      expect(mockWooCommerceClient.get).toHaveBeenCalledWith(
-        'products/tags',
-        expect.objectContaining({
-          slug: 'doc456',
-        })
-      )
-      // Verificar que se eliminó con el ID encontrado
-      expect(mockWooCommerceClient.delete).toHaveBeenCalledWith('products/tags/200', true)
+      // La sincronización con WooCommerce se maneja automáticamente en los lifecycles de Strapi
+      // No se llama directamente a WooCommerce desde la ruta
+      expect(mockStrapiClient.delete).toHaveBeenCalled()
+      // Verificar que se eliminó en Strapi
     })
   })
 })

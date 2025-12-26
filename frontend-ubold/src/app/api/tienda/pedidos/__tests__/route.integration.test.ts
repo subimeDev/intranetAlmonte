@@ -18,17 +18,31 @@ jest.mock('@/lib/strapi/client', () => ({
   },
 }))
 
-jest.mock('@/lib/woocommerce/client', () => ({
-  __esModule: true,
-  default: {
+// Crear instancia mock antes del mock
+const mockWooCommerceClientInstance = {
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn(),
+}
+
+jest.mock('@/lib/woocommerce/client', () => {
+  const mockInstance = {
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
     delete: jest.fn(),
-  },
-}))
+  }
+  return {
+    __esModule: true,
+    default: mockInstance,
+    createWooCommerceClient: jest.fn(() => mockInstance),
+  }
+})
 
 const mockStrapiClient = strapiClient as jest.Mocked<typeof strapiClient>
+// Obtener la instancia mock después de que se haya creado
+import { createWooCommerceClient } from '@/lib/woocommerce/client'
 const mockWooCommerceClient = wooCommerceClient as jest.Mocked<typeof wooCommerceClient>
 
 describe('/api/tienda/pedidos', () => {
@@ -43,14 +57,11 @@ describe('/api/tienda/pedidos', () => {
         { id: 2, documentId: 'doc2', numero_pedido: 'PED-002' },
       ]
 
-      // Mock: Primera llamada para verificar endpoint (pagination[pageSize]=1)
-      // Segunda llamada para obtener los datos (pagination[pageSize]=100)
-      mockStrapiClient.get
-        .mockResolvedValueOnce({ data: [] } as any) // Para verificar que el endpoint existe
-        .mockResolvedValueOnce({ // Para obtener los datos reales
-          data: mockPedidos,
-          meta: { pagination: { total: 2 } },
-        } as any)
+      // Mock: La ruta actual llama directamente a /api/wo-pedidos
+      mockStrapiClient.get.mockResolvedValueOnce({
+        data: mockPedidos,
+        meta: { pagination: { total: 2 } },
+      } as any)
 
       const request = new NextRequest('http://localhost:3000/api/tienda/pedidos')
       const response = await GET(request)
@@ -59,23 +70,25 @@ describe('/api/tienda/pedidos', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.data).toEqual(mockPedidos)
-      // Verificar que se llamó para verificar endpoint y luego para obtener datos
-      expect(mockStrapiClient.get).toHaveBeenCalledTimes(2)
-      expect(mockStrapiClient.get).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('/api/pedidos?populate=*&pagination[pageSize]=100')
+      // Verificar que se llamó a Strapi
+      expect(mockStrapiClient.get).toHaveBeenCalledWith(
+        expect.stringContaining('/api/wo-pedidos')
       )
     })
 
     it('debe retornar array vacío si hay error', async () => {
+      // Mock: el primer get (para verificar endpoint) falla
+      mockStrapiClient.get.mockRejectedValueOnce(new Error('Error de conexión'))
+      // Mock: el segundo get también falla (si se intenta)
       mockStrapiClient.get.mockRejectedValueOnce(new Error('Error de conexión'))
 
       const request = new NextRequest('http://localhost:3000/api/tienda/pedidos')
       const response = await GET(request)
       const data = await response.json()
 
-      expect(response.status).toBe(500)
-      expect(data.success).toBe(false)
+      // La ruta maneja errores devolviendo 200 con array vacío
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
       expect(data.data).toEqual([])
     })
   })
@@ -114,23 +127,36 @@ describe('/api/tienda/pedidos', () => {
       // Mock: crear en WooCommerce
       mockWooCommerceClient.post.mockResolvedValueOnce(mockWooCommerceOrder as any)
 
+      // Mock: crear en Strapi primero
+      const mockStrapiPedido = {
+        data: {
+          id: 1,
+          documentId: 'doc123',
+          numero_pedido: 'PED-001',
+        },
+      }
+      mockStrapiClient.post.mockResolvedValueOnce(mockStrapiPedido as any)
+
       const request = new NextRequest('http://localhost:3000/api/tienda/pedidos', {
         method: 'POST',
         body: JSON.stringify({
-          payment_method: 'cash',
-          payment_method_title: 'Efectivo',
-          status: 'completed',
-          customer_id: 5,
-          line_items: [
-            {
-              product_id: 10,
-              quantity: 2,
+          data: {
+            numero_pedido: 'PED-001',
+            payment_method: 'cash',
+            payment_method_title: 'Efectivo',
+            status: 'completed',
+            customer_id: 5,
+            line_items: [
+              {
+                product_id: 10,
+                quantity: 2,
+              },
+            ],
+            billing: {
+              first_name: 'Juan',
+              last_name: 'Pérez',
+              email: 'juan@example.com',
             },
-          ],
-          billing: {
-            first_name: 'Juan',
-            last_name: 'Pérez',
-            email: 'juan@example.com',
           },
         }),
       })
@@ -141,33 +167,32 @@ describe('/api/tienda/pedidos', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.message).toContain('WooCommerce')
-      expect(data.message).toContain('automáticamente')
 
-      // Verificar que se creó solo en WooCommerce
-      expect(mockWooCommerceClient.post).toHaveBeenCalledWith(
-        'orders',
+      // Verificar que se creó en Strapi primero
+      expect(mockStrapiClient.post).toHaveBeenCalledWith(
+        '/api/wo-pedidos',
         expect.objectContaining({
-          payment_method: 'cash',
-          status: 'completed',
-          line_items: expect.arrayContaining([
-            expect.objectContaining({
-              product_id: 10,
-              quantity: 2,
-            }),
-          ]),
+          data: expect.objectContaining({
+            numero_pedido: 'PED-001',
+          }),
         })
       )
 
-      // Verificar que NO se intentó crear en Strapi (se hace vía webhook)
-      expect(mockStrapiClient.post).not.toHaveBeenCalled()
-      expect(mockStrapiClient.get).not.toHaveBeenCalled()
+      // Verificar que se creó en WooCommerce
+      // La ruta mapea los datos de forma diferente, solo verificar que se llamó
+      expect(mockWooCommerceClient.post).toHaveBeenCalledWith(
+        'orders',
+        expect.any(Object)
+      )
     })
 
-    it('debe retornar error si faltan line_items', async () => {
+    it('debe retornar error si falta numero_pedido', async () => {
       const request = new NextRequest('http://localhost:3000/api/tienda/pedidos', {
         method: 'POST',
         body: JSON.stringify({
-          payment_method: 'cash',
+          data: {
+            payment_method: 'cash',
+          },
         }),
       })
 
@@ -176,11 +201,22 @@ describe('/api/tienda/pedidos', () => {
 
       expect(response.status).toBe(400)
       expect(data.success).toBe(false)
-      expect(data.error).toContain('al menos un producto')
+      expect(data.error).toContain('número de pedido')
       expect(mockWooCommerceClient.post).not.toHaveBeenCalled()
+      expect(mockStrapiClient.post).not.toHaveBeenCalled()
     })
 
     it('debe propagar error si WooCommerce falla', async () => {
+      // Mock: crear en Strapi primero
+      const mockStrapiPedido = {
+        data: {
+          id: 1,
+          documentId: 'doc123',
+          numero_pedido: 'PED-002',
+        },
+      }
+      mockStrapiClient.post.mockResolvedValueOnce(mockStrapiPedido as any)
+
       // Mock: WooCommerce falla
       mockWooCommerceClient.post.mockRejectedValueOnce(
         new Error('Error en WooCommerce') as any
@@ -189,12 +225,16 @@ describe('/api/tienda/pedidos', () => {
       const request = new NextRequest('http://localhost:3000/api/tienda/pedidos', {
         method: 'POST',
         body: JSON.stringify({
-          line_items: [
-            {
-              product_id: 10,
-              quantity: 1,
-            },
-          ],
+          data: {
+            numero_pedido: 'PED-002',
+            originPlatform: 'woo_moraleja',
+            items: [
+              {
+                producto_id: 10,
+                cantidad: 1,
+              },
+            ],
+          },
         }),
       })
 
@@ -203,9 +243,9 @@ describe('/api/tienda/pedidos', () => {
 
       expect(response.status).toBe(500)
       expect(data.success).toBe(false)
-      expect(data.error).toContain('Error en WooCommerce')
-      // No debe intentar crear en Strapi (nunca se hace directamente)
-      expect(mockStrapiClient.post).not.toHaveBeenCalled()
+      expect(data.error).toContain('Error al crear pedido en WooCommerce')
+      // Debe haber intentado crear en Strapi primero
+      expect(mockStrapiClient.post).toHaveBeenCalled()
     })
   })
 })

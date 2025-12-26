@@ -91,8 +91,13 @@ describe('OrdersList', () => {
 
   it('debe mostrar los montos de los pedidos', () => {
     render(<OrdersList pedidos={mockPedidos} />)
-    expect(screen.getByText(/100/i)).toBeInTheDocument()
-    expect(screen.getByText(/200/i)).toBeInTheDocument()
+    // Usar getAllByText para encontrar todos los elementos con "100" y "200"
+    // y verificar que al menos uno de ellos es el monto (contiene $)
+    const amounts100 = screen.getAllByText(/100/i)
+    const amounts200 = screen.getAllByText(/200/i)
+    // Verificar que hay al menos un elemento que contiene "$100" o "$200"
+    expect(amounts100.some(el => el.textContent?.includes('$100') || el.textContent?.includes('100.00'))).toBe(true)
+    expect(amounts200.some(el => el.textContent?.includes('$200') || el.textContent?.includes('200.00'))).toBe(true)
   })
 
   it('debe mostrar los estados de pago traducidos', () => {
