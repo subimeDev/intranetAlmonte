@@ -173,34 +173,56 @@ const Page = () => {
         const data = await response.json()
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
-        // Mapear mensajes - los datos vienen directamente
-        const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-          const texto = mensaje.texto || ''
-          const remitenteId = mensaje.remitente_id || 1
-          const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
+        // Mapear mensajes manteniendo referencia a los datos originales para ordenar por fecha
+        const mensajesConFecha = mensajesData.map((mensaje: any) => {
+          const texto = mensaje.texto || mensaje.attributes?.texto || ''
+          const remitenteId = mensaje.remitente_id || mensaje.attributes?.remitente_id || 1
+          const fecha = mensaje.fecha || mensaje.attributes?.fecha || mensaje.createdAt || Date.now()
+          const fechaObj = new Date(fecha)
 
           return {
-            id: String(mensaje.id),
+            id: String(mensaje.id || mensaje.attributes?.id || ''),
             senderId: String(remitenteId),
             text: texto,
-            time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+            time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+            fechaOriginal: fecha, // Guardar fecha original para ordenar
           }
         })
 
-        // Los mensajes ya vienen ordenados del servidor
+        // Ordenar por fecha (más confiable que por ID)
+        mensajesConFecha.sort((a, b) => {
+          const fechaA = new Date(a.fechaOriginal).getTime()
+          const fechaB = new Date(b.fechaOriginal).getTime()
+          return fechaA - fechaB
+        })
+
+        // Remover fechaOriginal antes de guardar
+        const mensajesMapeados: MessageType[] = mensajesConFecha.map(({ fechaOriginal, ...msg }) => msg)
 
         if (soloNuevos) {
           setMessages((prev) => {
-            // Evitar duplicados
+            // Remover mensajes temporales y duplicados
             const idsExistentes = new Set(prev.map((m) => m.id))
-            const nuevos = mensajesMapeados.filter((m) => !idsExistentes.has(m.id))
+            const nuevos = mensajesMapeados.filter((m) => !idsExistentes.has(m.id) && !m.id.startsWith('temp-'))
             
-            if (nuevos.length === 0) return prev
+            if (nuevos.length === 0) {
+              // Aún así, remover temporales si existen
+              const sinTemporales = prev.filter((m) => !m.id.startsWith('temp-'))
+              return sinTemporales.length !== prev.length ? sinTemporales : prev
+            }
             
-            // Combinar y ordenar
-            const todos = [...prev, ...nuevos]
-            // Ordenar por ID numérico (asumiendo que IDs más altos = más recientes)
+            // Combinar: mantener prev sin temporales, agregar nuevos
+            const prevSinTemporales = prev.filter((m) => !m.id.startsWith('temp-'))
+            const todos = [...prevSinTemporales, ...nuevos]
+            
+            // Ordenar por fecha usando los datos originales
             todos.sort((a, b) => {
+              const msgA = mensajesConFecha.find((m) => m.id === a.id)
+              const msgB = mensajesConFecha.find((m) => m.id === b.id)
+              if (msgA && msgB) {
+                return new Date(msgA.fechaOriginal).getTime() - new Date(msgB.fechaOriginal).getTime()
+              }
+              // Fallback a orden por ID
               const idA = parseInt(a.id) || 0
               const idB = parseInt(b.id) || 0
               return idA - idB
@@ -209,13 +231,9 @@ const Page = () => {
             return todos
           })
         } else {
-          // Ordenar mensajes por ID (más antiguos primero)
-          mensajesMapeados.sort((a, b) => {
-            const idA = parseInt(a.id) || 0
-            const idB = parseInt(b.id) || 0
-            return idA - idB
-          })
-          setMessages(mensajesMapeados)
+          // Remover mensajes temporales en carga inicial
+          const sinTemporales = mensajesMapeados.filter((m) => !m.id.startsWith('temp-'))
+          setMessages(sinTemporales)
         }
 
         // Actualizar última fecha solo si hay mensajes nuevos
