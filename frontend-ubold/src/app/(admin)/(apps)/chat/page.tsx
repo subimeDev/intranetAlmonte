@@ -41,7 +41,8 @@ import { useAuth } from '@/hooks/useAuth'
 
 const Page = () => {
   const { colaborador, persona } = useAuth()
-  const currentUserId = colaborador?.id ? String(colaborador.id) : null
+  // Usar id o documentId según lo que esté disponible (Strapi puede usar cualquiera)
+  const currentUserId = colaborador ? String(colaborador.id || colaborador.documentId || '') : null
 
   const currentUserData = {
     id: currentUserId || '1',
