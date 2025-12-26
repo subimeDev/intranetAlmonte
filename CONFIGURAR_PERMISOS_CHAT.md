@@ -3,9 +3,24 @@
 ## Problema
 Los usuarios no pueden ver los mensajes de chat porque no tienen permisos para leer el content type `intranet-chat`.
 
-## Solución: Configurar Permisos Manualmente
+**NOTA:** El panel de Strapi tiene un error conocido donde `/api/users-permissions/roles` devuelve 500. Usa el método alternativo abajo.
 
-### Pasos:
+## Solución Rápida: Usar Script (Recomendado)
+
+Ejecuta el script que actualiza los permisos directamente:
+
+```bash
+node scripts/actualizar-permisos-chat-directo.js
+```
+
+Este script:
+- Obtiene el rol "Authenticated" (ID: 1) directamente
+- Habilita todos los permisos de `intranet-chat`
+- Guarda los cambios
+
+## Solución Alternativa: Configurar Permisos Manualmente
+
+Si el panel de Strapi funciona, puedes configurarlos manualmente:
 
 1. **Acceder al panel de administración de Strapi**
    - Ve a: `https://strapi.moraleja.cl/admin`
@@ -15,6 +30,7 @@ Los usuarios no pueden ver los mensajes de chat porque no tienen permisos para l
    - En el menú lateral, haz clic en "Settings"
    - Luego en "Users & Permissions Plugin"
    - Finalmente en "Roles"
+   - **NOTA:** Si ves un error "Failed to fetch", el panel tiene un problema conocido. Usa el script en su lugar.
 
 3. **Configurar permisos para el rol "Authenticated"**
    - Haz clic en el rol "Authenticated"
@@ -26,11 +42,7 @@ Los usuarios no pueden ver los mensajes de chat porque no tienen permisos para l
      - ✅ **update** - Para actualizar mensajes (opcional)
      - ✅ **delete** - Para eliminar mensajes (opcional)
 
-4. **Configurar permisos para el rol "Public" (si es necesario)**
-   - Repite el mismo proceso para el rol "Public" si quieres que usuarios no autenticados también puedan acceder
-   - **NOTA:** Generalmente solo se habilita para "Authenticated"
-
-5. **Guardar los cambios**
+4. **Guardar los cambios**
    - Haz clic en "Save" al final de la página
 
 ## Verificación
