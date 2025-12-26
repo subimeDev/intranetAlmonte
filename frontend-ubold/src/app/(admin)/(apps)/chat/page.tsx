@@ -261,12 +261,27 @@ const Page = () => {
 
     const texto = messageText.trim()
     const textoOriginal = messageText // Guardar para restaurar en caso de error
+    const remitenteIdNum = parseInt(currentUserId, 10)
+    const colaboradorIdNum = parseInt(currentContact.id, 10)
+    
+    // Crear mensaje temporal (optimistic update)
+    const mensajeTemporal: MessageType = {
+      id: `temp-${Date.now()}`,
+      senderId: currentUserId,
+      text: texto,
+      time: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+    }
+    
+    // Agregar mensaje temporal al estado inmediatamente
+    setMessages((prev) => [...prev, mensajeTemporal])
     setMessageText('')
     setIsSending(true)
     setError(null)
 
-    const remitenteIdNum = parseInt(currentUserId, 10)
-    const colaboradorIdNum = parseInt(currentContact.id, 10)
+    // Scroll inmediato
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
 
     try {
       const response = await fetch('/api/chat/mensajes', {
@@ -284,15 +299,77 @@ const Page = () => {
         throw new Error(errorData.error || 'Error al enviar mensaje')
       }
 
-      // El mensaje se agregará automáticamente con el polling
-      // Solo hacer scroll después de un breve delay
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      const responseData = await response.json()
+      
+      // Obtener el ID del mensaje guardado
+      let mensajeGuardado: any = null
+      if (responseData.data) {
+        const data = Array.isArray(responseData.data) ? responseData.data[0] : responseData.data
+        mensajeGuardado = data?.attributes || data || null
+      }
+      
+      // Forzar recarga de mensajes después de un breve delay para obtener el mensaje real
+      setTimeout(async () => {
+        try {
+          const query = new URLSearchParams({
+            colaborador_id: currentContact.id,
+            remitente_id: currentUserId,
+          })
+          
+          const reloadResponse = await fetch(`/api/chat/mensajes?${query.toString()}`)
+          if (reloadResponse.ok) {
+            const reloadData = await reloadResponse.json()
+            const mensajesData = Array.isArray(reloadData.data) ? reloadData.data : (reloadData.data ? [reloadData.data] : [])
+            
+            const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
+              const textoMsg = mensaje.texto || ''
+              const remitenteIdMsg = mensaje.remitente_id || 1
+              const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
+              
+              return {
+                id: String(mensaje.id),
+                senderId: String(remitenteIdMsg),
+                text: textoMsg,
+                time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+              }
+            })
+            
+            // Ordenar por ID
+            mensajesMapeados.sort((a, b) => {
+              const idA = parseInt(a.id) || 0
+              const idB = parseInt(b.id) || 0
+              return idA - idB
+            })
+            
+            // Remover mensaje temporal y actualizar con los reales
+            setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
+            
+            // Actualizar última fecha
+            if (mensajesMapeados.length > 0) {
+              const ultimoMensaje = mensajesData[mensajesData.length - 1]
+              const ultimaFecha = ultimoMensaje?.fecha || ultimoMensaje?.createdAt
+              if (ultimaFecha) {
+                setLastMessageDate(ultimaFecha)
+              }
+            }
+            
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
+          }
+        } catch (reloadErr) {
+          console.error('Error al recargar mensajes:', reloadErr)
+          // Si falla la recarga, mantener el mensaje temporal
+        }
       }, 500)
+      
     } catch (err: any) {
       console.error('Error al enviar mensaje:', err)
       setError(err.message || 'Error al enviar mensaje')
       setMessageText(textoOriginal) // Restaurar texto en caso de error
+      
+      // Remover mensaje temporal en caso de error
+      setMessages((prev) => prev.filter((m) => m.id !== mensajeTemporal.id))
     } finally {
       setIsSending(false)
     }

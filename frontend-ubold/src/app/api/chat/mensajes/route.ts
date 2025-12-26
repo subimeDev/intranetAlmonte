@@ -74,7 +74,21 @@ export async function POST(request: NextRequest) {
     // Enviar mensaje usando el servicio modular
     const response = await sendChatMessage(texto, remitenteIdNum, colaboradorIdNum)
     
-    return NextResponse.json(response, { status: 201 })
+    // Retornar el mensaje guardado en el formato esperado por el cliente
+    const savedMessage = Array.isArray(response.data) ? response.data[0] : response.data
+    const savedMessageData = (savedMessage as any)?.attributes || savedMessage
+    
+    return NextResponse.json({
+      data: {
+        id: (savedMessage as any)?.id || savedMessageData?.id,
+        texto: savedMessageData?.texto || texto,
+        remitente_id: savedMessageData?.remitente_id || remitenteIdNum,
+        cliente_id: savedMessageData?.cliente_id || colaboradorIdNum,
+        fecha: savedMessageData?.fecha || new Date().toISOString(),
+        leido: savedMessageData?.leido || false,
+      },
+      meta: {}
+    }, { status: 201 })
   } catch (error: any) {
     console.error('[API /chat/mensajes POST] Error:', error)
     return NextResponse.json(
