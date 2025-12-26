@@ -31,6 +31,6 @@ ENV HOSTNAME="0.0.0.0"
 ENV NODE_ENV=production
 
 # Comando para iniciar la aplicación
-# Cambiar al directorio standalone y ejecutar el servidor directamente
-WORKDIR /app/.next/standalone
-CMD ["node", "server.js"]
+# Usar el script de inicio que verifica que el servidor esté escuchando
+WORKDIR /app
+CMD ["node", "start-server.js"]
