@@ -175,7 +175,11 @@ const Page = () => {
         const mensajesData = Array.isArray(data.data) ? data.data : (data.data ? [data.data] : [])
 
         // Mapear mensajes manteniendo referencia a los datos originales para ordenar por fecha
-        const mensajesConFecha = mensajesData.map((mensaje: any) => {
+        interface MensajeConFecha extends MessageType {
+          fechaOriginal: string
+        }
+        
+        const mensajesConFecha: MensajeConFecha[] = mensajesData.map((mensaje: any) => {
           const texto = mensaje.texto || mensaje.attributes?.texto || ''
           const remitenteId = mensaje.remitente_id || mensaje.attributes?.remitente_id || 1
           const fecha = mensaje.fecha || mensaje.attributes?.fecha || mensaje.createdAt || Date.now()
@@ -191,7 +195,7 @@ const Page = () => {
         })
 
         // Ordenar por fecha (más confiable que por ID)
-        mensajesConFecha.sort((a, b) => {
+        mensajesConFecha.sort((a: MensajeConFecha, b: MensajeConFecha) => {
           const fechaA = new Date(a.fechaOriginal).getTime()
           const fechaB = new Date(b.fechaOriginal).getTime()
           return fechaA - fechaB
@@ -217,7 +221,7 @@ const Page = () => {
             const todos = [...prevSinTemporales, ...nuevos]
             
             // Ordenar por fecha usando los datos originales
-            todos.sort((a, b) => {
+            todos.sort((a: MessageType, b: MessageType) => {
               const msgA = mensajesConFecha.find((m) => m.id === a.id)
               const msgB = mensajesConFecha.find((m) => m.id === b.id)
               if (msgA && msgB) {
