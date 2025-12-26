@@ -46,39 +46,11 @@ const Page = () => {
   // CRÍTICO: intranet-chat usa remitente_id y cliente_id como INTEGER
   // Siempre usar el ID numérico del colaborador, NO documentId
   // El id numérico es el que se guarda en la base de datos
+  // Priorizar id numérico, pero si solo tenemos documentId, usarlo (se convertirá a número en el backend)
   const currentUserIdRaw = colaborador 
-    ? (colaborador.id || colaborador.attributes?.id || null)
+    ? (colaborador.id || colaborador.attributes?.id || colaborador.documentId || null)
     : null
-  // Si no hay id numérico, intentar obtenerlo desde la API
-  const [currentUserId, setCurrentUserId] = useState<string | null>(
-    currentUserIdRaw ? String(currentUserIdRaw) : null
-  )
-  
-  // Si no tenemos ID numérico, obtenerlo desde la API
-  useEffect(() => {
-    if (!currentUserId && colaborador) {
-      const obtenerIdNumerico = async () => {
-        try {
-          // Intentar obtener el colaborador completo desde la API para tener el id numérico
-          const colaboradorId = colaborador.id || colaborador.documentId
-          if (colaboradorId) {
-            const response = await fetch(`/api/colaboradores/${colaboradorId}`)
-            if (response.ok) {
-              const data = await response.json()
-              const colaboradorCompleto = data.colaborador || data.data
-              if (colaboradorCompleto?.id) {
-                setCurrentUserId(String(colaboradorCompleto.id))
-                console.error('[Chat] ✅ ID numérico obtenido desde API:', colaboradorCompleto.id)
-              }
-            }
-          }
-        } catch (error) {
-          console.error('[Chat] ⚠️ Error al obtener ID numérico:', error)
-        }
-      }
-      obtenerIdNumerico()
-    }
-  }, [currentUserId, colaborador])
+  const currentUserId = currentUserIdRaw ? String(currentUserIdRaw) : null
   
   // Log para debugging (solo en desarrollo o cuando hay problemas)
   useEffect(() => {
