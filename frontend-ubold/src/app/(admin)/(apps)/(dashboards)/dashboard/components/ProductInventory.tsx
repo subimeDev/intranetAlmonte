@@ -158,16 +158,16 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
     <Card>
       <CardHeader className="justify-content-between align-items-center border-dashed">
         <CardTitle as="h4" className="mb-0">
-          Product Inventory
+          Inventario de Productos
         </CardTitle>
         <div className="d-flex gap-2">
           <Link href="/add-product" passHref>
             <Button variant="soft-secondary" size="sm">
-              <TbPlus className="me-1" /> Add Product
+              <TbPlus className="me-1" /> Agregar Producto
             </Button>
           </Link>
           <Button variant="primary" size="sm">
-            <TbFileExport className="me-1" /> Export CSV
+            <TbFileExport className="me-1" /> Exportar CSV
           </Button>
         </div>
       </CardHeader>
@@ -182,7 +182,7 @@ const ProductInventory = ({ products: propsProducts }: ProductInventoryProps) =>
             end={end}
             className={'pagination-sm'}
             showInfo
-            itemsName="products"
+            itemsName="productos"
             previousPage={table.previousPage}
             canPreviousPage={table.getCanPreviousPage()}
             pageCount={table.getPageCount()}

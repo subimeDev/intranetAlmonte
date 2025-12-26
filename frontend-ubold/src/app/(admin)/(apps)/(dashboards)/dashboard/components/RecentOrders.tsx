@@ -149,19 +149,19 @@ const RecentOrders = ({ orders: propsOrders }: RecentOrdersProps) => {
     <Card>
       <CardHeader className="justify-content-between align-items-center border-dashed">
         <CardTitle as="h4" className="mb-0">
-          Recent Orders
+          Pedidos Recientes
         </CardTitle>
         <div className="d-flex gap-2">
           <Button variant="soft-secondary" size="sm">
-            <TbPlus className="me-1" /> Add Order
+            <TbPlus className="me-1" /> Agregar Pedido
           </Button>
           <Button variant="primary" size="sm">
-            <TbFileExport className="me-1" /> Export CSV
+            <TbFileExport className="me-1" /> Exportar CSV
           </Button>
         </div>
       </CardHeader>
       <CardBody className="p-0">
-        <DataTable<OrderType> table={table} emptyMessage="No records found" showHeaders={false} />
+        <DataTable<OrderType> table={table} emptyMessage="No se encontraron registros" showHeaders={false} />
       </CardBody>
       {table.getRowModel().rows.length > 0 && (
         <CardFooter className="border-0">
@@ -171,7 +171,7 @@ const RecentOrders = ({ orders: propsOrders }: RecentOrdersProps) => {
             end={end}
             className={'pagination-sm'}
             showInfo
-            itemsName="orders"
+            itemsName="pedidos"
             previousPage={table.previousPage}
             canPreviousPage={table.getCanPreviousPage()}
             pageCount={table.getPageCount()}

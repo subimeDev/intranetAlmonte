@@ -127,10 +127,9 @@ export const menuItems: MenuItemType[] = [
     label: 'Products',
     icon: LuShoppingBag,
     children: [
-      { key: 'product-list', label: 'Listing', url: '/products' },
-      { key: 'product-grid', label: 'Product Grid', url: '/products-grid' },
-      { key: 'product-details', label: 'Product Details', url: '/products/1' },
-      { key: 'add-product', label: 'Add Product', url: '/add-product' },
+      { key: 'product-list', label: 'Productos', url: '/products' },
+      { key: 'product-grid', label: 'Grilla de Productos', url: '/products-grid' },
+      { key: 'add-product', label: 'Agregar Producto', url: '/add-product' },
       { key: 'all-categories', label: 'Todas las Categorías', url: '/products/categorias' },
       { key: 'add-category', label: 'Agregar Categoría', url: '/products/categorias/agregar' },
       { key: 'categoria-requests', label: 'Solicitudes de Categorías', url: '/products/categorias/solicitudes', roles: ['super_admin', 'encargado_adquisiciones', 'supervisor'] },
@@ -168,16 +167,6 @@ export const menuItems: MenuItemType[] = [
     roles: ['super_admin', 'encargado_adquisiciones', 'supervisor', 'soporte'], // Todos los roles pueden ver este menú
     children: [
       // { key: 'categories', label: 'Categories', url: '/categories' },
-      {
-        key: 'orders',
-        label: 'Pedidos',
-        roles: ['super_admin', 'supervisor', 'soporte'],
-        children: [
-          { key: 'orders-list', label: 'Pedidos', url: '/orders' },
-          { key: 'order-details', label: 'Detalles del Pedido', url: '/orders/1' },
-        ],
-      },
-      { key: 'customers', label: 'Clientes', url: '/customers', roles: ['super_admin', 'supervisor', 'soporte'] },
       { key: 'all-clients', label: 'Todos los Clientes', url: '/clientes', roles: ['super_admin', 'supervisor', 'soporte'] },
       {
         key: 'cupones',
@@ -202,9 +191,6 @@ export const menuItems: MenuItemType[] = [
   },
   { key: 'aplicaciones', label: 'APLICACIONES', isTitle: true },
   { key: 'chat', label: 'Chat', icon: LuMessageSquareDot, url: '/chat' },
-  { key: 'calendar', label: 'Calendario', icon: LuCalendar, url: '/calendar' },
-  { key: 'file-manager', label: 'Gestor de Archivos', icon: LuFolderOpenDot, url: '/file-manager' },
-  { key: 'equipos-section', label: 'EQUIPOS', isTitle: true },
   {
     key: 'equipos',
     label: 'Equipos',
