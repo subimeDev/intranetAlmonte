@@ -10,6 +10,68 @@ import { logActivity, createLogDescription } from '@/lib/logging'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Valida que un documentId exista en Strapi antes de usarlo en una relación
+ * @param documentId El documentId a validar
+ * @param collectionType El tipo de colección (ej: 'etiquetas', 'marcas', 'canales')
+ * @returns true si existe, false si no
+ */
+async function validateDocumentId(documentId: string, collectionType: string): Promise<boolean> {
+  try {
+    // Intentar obtener el documento desde Strapi
+    const response: any = await strapiClient.get(`/api/${collectionType}/${documentId}`)
+    return !!(response && (response.data || response.id || response.documentId))
+  } catch (error: any) {
+    // Si es 404, el documento no existe
+    if (error.status === 404) {
+      console.warn(`[API POST] ⚠️ DocumentId "${documentId}" no existe en colección "${collectionType}"`)
+      return false
+    }
+    // Otros errores (403, 500, etc.) - asumir que existe pero no podemos verificarlo
+    console.warn(`[API POST] ⚠️ No se pudo validar documentId "${documentId}" en "${collectionType}": ${error.status || error.message}`)
+    return true // Asumir que existe para no bloquear la creación
+  }
+}
+
+/**
+ * Valida y filtra un array de documentIds, removiendo los que no existen
+ * @param documentIds Array de documentIds a validar
+ * @param collectionType El tipo de colección
+ * @returns Array de documentIds válidos
+ */
+async function validateAndFilterDocumentIds(documentIds: string[], collectionType: string): Promise<string[]> {
+  if (!documentIds || documentIds.length === 0) {
+    return []
+  }
+
+  console.log(`[API POST] 🔍 Validando ${documentIds.length} documentIds para "${collectionType}"...`)
+  
+  const validations = await Promise.all(
+    documentIds.map(async (docId) => {
+      const isValid = await validateDocumentId(docId, collectionType)
+      return { docId, isValid }
+    })
+  )
+
+  const validIds = validations
+    .filter(v => v.isValid)
+    .map(v => v.docId)
+
+  const invalidIds = validations
+    .filter(v => !v.isValid)
+    .map(v => v.docId)
+
+  if (invalidIds.length > 0) {
+    console.warn(`[API POST] ⚠️ Se removieron ${invalidIds.length} documentIds inválidos de "${collectionType}":`, invalidIds)
+  }
+
+  if (validIds.length !== documentIds.length) {
+    console.log(`[API POST] ✅ DocumentIds válidos para "${collectionType}": ${validIds.length}/${documentIds.length}`)
+  }
+
+  return validIds
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Verificar que el token esté configurado
@@ -190,12 +252,18 @@ export async function POST(request: NextRequest) {
 
     // === RELACIONES MÚLTIPLES (array de documentIds) ===
     // CRÍTICO: Los canales son necesarios para sincronizar con WordPress
-    // Validar que los arrays no contengan valores null o vacíos
+    // Validar que los arrays no contengan valores null o vacíos Y que los documentIds existan
     if (body.canales && Array.isArray(body.canales) && body.canales.length > 0) {
-      const canalesValidos = body.canales.filter((c: any) => c !== null && c !== '' && c !== undefined)
-      if (canalesValidos.length > 0) {
-        strapiProductData.data.canales = canalesValidos
-        console.log('[API POST] 📡 Canales asignados:', canalesValidos)
+      const canalesFiltrados = body.canales.filter((c: any) => c !== null && c !== '' && c !== undefined && String(c).trim() !== '')
+      if (canalesFiltrados.length > 0) {
+        // Validar que los documentIds existan en Strapi
+        const canalesValidos = await validateAndFilterDocumentIds(canalesFiltrados.map(String), 'canales')
+        if (canalesValidos.length > 0) {
+          strapiProductData.data.canales = canalesValidos
+          console.log('[API POST] 📡 Canales asignados (validados):', canalesValidos)
+        } else {
+          console.warn('[API POST] ⚠️ Canales proporcionados pero ninguno es válido en Strapi')
+        }
       } else {
         console.warn('[API POST] ⚠️ Canales proporcionados pero todos son inválidos (null/vacíos)')
       }
@@ -204,24 +272,33 @@ export async function POST(request: NextRequest) {
     }
     
     if (body.marcas && Array.isArray(body.marcas) && body.marcas.length > 0) {
-      const marcasValidas = body.marcas.filter((m: any) => m !== null && m !== '' && m !== undefined)
-      if (marcasValidas.length > 0) {
-        strapiProductData.data.marcas = marcasValidas
-        console.log('[API POST] 🏷️ Marcas asignadas:', marcasValidas)
+      const marcasFiltradas = body.marcas.filter((m: any) => m !== null && m !== '' && m !== undefined && String(m).trim() !== '')
+      if (marcasFiltradas.length > 0) {
+        const marcasValidas = await validateAndFilterDocumentIds(marcasFiltradas.map(String), 'marcas')
+        if (marcasValidas.length > 0) {
+          strapiProductData.data.marcas = marcasValidas
+          console.log('[API POST] 🏷️ Marcas asignadas (validadas):', marcasValidas)
+        }
       }
     }
     if (body.etiquetas && Array.isArray(body.etiquetas) && body.etiquetas.length > 0) {
-      const etiquetasValidas = body.etiquetas.filter((e: any) => e !== null && e !== '' && e !== undefined)
-      if (etiquetasValidas.length > 0) {
-        strapiProductData.data.etiquetas = etiquetasValidas
-        console.log('[API POST] 🏷️ Etiquetas asignadas:', etiquetasValidas)
+      const etiquetasFiltradas = body.etiquetas.filter((e: any) => e !== null && e !== '' && e !== undefined && String(e).trim() !== '')
+      if (etiquetasFiltradas.length > 0) {
+        const etiquetasValidas = await validateAndFilterDocumentIds(etiquetasFiltradas.map(String), 'etiquetas')
+        if (etiquetasValidas.length > 0) {
+          strapiProductData.data.etiquetas = etiquetasValidas
+          console.log('[API POST] 🏷️ Etiquetas asignadas (validadas):', etiquetasValidas)
+        }
       }
     }
     if (body.categorias_producto && Array.isArray(body.categorias_producto) && body.categorias_producto.length > 0) {
-      const categoriasValidas = body.categorias_producto.filter((c: any) => c !== null && c !== '' && c !== undefined)
-      if (categoriasValidas.length > 0) {
-        strapiProductData.data.categorias_producto = categoriasValidas
-        console.log('[API POST] 📂 Categorías asignadas:', categoriasValidas)
+      const categoriasFiltradas = body.categorias_producto.filter((c: any) => c !== null && c !== '' && c !== undefined && String(c).trim() !== '')
+      if (categoriasFiltradas.length > 0) {
+        const categoriasValidas = await validateAndFilterDocumentIds(categoriasFiltradas.map(String), 'categorias-productos')
+        if (categoriasValidas.length > 0) {
+          strapiProductData.data.categorias_producto = categoriasValidas
+          console.log('[API POST] 📂 Categorías asignadas (validadas):', categoriasValidas)
+        }
       }
     }
     
