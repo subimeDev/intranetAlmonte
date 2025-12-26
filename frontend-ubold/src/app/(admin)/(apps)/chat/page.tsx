@@ -574,63 +574,74 @@ const Page = () => {
             {messages.length > 0 ? (
               <>
                 {messages.map((message) => {
-                  const messageSenderId = String(message.senderId)
-                  const currentUserIdStr = currentUserId ? String(currentUserId) : null
-                  const isFromCurrentUser = currentUserIdStr !== null && messageSenderId === currentUserIdStr
+                  const messageSenderId = String(message.senderId || '')
+                  const currentUserIdStr = currentUserId ? String(currentUserId) : ''
+                  const isFromCurrentUser = currentUserIdStr !== '' && messageSenderId === currentUserIdStr
 
-                  return (
-                    <Fragment key={message.id}>
-                      {/* Mensaje del otro usuario - IZQUIERDA, AMARILLO */}
-                      {currentContact && currentUserIdStr && !isFromCurrentUser && (
-                        <div className="d-flex align-items-start gap-2 my-3 chat-item">
-                          {currentContact.avatar ? (
-                            <Image 
-                              src={typeof currentContact.avatar === 'object' && 'src' in currentContact.avatar 
-                                ? currentContact.avatar.src 
-                                : String(currentContact.avatar)} 
-                              width={36} 
-                              height={36} 
-                              className="avatar-md rounded-circle" 
-                              alt="User" 
-                            />
-                          ) : (
-                            <span className="avatar-sm flex-shrink-0">
-                              <span className="avatar-title text-bg-primary fw-bold rounded-circle">
-                                {currentContact.name.charAt(0).toUpperCase()}
-                              </span>
-                            </span>
-                          )}
-                          <div>
-                            <div className="chat-message py-2 px-3 bg-warning-subtle rounded">{message.text}</div>
-                            <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
-                              {message.time}
-                            </div>
+                  // Log de depuración para cada mensaje
+                  if (typeof window !== 'undefined') {
+                    console.error('[Chat] 🎨 Renderizando mensaje:', {
+                      id: message.id,
+                      senderId: messageSenderId,
+                      currentUserId: currentUserIdStr,
+                      isFromCurrentUser,
+                      tieneCurrentContact: !!currentContact,
+                      texto: message.text?.substring(0, 30),
+                    })
+                  }
+
+                  // SIEMPRE renderizar el mensaje - si no es del usuario actual, es del otro usuario
+                  if (isFromCurrentUser) {
+                    // Mensaje del usuario actual - DERECHA, AZUL
+                    return (
+                      <div key={message.id} className="d-flex align-items-start gap-2 my-3 text-end chat-item justify-content-end">
+                        <div>
+                          <div className="chat-message py-2 px-3 bg-info-subtle rounded">{message.text}</div>
+                          <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
+                            {message.time}
                           </div>
                         </div>
-                      )}
-
-                      {/* Mensaje del usuario actual - DERECHA, AZUL */}
-                      {isFromCurrentUser && (
-                        <div className="d-flex align-items-start gap-2 my-3 text-end chat-item justify-content-end">
-                          <div>
-                            <div className="chat-message py-2 px-3 bg-info-subtle rounded">{message.text}</div>
-                            <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
-                              {message.time}
-                            </div>
-                          </div>
-                          {currentUserData.avatar ? (
-                            <Image src={currentUserData.avatar.src} width={36} height={36} className="avatar-md rounded-circle" alt="User" />
-                          ) : (
-                            <span className="avatar-sm flex-shrink-0">
-                              <span className="avatar-title text-bg-primary fw-bold rounded-circle w-25 h-25">
-                                {currentUserData.name.charAt(0).toUpperCase()}
-                              </span>
+                        {currentUserData.avatar ? (
+                          <Image src={currentUserData.avatar.src} width={36} height={36} className="avatar-md rounded-circle" alt="User" />
+                        ) : (
+                          <span className="avatar-sm flex-shrink-0">
+                            <span className="avatar-title text-bg-primary fw-bold rounded-circle w-25 h-25">
+                              {currentUserData.name.charAt(0).toUpperCase()}
                             </span>
-                          )}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  } else {
+                    // Mensaje del otro usuario - IZQUIERDA, AMARILLO
+                    return (
+                      <div key={message.id} className="d-flex align-items-start gap-2 my-3 chat-item">
+                        {currentContact?.avatar ? (
+                          <Image 
+                            src={typeof currentContact.avatar === 'object' && 'src' in currentContact.avatar 
+                              ? currentContact.avatar.src 
+                              : String(currentContact.avatar)} 
+                            width={36} 
+                            height={36} 
+                            className="avatar-md rounded-circle" 
+                            alt="User" 
+                          />
+                        ) : (
+                          <span className="avatar-sm flex-shrink-0">
+                            <span className="avatar-title text-bg-primary fw-bold rounded-circle">
+                              {currentContact?.name?.charAt(0)?.toUpperCase() || '?'}
+                            </span>
+                          </span>
+                        )}
+                        <div>
+                          <div className="chat-message py-2 px-3 bg-warning-subtle rounded">{message.text}</div>
+                          <div className="text-muted d-inline-flex align-items-center gap-1 fs-xs mt-1">
+                            {message.time}
+                          </div>
                         </div>
-                      )}
-                    </Fragment>
-                  )
+                      </div>
+                    )
+                  }
                 })}
                 <div ref={messagesEndRef} />
               </>
