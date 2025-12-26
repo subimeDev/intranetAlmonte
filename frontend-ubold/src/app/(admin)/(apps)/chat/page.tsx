@@ -142,11 +142,8 @@ const Page = () => {
                 allChannelsRef.current.set(channelName, channel)
 
                 // Escuchar nuevos mensajes en todos los canales
-                // NOTA: Este handler solo escucha para notificaciones futuras.
-                // El canal específico de la conversación actual maneja la actualización de mensajes.
-                // No actualizamos aquí para evitar duplicados con el canal específico.
                 channel.bind('new-message', (data: any) => {
-                  console.error('[Chat] 📨 Mensaje recibido en canal global (solo logging):', {
+                  console.error('[Chat] 📨 Mensaje recibido en canal global:', {
                     channelName,
                     id: data.id,
                     remitente_id: data.remitente_id,
@@ -156,8 +153,53 @@ const Page = () => {
                     contactId: contact.id,
                   })
                   
-                  // NO actualizar mensajes aquí - el canal específico de la conversación actual lo maneja
-                  // Este handler solo existe para mantener la suscripción activa y para futuras notificaciones
+                  // Actualizar mensajes si estamos viendo esta conversación
+                  const currentContactActual = currentContactRef.current
+                  if (currentContactActual && currentUserId) {
+                    const mensajeRemitenteId = parseInt(String(data.remitente_id || ''), 10)
+                    const mensajeClienteId = parseInt(String(data.cliente_id || ''), 10)
+                    const currentUserIdNum = parseInt(String(currentUserId || ''), 10)
+                    const currentContactIdNum = parseInt(String(currentContactActual.id || ''), 10)
+                    
+                    // Verificar si el mensaje es para la conversación actual
+                    const esRemitente = mensajeRemitenteId === currentUserIdNum && mensajeClienteId === currentContactIdNum
+                    const esCliente = mensajeRemitenteId === currentContactIdNum && mensajeClienteId === currentUserIdNum
+                    const esParaEstaConversacion = esRemitente || esCliente
+                    
+                    if (esParaEstaConversacion) {
+                      console.error('[Chat] ✅ Mensaje recibido en canal global para conversación actual, actualizando estado')
+                      setMessages((prev) => {
+                        // Verificar si el mensaje ya existe para evitar duplicados
+                        const existe = prev.some((m) => String(m.id) === String(data.id))
+                        if (existe) {
+                          console.error('[Chat] ⚠️ Mensaje duplicado ignorado en canal global:', data.id)
+                          return prev
+                        }
+                        
+                        const nuevoMensaje: MessageType = {
+                          id: String(data.id),
+                          senderId: String(data.remitente_id),
+                          text: data.texto || '',
+                          time: new Date(data.fecha || Date.now()).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+                        }
+                        
+                        const nuevosMensajes = [...prev, nuevoMensaje]
+                        nuevosMensajes.sort((a, b) => {
+                          const idA = parseInt(a.id) || 0
+                          const idB = parseInt(b.id) || 0
+                          return idA - idB
+                        })
+                        
+                        console.error('[Chat] ✅ Mensaje agregado desde canal global. Total:', nuevosMensajes.length, 'ID:', data.id)
+                        return nuevosMensajes
+                      })
+                      
+                      // Scroll al final después de un breve delay
+                      setTimeout(() => {
+                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+                      }, 100)
+                    }
+                  }
                 })
               }
             }
