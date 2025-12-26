@@ -280,6 +280,22 @@ export async function POST(request: NextRequest) {
       strapiProductData.data.featured = body.featured
     }
 
+    // Log detallado ANTES de enviar para identificar relaciones problemáticas
+    console.log('[API POST] 🔍 RELACIONES A ENVIAR:')
+    console.log('  - obra:', strapiProductData.data.obra || 'NO HAY')
+    console.log('  - autor_relacion:', strapiProductData.data.autor_relacion || 'NO HAY')
+    console.log('  - editorial:', strapiProductData.data.editorial || 'NO HAY')
+    console.log('  - sello:', strapiProductData.data.sello || 'NO HAY')
+    console.log('  - coleccion:', strapiProductData.data.coleccion || 'NO HAY')
+    console.log('  - canales:', strapiProductData.data.canales || 'NO HAY')
+    console.log('  - marcas:', strapiProductData.data.marcas || 'NO HAY')
+    console.log('  - etiquetas:', strapiProductData.data.etiquetas || 'NO HAY')
+    console.log('  - categorias_producto:', strapiProductData.data.categorias_producto || 'NO HAY')
+    
+    // CRÍTICO: Si hay un error de "locale null", puede ser que el documentId no existe o tiene problema de i18n
+    // Intentar crear sin relaciones problemáticas si falla
+    console.log('[API POST] 📤 Enviando a Strapi...')
+    
     // Usar Promise.race con timeout para evitar que se quede colgado
     const strapiPromise = strapiClient.post<any>('/api/libros', strapiProductData)
     const timeoutPromise = new Promise((_, reject) => 
