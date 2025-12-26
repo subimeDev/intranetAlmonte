@@ -395,16 +395,20 @@ const Page = () => {
           const reloadData = await reloadResponse.json()
           const mensajesData = Array.isArray(reloadData.data) ? reloadData.data : (reloadData.data ? [reloadData.data] : [])
           
+          // Mapear mensajes correctamente - pueden venir en attributes o directamente
           const mensajesMapeados: MessageType[] = mensajesData.map((mensaje: any) => {
-            const textoMsg = mensaje.texto || ''
-            const remitenteIdMsg = mensaje.remitente_id || 1
-            const fecha = mensaje.fecha ? new Date(mensaje.fecha) : new Date(mensaje.createdAt || Date.now())
+            const mensajeAttrs = mensaje.attributes || mensaje
+            const textoMsg = mensajeAttrs.texto || mensaje.texto || ''
+            const remitenteIdMsg = mensajeAttrs.remitente_id || mensaje.remitente_id || 1
+            const fecha = mensajeAttrs.fecha || mensaje.fecha || mensaje.createdAt || Date.now()
+            const fechaObj = new Date(fecha)
+            const mensajeId = mensaje.id || mensajeAttrs.id
             
             return {
-              id: String(mensaje.id),
+              id: String(mensajeId),
               senderId: String(remitenteIdMsg),
               text: textoMsg,
-              time: fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+              time: fechaObj.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
             }
           })
           
@@ -421,25 +425,21 @@ const Page = () => {
           // Remover mensajes temporales y actualizar con los reales
           setMessages(mensajesMapeados.filter(m => !m.id.startsWith('temp-')))
           
-            // Actualizar última fecha para el polling (usar el mensaje más reciente por fecha)
-            if (mensajesMapeados.length > 0) {
-              // Encontrar el mensaje más reciente
-              let mensajeMasReciente = mensajesData[0]
-              let fechaMasReciente = new Date(mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha || 0).getTime()
-              
-              mensajesData.forEach((msg: any) => {
-                const fecha = new Date(msg?.fecha || msg?.createdAt || msg?.attributes?.fecha || 0).getTime()
-                if (fecha > fechaMasReciente) {
-                  fechaMasReciente = fecha
-                  mensajeMasReciente = msg
-                }
-              })
-              
-              const ultimaFecha = mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha
-              if (ultimaFecha) {
-                setLastMessageDate(ultimaFecha)
-              }
+          // Actualizar última fecha para el polling
+          if (mensajesMapeados.length > 0) {
+            // Ordenar por fecha y tomar el más reciente
+            const mensajesOrdenados = [...mensajesData].sort((a: any, b: any) => {
+              const fechaA = new Date(a?.fecha || a?.createdAt || a?.attributes?.fecha || 0).getTime()
+              const fechaB = new Date(b?.fecha || b?.createdAt || b?.attributes?.fecha || 0).getTime()
+              return fechaB - fechaA // Más reciente primero
+            })
+            
+            const mensajeMasReciente = mensajesOrdenados[0]
+            const ultimaFecha = mensajeMasReciente?.fecha || mensajeMasReciente?.createdAt || mensajeMasReciente?.attributes?.fecha
+            if (ultimaFecha) {
+              setLastMessageDate(ultimaFecha)
             }
+          }
           
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
