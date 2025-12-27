@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
     // Para otros errores, devolver 200 con warning (comportamiento anterior)
     return NextResponse.json({
       success: true,
-      data: [],
+        data: [],
       warning: `No se pudieron cargar los pedidos: ${error.message}`
     })
   }

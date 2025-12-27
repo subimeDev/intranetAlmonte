@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/logs/usuario/[id]
- * Obtiene todos los logs de actividad de un usuario específico
+ * Obtiene todos los logs de actividades de un usuario específico
  */
 export async function GET(
   request: NextRequest,
@@ -13,82 +13,187 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const usuarioId = parseInt(id)
+    const usuarioId = id // Mantener como string para compatibilidad
+    const usuarioIdNum = parseInt(usuarioId)
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '100')
+    const sort = searchParams.get('sort') || 'fecha:desc'
+
+    console.log('[API /logs/usuario/[id]] Obteniendo logs del usuario:', { usuarioId, usuarioIdNum, page, pageSize, sort })
+
+    // Construir query de Strapi
+    const sortField = sort.split(':')[0] || 'fecha'
+    const sortOrder = sort.split(':')[1] || 'desc'
     
-    if (isNaN(usuarioId)) {
-      return NextResponse.json({
-        success: false,
-        error: 'ID de usuario inválido',
-        data: []
-      }, { status: 400 })
-    }
-
-    console.log('[API /logs/usuario/[id]] Obteniendo logs para usuario:', usuarioId)
-
-    // Obtener logs del usuario usando el endpoint personalizado de Strapi
-    // Filtrar por usuario usando el ID
-    const logsResponse = await strapiClient.get<any>(
-      `/api/activity-logs/listar?page=1&pageSize=10000&filters[usuario][id][$eq]=${usuarioId}`
-    )
-
-    let logs: any[] = []
+    let response: any
+    let usuarioInfo: any = null
     
-    if (logsResponse.data !== undefined) {
-      if (Array.isArray(logsResponse.data)) {
-        logs = logsResponse.data
-      } else if (logsResponse.data) {
-        logs = [logsResponse.data]
+    // Si el ID es negativo, es un usuario anónimo - buscar por IP
+    if (usuarioIdNum < 0) {
+      // Primero obtener la lista de usuarios para encontrar la IP asociada a este ID negativo
+      const usuariosResponse = await strapiClient.get<any>(
+        `/api/activity-logs?populate[usuario][populate]=*&pagination[pageSize]=10000&sort=fecha:desc`
+      )
+      
+      let usuariosLogs: any[] = []
+      if (Array.isArray(usuariosResponse)) {
+        usuariosLogs = usuariosResponse
+      } else if (usuariosResponse.data && Array.isArray(usuariosResponse.data)) {
+        usuariosLogs = usuariosResponse.data
       }
-    } else if (Array.isArray(logsResponse)) {
-      logs = logsResponse
-    } else {
-      logs = [logsResponse]
-    }
-
-    // Si no hay filtro por usuario en el endpoint, filtrar manualmente
-    if (logs.length > 0) {
-      logs = logs.filter((log: any) => {
+      
+      // Encontrar la IP asociada a este ID negativo
+      const usuariosMap = new Map<number, string>()
+      usuariosLogs.forEach((log: any) => {
         const logData = log.attributes || log
-        const usuario = logData.usuario
-        
-        if (!usuario) return false
-        
-        // Extraer ID del usuario
-        let logUsuarioId: number | null = null
-        if (usuario.data) {
-          logUsuarioId = usuario.data.id || usuario.data.documentId || null
-        } else if (usuario.id || usuario.documentId) {
-          logUsuarioId = usuario.id || usuario.documentId
-        } else if (typeof usuario === 'number') {
-          logUsuarioId = usuario
+        if (!logData.usuario && logData.ip_address) {
+          const ipHash = logData.ip_address.split('').reduce((acc: number, char: string) => {
+            return ((acc << 5) - acc) + char.charCodeAt(0)
+          }, 0)
+          const anonId = -Math.abs(ipHash)
+          if (!usuariosMap.has(anonId)) {
+            usuariosMap.set(anonId, logData.ip_address)
+          }
         }
-        
-        return logUsuarioId === usuarioId
       })
+      
+      const ipAddress = usuariosMap.get(usuarioIdNum)
+      
+      if (!ipAddress) {
+        console.log('[API /logs/usuario/[id]] ⚠️ No se encontró IP para usuario anónimo:', usuarioId)
+        return NextResponse.json({
+          success: true,
+          data: [],
+          pagination: { page: 1, pageSize, pageCount: 0, total: 0 },
+          usuarioId,
+          usuarioInfo: {
+            id: usuarioIdNum,
+            nombre: 'Usuario Anónimo',
+            email: 'N/A',
+          },
+        })
+      }
+      
+      console.log('[API /logs/usuario/[id]] 🔍 Usuario anónimo, buscando por IP:', ipAddress)
+      
+      // Buscar logs sin usuario y con esta IP
+      // Obtener todos los logs y filtrar por IP en el código (ya que Strapi puede no soportar bien filtros null)
+      const allLogsResponse = await strapiClient.get<any>(
+        `/api/activity-logs?pagination[pageSize]=10000&sort=${sortField}:${sortOrder}`
+      )
+      
+      // Extraer logs de la respuesta
+      const logsParaFiltrar: any[] = Array.isArray(allLogsResponse) 
+        ? allLogsResponse 
+        : (allLogsResponse.data && Array.isArray(allLogsResponse.data)) 
+          ? allLogsResponse.data 
+          : []
+      
+      // Filtrar logs sin usuario y con la IP correcta
+      const filteredLogs = logsParaFiltrar.filter((log: any) => {
+        const logData = log.attributes || log
+        return !logData.usuario && logData.ip_address === ipAddress
+      })
+      
+      // Aplicar paginación manual
+      const startIndex = (page - 1) * pageSize
+      const endIndex = startIndex + pageSize
+      const items = filteredLogs.slice(startIndex, endIndex)
+      const pagination = {
+        page,
+        pageSize,
+        pageCount: Math.ceil(filteredLogs.length / pageSize),
+        total: filteredLogs.length,
+      }
+      
+      console.log('[API /logs/usuario/[id]] ✅ Logs filtrados:', items.length, 'de', filteredLogs.length)
+      
+      return NextResponse.json({
+        success: true,
+        data: items,
+        pagination,
+        usuarioId,
+        usuarioInfo: {
+          id: usuarioIdNum,
+          nombre: `Usuario Anónimo (${ipAddress})`,
+          email: 'N/A',
+        },
+      })
+    } else {
+      // Usuario normal - buscar por ID de usuario
+      // Populate específico para traer email_login del colaborador
+      response = await strapiClient.get<any>(
+        `/api/activity-logs?filters[usuario][id][$eq]=${usuarioId}&populate[usuario][fields]=email_login&populate[usuario][populate][persona][fields]=nombres,primer_apellido,segundo_apellido,nombre_completo&pagination[page]=${page}&pagination[pageSize]=${pageSize}&sort=${sortField}:${sortOrder}`
+      )
     }
 
-    // Ordenar por fecha más reciente primero
-    logs.sort((a, b) => {
-      const fechaA = (a.attributes || a).fecha || (a.attributes || a).createdAt || ''
-      const fechaB = (b.attributes || b).fecha || (b.attributes || b).createdAt || ''
-      return new Date(fechaB).getTime() - new Date(fechaA).getTime()
-    })
+    let items: any[] = []
+    let pagination: any = {}
 
-    console.log('[API /logs/usuario/[id]] ✅ Logs encontrados:', logs.length)
+    if (Array.isArray(response)) {
+      items = response
+    } else if (response.data) {
+      if (Array.isArray(response.data)) {
+        items = response.data
+      } else {
+        items = [response.data]
+      }
+      pagination = response.pagination || {}
+    } else {
+      items = [response]
+    }
+
+    console.log('[API /logs/usuario/[id]] ✅ Logs obtenidos:', items.length)
+
+    // Si no hay usuarioInfo pero hay items, intentar obtenerlo del primer log
+    if (!usuarioInfo && items.length > 0) {
+      const firstLog = items[0]
+      const logData = firstLog.attributes || firstLog
+      const usuario = logData.usuario
+      
+      if (usuario) {
+        if (usuario.data) {
+          const colaboradorData = usuario.data
+          const colaboradorAttrs = colaboradorData.attributes || colaboradorData
+          const persona = colaboradorAttrs.persona
+          let nombre = colaboradorAttrs.email_login || 'Sin nombre'
+          
+          if (persona) {
+            const personaData = persona.data || persona
+            const personaAttrs = personaData?.attributes || personaData || persona
+            nombre = personaAttrs.nombre_completo || 
+                     personaAttrs.nombres || 
+                     `${(personaAttrs.primer_apellido || '')} ${(personaAttrs.segundo_apellido || '')}`.trim() ||
+                     nombre
+          }
+          
+          usuarioInfo = {
+            id: colaboradorData.id || colaboradorData.documentId || usuarioIdNum,
+            nombre,
+            email: colaboradorAttrs.email_login || 'N/A',
+          }
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      data: logs,
-      total: logs.length
+      data: items,
+      pagination: pagination || { page, pageSize, pageCount: 0, total: items.length },
+      usuarioId,
+      usuarioInfo,
     })
-
   } catch (error: any) {
-    console.error('[API /logs/usuario/[id]] ❌ Error:', error)
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Error al obtener logs del usuario',
-      data: []
-    }, { status: error.status || 500 })
+    console.error('[API /logs/usuario/[id]] ❌ Error:', error.message)
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Error al obtener logs del usuario',
+        data: [],
+      },
+      { status: error.status || 500 }
+    )
   }
 }
-
